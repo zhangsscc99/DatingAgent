@@ -1,0 +1,19 @@
+{
+  "name": "dating-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI Relationship Coach — Agent harness with tool-calling loop",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "start": "npm run start -w backend",
+    "deploy": "npm run build && npm run start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
