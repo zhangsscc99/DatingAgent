@@ -35,7 +35,44 @@
 .welcome > p {
   color: var(--text-muted);
   font-size: 14px;
-  margin-bottom: 32px;
+  margin-bottom: 20px;
+}
+
+.welcome-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.welcome-tag {
+  padding: 4px 12px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(232, 67, 147, 0.25);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.welcome-cta {
+  display: inline-block;
+  margin-bottom: 28px;
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.welcome-cta:hover {
+  background: var(--accent-soft);
+  transform: translateY(-1px);
 }
 
 .welcome-features {
@@ -70,25 +107,21 @@
   color: var(--text-muted);
 }
 
-.typing {
-  display: flex;
-  gap: 4px;
-  padding: 12px 16px;
-  align-self: flex-start;
-}
+@media (max-width: 768px) {
+  .messages {
+    padding: 16px;
+  }
 
-.typing span {
-  width: 8px;
-  height: 8px;
-  background: var(--accent);
-  border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out both;
-}
+  .welcome {
+    padding: 24px 12px;
+  }
 
-.typing span:nth-child(1) { animation-delay: -0.32s; }
-.typing span:nth-child(2) { animation-delay: -0.16s; }
+  .welcome > p,
+  .feature p {
+    color: var(--text-secondary);
+  }
 
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-  40% { transform: scale(1); opacity: 1; }
+  .input-bar {
+    padding: 12px 16px;
+  }
 }

@@ -4,23 +4,26 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AgentHarness, createSession } from '../agent/harness.js';
 import type { AgentContext, UserProfile } from '../agent/types.js';
+import { buildHealthReport } from '../lib/health.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const harness = new AgentHarness();
 const sessions = new Map<string, AgentContext>();
+const frontendDist = path.resolve(__dirname, '../../../frontend/dist');
 
-export function createApp() {
+export interface AppOptions {
+  llmConfigured?: boolean;
+}
+
+export function createApp(options: AppOptions = {}) {
+  const llmConfigured = options.llmConfigured ?? Boolean(process.env.OPENAI_API_KEY?.trim());
   const app = express();
   app.use(cors());
   app.use(express.json());
 
   app.get('/api/health', (_req, res) => {
-    res.json({
-      status: 'ok',
-      service: 'DatingAgent',
-      version: '1.0.0',
-      llmConfigured: Boolean(process.env.OPENAI_API_KEY),
-    });
+    const report = buildHealthReport(frontendDist, llmConfigured);
+    res.status(report.status === 'ok' ? 200 : 503).json(report);
   });
 
   app.get('/api/tools', (_req, res) => {
@@ -40,6 +43,31 @@ export function createApp() {
     const session = createSession(profile);
     sessions.set(session.sessionId, session);
     res.json({ sessionId: session.sessionId });
+  });
+
+  app.post('/api/session/restore', (req, res) => {
+    const { sessionId, messages, profile } = req.body as {
+      sessionId?: string;
+      messages?: Array<{ role: string; content: string }>;
+      profile?: UserProfile;
+    };
+
+    if (!sessionId?.trim()) {
+      return res.status(400).json({ error: 'sessionId is required' });
+    }
+
+    const history = (messages ?? [])
+      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    const existing = sessions.get(sessionId);
+    const session = existing ?? createSession(profile ?? {});
+    session.sessionId = sessionId;
+    if (profile) session.profile = { ...session.profile, ...profile };
+    if (history.length > 0) session.conversationHistory = history;
+
+    sessions.set(sessionId, session);
+    res.json({ sessionId, restored: true, messageCount: history.length });
   });
 
   app.get('/api/session/:id', (req, res) => {
@@ -119,7 +147,6 @@ export function createApp() {
     res.end();
   });
 
-  const frontendDist = path.resolve(__dirname, '../../frontend/dist');
   app.use(express.static(frontendDist));
   app.get('*', (_req, res) => {
     res.sendFile(path.join(frontendDist, 'index.html'), (err) => {

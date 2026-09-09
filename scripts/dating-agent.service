@@ -1,0 +1,26 @@
+[Unit]
+Description=DatingAgent API and frontend (Express)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/dating-agent/backend
+EnvironmentFile=-/opt/dating-agent/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/dating-agent.log
+StandardError=append:/var/log/dating-agent.log
+
+# Hardening (adjust if your Node binary path differs)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log
+
+[Install]
+WantedBy=multi-user.target
