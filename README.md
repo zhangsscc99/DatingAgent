@@ -44,11 +44,47 @@ npm run dev
 # 生产构建 & 部署
 npm run build
 npm run start
+
+# 一键部署脚本（构建、端口检查、健康探测）
+bash scripts/deploy.sh
 ```
 
 - 前端开发：http://localhost:3000
 - 后端 API：http://localhost:3001/api/health
 - 生产模式：后端同时 serve 前端静态文件
+
+### 健康检查
+
+`GET /api/health` 返回运行状态、uptime、内存占用、LLM 是否配置，以及 `frontend/dist` 是否已构建：
+
+```json
+{
+  "status": "ok",
+  "uptimeSeconds": 42,
+  "memory": { "rssMb": 55.2, "heapUsedMb": 12.1, "heapTotalMb": 18.0 },
+  "llmConfigured": false,
+  "frontend": { "built": true, "indexExists": true }
+}
+```
+
+若前端未构建，`status` 为 `degraded` 且 HTTP 503。
+
+### systemd 部署
+
+1. 将项目安装到 `/opt/dating-agent`（或修改 unit 中的路径）
+2. 复制并编辑 service 文件：
+
+```bash
+sudo cp scripts/dating-agent.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now dating-agent
+sudo systemctl status dating-agent
+```
+
+3. 环境变量放在 `/opt/dating-agent/.env`（参考 `.env.example`）
+4. 日志默认追加到 `/var/log/dating-agent.log`；轮转配置见 `scripts/dating-agent.logrotate`
+
+启动时后端会校验 `PORT` 与可选 LLM 变量，并在日志中输出清晰提示（mock 模式 vs live LLM）。
 
 ## 技术栈
 

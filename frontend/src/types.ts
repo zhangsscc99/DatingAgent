@@ -1,8 +1,25 @@
+export interface UserProfile {
+  name?: string;
+  age?: number;
+  interests?: string[];
+  goals?: string;
+  personality?: string;
+}
+
+export type StreamPhase = 'thinking' | 'tool' | 'generating';
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   toolEvents?: ToolEvent[];
+  /** True while SSE stream is active for this message */
+  streaming?: boolean;
+  streamPhase?: StreamPhase;
+  /** Stream or request failed — show retry UI */
+  error?: boolean;
+  /** Original user prompt to resend on retry */
+  retryPrompt?: string;
 }
 
 export interface ToolEvent {

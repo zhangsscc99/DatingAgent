@@ -56,3 +56,26 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+.input-bar textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.input-bar button:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .input-bar textarea {
+    font-size: 16px;
+    min-height: 48px;
+  }
+
+  .input-bar button {
+    width: 48px;
+    height: 48px;
+  }
+}
