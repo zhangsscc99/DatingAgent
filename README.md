@@ -65,6 +65,55 @@ npm run start
 | `LLM_BASE_URL` | API 地址 | `https://api.openai.com/v1` |
 | `LLM_MODEL` | 模型 | `gpt-4o-mini` |
 
+## Ralph Loop (Cursor)
+
+Use the [Ralph Loop](https://github.com/deepseek-ai/deepseek-harness) pattern to drive multi-round work with **fresh agent context** each round. Workspace files (including `.ralph/`) are the shared memory; only a bounded handoff crosses round boundaries.
+
+### In Cursor IDE
+
+Skill path: `~/.cursor/skills/ralph` (see `SKILL.md` for full workflow).
+
+```text
+/ralph <objective>
+/ralph <objective> --max-rounds 8
+```
+
+The orchestrator creates `.ralph/state.json`, spawns a fresh **ralph-worker** each round, and reads `.ralph/handoff.json` to decide whether to continue, stop, or surface a blocker.
+
+### Headless CLI
+
+Requires `cursor-agent` (logged in) and `jq`:
+
+```bash
+~/.cursor/skills/ralph/scripts/ralph-loop.sh "<objective>" [max_rounds] [workspace]
+```
+
+Example from this repo:
+
+```bash
+~/.cursor/skills/ralph/scripts/ralph-loop.sh "Add feature X and verify health" 8 /root/DatingAgent
+```
+
+Defaults: 8 rounds max, current directory as workspace. Exit codes: `0` complete, `1` blocked/worker error, `2` budget exhausted.
+
+### Handoff file
+
+Each worker round writes `.ralph/handoff.json`:
+
+```json
+{
+  "status": "continue | complete | blocked",
+  "summary": "What this round accomplished",
+  "evidence": ["paths, command output, URLs"],
+  "nextSteps": ["concrete next actions"],
+  "blocker": ""
+}
+```
+
+- `continue` — more rounds needed (`nextSteps` required)
+- `complete` — objective done (`evidence` required)
+- `blocked` — cannot proceed (`blocker` required)
+
 ## License
 
 MIT
