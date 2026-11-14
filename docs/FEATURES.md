@@ -6,7 +6,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **F01 · Session lifecycle** — `GET /api/sessions` returns `{count, oldestAgeSec}` (no PII), `DELETE /api/session/:id` → `{deleted:true|false}`, plus idle-TTL eviction (30 min) and a 500-session cap in `routes/app.ts`. Acceptance: created session disappears after `DELETE`; `GET /api/session/:id` then 404s; health still 200.
 - [x] **F02 · Input guardrails** — `POST /api/chat` and `/api/chat/stream`: message > 4000 chars → 413 JSON `{error}`; per-IP rate limit 30 req/min → 429 with `Retry-After`. Acceptance: oversized body 413, burst > 30 → 429, normal chat still 200.
 - [x] **F03 · Graceful shutdown** — handle SIGTERM/SIGINT: stop accepting connections, `server.close()`, exit 0 with a log line. Acceptance: `pm2 restart` leaves no `EADDRINUSE` and health 200 after.
-- [ ] **F04 · Build info endpoint** — `GET /api/version` → `{version, gitSha, buildTime, node}`; git sha/buildTime injected at build (env or generated file), never read at request time.
+- [x] **F04 · Build info endpoint** — `GET /api/version` → `{version, gitSha, buildTime, node}`; git sha/buildTime injected at build (env or generated file), never read at request time.
 - [ ] **F05 · Structured request logging** — middleware logging `{ts, id, method, path, status, ms, msgLen}` as JSON lines. No message content, no keys.
 - [ ] **F06 · Copy reply button** — clipboard copy on assistant bubbles with a 1.5 s "copied" affordance; graceful fallback when `navigator.clipboard` is unavailable.
 - [ ] **F07 · Export conversation** — "导出 Markdown" action downloads the current conversation as `.md` (role headings + timestamps).

@@ -5,6 +5,9 @@ dist/
 *.log
 .DS_Store
 
+# generated at build time by scripts/gen-build-info.mjs (F04)
+backend/src/generated/
+
 # local secrets/process config
 ecosystem.config.cjs
 scripts/make-ecosystem.py

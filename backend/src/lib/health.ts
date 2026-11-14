@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { serverStartedAt } from '../config/runtime.js';
+import { BUILD_INFO } from '../generated/build-info.js';
 
 export interface HealthReport {
   status: 'ok' | 'degraded';
@@ -28,7 +29,7 @@ export function buildHealthReport(frontendDist: string, llmConfigured: boolean):
   return {
     status: indexExists ? 'ok' : 'degraded',
     service: 'DatingAgent',
-    version: '1.0.0',
+    version: BUILD_INFO.version,
     uptimeSeconds: Math.floor((Date.now() - serverStartedAt) / 1000),
     memory: {
       rssMb: roundMb(mem.rss),

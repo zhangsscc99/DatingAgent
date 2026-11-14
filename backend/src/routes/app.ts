@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { AgentHarness, createSession } from '../agent/harness.js';
 import type { AgentContext, UserProfile } from '../agent/types.js';
 import { buildHealthReport } from '../lib/health.js';
+import { buildVersionReport } from '../lib/version.js';
 import {
   createRateLimiter,
   handleBodyErrors,
@@ -84,6 +85,10 @@ export function createApp(options: AppOptions = {}) {
   app.get('/api/health', (_req, res) => {
     const report = buildHealthReport(frontendDist, llmConfigured);
     res.status(report.status === 'ok' ? 200 : 503).json(report);
+  });
+
+  app.get('/api/version', (_req, res) => {
+    res.json(buildVersionReport());
   });
 
   app.get('/api/tools', (_req, res) => {
