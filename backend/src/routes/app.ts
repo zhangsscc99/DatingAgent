@@ -2,8 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AgentHarness, createSession } from '../agent/harness.js';
-import type { AgentContext, UserProfile } from '../agent/types.js';
+import { AgentHarness, createSession, parseReplyLanguage } from '../agent/harness.js';
+import type { AgentContext, ReplyLanguage, UserProfile } from '../agent/types.js';
 import { buildHealthReport } from '../lib/health.js';
 import { buildVersionReport } from '../lib/version.js';
 import { createRequestLogger } from '../lib/request-log.js';
@@ -70,6 +70,26 @@ function touchSession(id: string | undefined, now = Date.now()): AgentContext | 
 
 export interface AppOptions {
   llmConfigured?: boolean;
+}
+
+/**
+ * Resolve the session for one chat turn. A pinned `language` sticks to the
+ * session so later turns keep the same reply language without resending it.
+ */
+function resolveChatSession(
+  sessionId: string | undefined,
+  profile: UserProfile | undefined,
+  language: ReplyLanguage | undefined,
+): AgentContext {
+  const existing = touchSession(sessionId);
+  if (existing) {
+    if (profile) existing.profile = { ...existing.profile, ...profile };
+    if (language) existing.language = language;
+    return existing;
+  }
+  const created = createSession(profile ?? {}, language ?? 'auto');
+  putSession(created);
+  return created;
 }
 
 export function createApp(options: AppOptions = {}) {
@@ -171,29 +191,26 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.post('/api/chat', ...chatGuards, async (req, res) => {
-    const { sessionId, message, profile } = req.body as {
+    const { sessionId, message, profile, language } = req.body as {
       sessionId?: string;
       message: string;
       profile?: UserProfile;
+      language?: unknown;
     };
 
     if (!message?.trim()) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    let session: AgentContext;
-    const existing = touchSession(sessionId);
-    if (existing) {
-      session = existing;
-      if (profile) session.profile = { ...session.profile, ...profile };
-    } else {
-      session = createSession(profile ?? {});
-      putSession(session);
+    if (language !== undefined && parseReplyLanguage(language) === undefined) {
+      return res.status(400).json({ error: 'language must be one of "zh", "en", "auto"' });
     }
+
+    const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
 
     try {
       const reply = await harness.chat(message, session);
-      res.json({ sessionId: session.sessionId, reply });
+      res.json({ sessionId: session.sessionId, reply, language: session.language ?? 'auto' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       res.status(500).json({ error: msg });
@@ -201,25 +218,22 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.post('/api/chat/stream', ...chatGuards, async (req, res) => {
-    const { sessionId, message, profile } = req.body as {
+    const { sessionId, message, profile, language } = req.body as {
       sessionId?: string;
       message: string;
       profile?: UserProfile;
+      language?: unknown;
     };
 
     if (!message?.trim()) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    let session: AgentContext;
-    const existing = touchSession(sessionId);
-    if (existing) {
-      session = existing;
-      if (profile) session.profile = { ...session.profile, ...profile };
-    } else {
-      session = createSession(profile ?? {});
-      putSession(session);
+    if (language !== undefined && parseReplyLanguage(language) === undefined) {
+      return res.status(400).json({ error: 'language must be one of "zh", "en", "auto"' });
     }
+
+    const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');

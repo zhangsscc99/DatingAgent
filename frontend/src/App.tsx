@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AgentEvent, ChatMessage, StreamPhase, ToolEvent, ToolInfo, UserProfile } from './types';
+import type {
+  AgentEvent,
+  ChatMessage,
+  ReplyLanguage,
+  StreamPhase,
+  ToolEvent,
+  ToolInfo,
+  UserProfile,
+} from './types';
 import ChatWindow from './components/ChatWindow';
 import Sidebar from './components/Sidebar';
 import ProfileOnboarding from './components/ProfileOnboarding';
@@ -34,6 +42,19 @@ const TOOL_LABELS: Record<string, string> = {
   check_compatibility: '匹配分析',
   get_relationship_advice: '关系建议',
 };
+
+/** Reply-language preference, persisted so it survives reloads. */
+const LANGUAGE_KEY = 'datingagent.replyLanguage';
+
+function readStoredLanguage(): ReplyLanguage {
+  try {
+    const stored = localStorage.getItem(LANGUAGE_KEY);
+    if (stored === 'zh' || stored === 'en' || stored === 'auto') return stored;
+  } catch {
+    // Private mode / storage disabled — fall back to auto.
+  }
+  return 'auto';
+}
 
 /** Human-readable message for a failed chat request, using the API's JSON error shape. */
 async function describeChatError(res: Response): Promise<string> {
@@ -96,6 +117,7 @@ export default function App() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [exportState, setExportState] = useState<'idle' | 'done' | 'failed'>('idle');
+  const [language, setLanguage] = useState<ReplyLanguage>(() => readStoredLanguage());
   const exportTimer = useRef<number | null>(null);
   const [restoringSession, setRestoringSession] = useState(() => {
     const { activeSessionId, sessions } = loadChatState();
@@ -185,6 +207,7 @@ export default function App() {
             sessionId,
             message: prompt,
             profile: profile ?? undefined,
+            language,
           }),
           signal: abortRef.current.signal,
         });
@@ -299,7 +322,7 @@ export default function App() {
         });
       }
     },
-    [profile, sessionId],
+    [profile, sessionId, language],
   );
 
   const sendMessage = useCallback(
@@ -497,6 +520,29 @@ export default function App() {
             </div>
           </div>
           <div className="header-actions">
+            <label className="lang-select" title="选择回复语言（自动跟随对话）">
+              <span className="lang-select-icon" aria-hidden="true">
+                🌐
+              </span>
+              <select
+                className="lang-select-input"
+                value={language}
+                onChange={(e) => {
+                  const next = e.target.value as ReplyLanguage;
+                  setLanguage(next);
+                  try {
+                    localStorage.setItem(LANGUAGE_KEY, next);
+                  } catch {
+                    // Storage unavailable — the choice still applies to this session.
+                  }
+                }}
+                aria-label="回复语言"
+              >
+                <option value="auto">自动</option>
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+              </select>
+            </label>
             <button
               type="button"
               className="theme-btn"

@@ -26,7 +26,12 @@ export interface AgentContext {
   sessionId: string;
   profile: UserProfile;
   conversationHistory: Message[];
+  /** Reply language the user asked for; `auto` follows the conversation. */
+  language?: ReplyLanguage;
 }
+
+/** Languages the assistant can be pinned to. `auto` keeps the model's default behaviour. */
+export type ReplyLanguage = 'zh' | 'en' | 'auto';
 
 export interface ToolCall {
   id: string;

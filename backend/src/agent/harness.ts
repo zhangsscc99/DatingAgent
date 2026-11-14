@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { AgentContext, AgentEvent, Message } from './types.js';
+import type { AgentContext, AgentEvent, Message, ReplyLanguage } from './types.js';
 import { LLMClient } from '../llm/client.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
 
@@ -19,6 +19,34 @@ const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感
 
 用户资料：{{profile}}`;
 
+/** Appended to the system prompt only when the user pins a language. */
+const LANGUAGE_DIRECTIVES: Record<ReplyLanguage, string> = {
+  auto: '',
+  zh: '\n\n回复语言：始终用简体中文回答，即使提问使用的是其他语言。',
+  en: '\n\nReply language: Always answer in English, even when the question is asked in another language.',
+};
+
+/** Accepted `language` values on the chat endpoints. */
+export const REPLY_LANGUAGES: readonly ReplyLanguage[] = ['zh', 'en', 'auto'];
+
+/** Returns the language when it is one of REPLY_LANGUAGES, otherwise undefined. */
+export function parseReplyLanguage(value: unknown): ReplyLanguage | undefined {
+  return typeof value === 'string' && (REPLY_LANGUAGES as readonly string[]).includes(value)
+    ? (value as ReplyLanguage)
+    : undefined;
+}
+
+/** System prompt for one turn: profile injected, plus the optional language directive. */
+export function buildSystemPrompt(
+  profile: AgentContext['profile'],
+  language: ReplyLanguage = 'auto',
+): string {
+  return (
+    SYSTEM_PROMPT.replace('{{profile}}', JSON.stringify(profile, null, 2)) +
+    LANGUAGE_DIRECTIVES[language]
+  );
+}
+
 export class AgentHarness {
   private llm = new LLMClient();
   private maxTurns = 8;
@@ -27,7 +55,7 @@ export class AgentHarness {
     const messages: Message[] = [
       {
         role: 'system',
-        content: SYSTEM_PROMPT.replace('{{profile}}', JSON.stringify(context.profile, null, 2)),
+        content: buildSystemPrompt(context.profile, context.language ?? 'auto'),
       },
       ...context.conversationHistory,
       { role: 'user', content: userMessage },
@@ -120,10 +148,14 @@ export class AgentHarness {
   }
 }
 
-export function createSession(profile: AgentContext['profile'] = {}): AgentContext {
+export function createSession(
+  profile: AgentContext['profile'] = {},
+  language: ReplyLanguage = 'auto',
+): AgentContext {
   return {
     sessionId: uuidv4(),
     profile,
     conversationHistory: [],
+    language,
   };
 }

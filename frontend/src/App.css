@@ -121,6 +121,52 @@
   transform: translateY(0.5px);
 }
 
+/* Reply-language picker: icon + compact native select, styled like the theme button. */
+.lang-select {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 8px;
+  height: 32px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.lang-select:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.lang-select:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lang-select-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.lang-select-input {
+  font-family: inherit;
+  font-size: 12px;
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: 0 2px;
+  cursor: pointer;
+  outline: none;
+}
+
+.lang-select-input option {
+  color: var(--text);
+  background: var(--surface, var(--bg));
+}
+
 .export-btn:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--accent);
@@ -276,6 +322,19 @@
   .export-btn {
     font-size: 11px;
     padding: 5px 8px;
+  }
+
+  .lang-select {
+    height: 30px;
+    padding: 0 4px;
+  }
+
+  .lang-select-icon {
+    display: none;
+  }
+
+  .lang-select-input {
+    font-size: 11px;
   }
 }
 

@@ -8,6 +8,9 @@ export interface UserProfile {
 
 export type StreamPhase = 'thinking' | 'tool' | 'generating';
 
+/** Mirrors ReplyLanguage in backend/src/agent/types.ts. */
+export type ReplyLanguage = 'zh' | 'en' | 'auto';
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
