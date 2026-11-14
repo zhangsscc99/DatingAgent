@@ -98,3 +98,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P55 · Composer paste plain-text only** — on paste in the composer, strip rich-text formatting (paste as plain text) so Markdown export stays clean; small client handler.
 - **P56 · Session count badge** — show the number of sessions next to the P33 history dropdown label, updated from the same `/api/sessions` fetch; no extra requests.
 - **P57 · Export filename timestamp** — F07 export filename gains `YYYYMMDD-HHmm` suffix so repeated exports don't collide in Downloads; one-line change.
+- **P58 · Composer focus on session switch** — after picking a session in the P33 dropdown, auto-focus the composer textarea; pure frontend, one `focus()` call.
+- **P59 · Copy feedback tick** — P31/P16 copy buttons briefly show "已复制" state for 1.5s instead of firing a toast; pure UI state.
+- **P60 · Health chip raw-time tooltip** — P27 footer chip tooltip shows the exact last-poll timestamp (HH:MM:SS) alongside latency; reuses the same poll state.
