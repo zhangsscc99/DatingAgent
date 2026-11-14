@@ -11,9 +11,12 @@
     "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
     "build": "npm run build -w backend && npm run build -w frontend",
     "start": "npm run start -w backend",
+    "test": "node scripts/gen-build-info.mjs && vitest run",
+    "test:watch": "node scripts/gen-build-info.mjs && vitest",
     "deploy": "npm run build && npm run start"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "vitest": "^4.1.12"
   }
 }
