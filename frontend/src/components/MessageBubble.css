@@ -222,3 +222,20 @@
     transition: none;
   }
 }
+
+/* F21: subtle per-reply metadata line under assistant replies */
+.reply-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.reply-meta-tool {
+  background: var(--accent-soft);
+  border-radius: 8px;
+  padding: 1px 8px;
+}

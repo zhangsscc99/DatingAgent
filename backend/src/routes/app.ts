@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AgentHarness, createSession, parseReplyLanguage } from '../agent/harness.js';
-import type { AgentContext, ReplyLanguage, UserProfile } from '../agent/types.js';
+import type { AgentContext, ChatResult, ReplyLanguage, UserProfile } from '../agent/types.js';
 import { buildHealthReport } from '../lib/health.js';
 import { buildVersionReport } from '../lib/version.js';
 import { createRequestLogger } from '../lib/request-log.js';
@@ -236,9 +236,14 @@ export function createApp(options: AppOptions = {}) {
     const startedAt = Date.now();
 
     try {
-      const reply = await harness.chat(sanitized, session);
+      const { content, meta } = await harness.chatWithMeta(sanitized, session);
       usageMetrics.recordChat(Date.now() - startedAt, true);
-      res.json({ sessionId: session.sessionId, reply, language: session.language ?? 'auto' });
+      // F21: meta omitted entirely when tokens are unknown (badge stays hidden).
+      const replyMeta =
+        meta.tokens !== undefined
+          ? { ...meta, latencyMs: Date.now() - startedAt }
+          : undefined;
+      res.json({ sessionId: session.sessionId, reply: content, language: session.language ?? 'auto', meta: replyMeta });
     } catch (err) {
       usageMetrics.recordChat(Date.now() - startedAt, false);
       const msg = err instanceof Error ? err.message : String(err);
@@ -283,7 +288,16 @@ export function createApp(options: AppOptions = {}) {
 
     let failed = false;
     try {
-      for await (const event of harness.run(sanitized, session)) {
+      for await (const ev of harness.run(sanitized, session)) {
+        let event = ev;
+        if (event.type === 'done') {
+          // F21: attach the request latency so the UI can show the meta badge.
+          const d = event.data as { sessionId: string };
+          event = {
+            type: 'done',
+            data: { ...d, latencyMs: Date.now() - startedAt },
+          };
+        }
         res.write(`data: ${JSON.stringify(event)}\n\n`);
         if (event.type === 'done') break;
       }

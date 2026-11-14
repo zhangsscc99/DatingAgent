@@ -56,3 +56,17 @@ export interface AgentEvent {
   type: 'thinking' | 'tool_start' | 'tool_end' | 'message' | 'error' | 'done';
   data: unknown;
 }
+
+/** Per-reply metadata surfaced as `meta` on /api/chat and in the SSE `done` event. */
+export interface ChatReplyMeta {
+  /** Name of the first tool used in the turn, if any. */
+  tool?: string;
+  /** Total tokens (prompt + completion) across all LLM calls; absent when unknown. */
+  tokens?: number;
+}
+
+/** Non-streaming chat result: reply text plus its metadata. */
+export interface ChatResult {
+  content: string;
+  meta: ChatReplyMeta;
+}

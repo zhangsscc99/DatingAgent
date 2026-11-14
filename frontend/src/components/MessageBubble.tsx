@@ -110,6 +110,17 @@ function MessageBubble({ message, onRetry }: Props) {
             </span>
           </div>
         )}
+        {!isUser && !message.streaming && !message.error && typeof message.meta?.tokens === 'number' && (
+          <div className="reply-meta" aria-hidden="true">
+            {message.meta.tool && (
+              <span className="reply-meta-tool">{message.meta.tool}</span>
+            )}
+            <span>{message.meta.tokens} tokens</span>
+            {typeof message.meta.latencyMs === 'number' && (
+              <span>{(message.meta.latencyMs / 1000).toFixed(1)}s</span>
+            )}
+          </div>
+        )}
       </div>
       {isUser && (
         <div className="avatar user-avatar" aria-hidden="true">

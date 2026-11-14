@@ -278,8 +278,19 @@ export default function App() {
             }
 
             if (event.type === 'done') {
-              const sid = (event.data as { sessionId: string }).sessionId;
-              if (sid) setSessionId(sid);
+              const d = event.data as {
+                sessionId: string;
+                tool?: string;
+                tokens?: number;
+                latencyMs?: number;
+              };
+              if (d.sessionId) setSessionId(d.sessionId);
+              // F21: only attach a badge when the provider reported token usage.
+              if (typeof d.tokens === 'number') {
+                patchAssistant({
+                  meta: { tool: d.tool, tokens: d.tokens, latencyMs: d.latencyMs },
+                });
+              }
             }
 
             if (event.type === 'error') {

@@ -22,3 +22,4 @@
 2026-11-14 16:32 | F18 | Strip NUL/ESC/C0/C1 control chars from chat messages (keep \n,\t) in backend/src/lib/sanitize.ts, applied in /api/chat and /api/chat/stream before harness dispatch.
 2026-11-14 16:46 | F19 | SSE keepalive: ': ping' every 15s on /api/chat/stream (env-overridable for tests) + 2 vitest cases
 2026-11-14 16:57 | F20 | Empty-state starter chips: 3 tappable prompts (资料优化/聊天指导/约会规划) in welcome block; InputBar gains prefill() handle so a chip fills and focuses the composer; chips live only in the empty state so they vanish after the first message.
+2026-11-14 17:12 | F21 | /api/chat returns meta {tool, latencyMs, tokens}; SSE done event carries tool/tokens/latency; assistant bubbles show a subtle meta line, hidden when tokens unknown

@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { AgentContext, AgentEvent, Message, ReplyLanguage } from './types.js';
+import type { AgentContext, AgentEvent, ChatResult, Message, ReplyLanguage } from './types.js';
 import { LLMClient } from '../llm/client.js';
 import { usageMetrics } from '../lib/metrics.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
@@ -62,12 +62,17 @@ export class AgentHarness {
       { role: 'user', content: userMessage },
     ];
 
+    // F21: metadata collected across the whole turn for the reply badge.
+    const toolsUsed: string[] = [];
+    let tokens: number | undefined;
+
     yield { type: 'thinking', data: { message: '正在思考…' } };
 
     for (let turn = 0; turn < this.maxTurns; turn++) {
       const response = await this.llm.chat(messages, toolRegistry);
       if (response.usage) {
         usageMetrics.recordTokens(response.usage.promptTokens, response.usage.completionTokens);
+        tokens = (tokens ?? 0) + response.usage.promptTokens + response.usage.completionTokens;
       }
 
       if (response.toolCalls.length > 0) {
@@ -77,6 +82,7 @@ export class AgentHarness {
         });
 
         for (const call of response.toolCalls) {
+          toolsUsed.push(call.name);
           const tool = getTool(call.name);
           if (!tool) {
             yield { type: 'error', data: { message: `Unknown tool: ${call.name}` } };
@@ -126,7 +132,10 @@ export class AgentHarness {
       );
 
       yield { type: 'message', data: { content: finalContent, role: 'assistant' } };
-      yield { type: 'done', data: { sessionId: context.sessionId } };
+      yield {
+        type: 'done',
+        data: { sessionId: context.sessionId, tool: toolsUsed[0], tokens },
+      };
       return;
     }
 
@@ -137,18 +146,34 @@ export class AgentHarness {
         role: 'assistant',
       },
     };
-    yield { type: 'done', data: { sessionId: context.sessionId } };
+    yield {
+      type: 'done',
+      data: { sessionId: context.sessionId, tool: toolsUsed[0], tokens },
+    };
   }
 
   /** Non-streaming convenience wrapper */
   async chat(userMessage: string, context: AgentContext): Promise<string> {
-    let lastMessage = '';
+    const { content } = await this.chatWithMeta(userMessage, context);
+    return content;
+  }
+
+  /** Non-streaming chat that also returns the reply metadata (F21). */
+  async chatWithMeta(userMessage: string, context: AgentContext): Promise<ChatResult> {
+    let content = '';
+    let tool: string | undefined;
+    let tokens: number | undefined;
     for await (const event of this.run(userMessage, context)) {
       if (event.type === 'message') {
-        lastMessage = (event.data as { content: string }).content;
+        content = (event.data as { content: string }).content;
+      }
+      if (event.type === 'done') {
+        const d = event.data as { tool?: string; tokens?: number };
+        tool = d.tool;
+        tokens = d.tokens;
       }
     }
-    return lastMessage;
+    return { content, meta: { tool, tokens } };
   }
 }
 

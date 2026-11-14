@@ -25,6 +25,14 @@ export interface ChatMessage {
   error?: boolean;
   /** Original user prompt to resend on retry */
   retryPrompt?: string;
+  /** Per-reply metadata badge (F21); hidden when tokens are unknown */
+  meta?: ReplyMeta;
+}
+
+export interface ReplyMeta {
+  tool?: string;
+  latencyMs?: number;
+  tokens?: number;
 }
 
 export interface ToolEvent {
