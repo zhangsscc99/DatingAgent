@@ -27,3 +27,4 @@
 2026-11-14 17:55 | F23 | POST /api/metrics/reset (localhost-only, 403 otherwise) zeroes usage counters without restart; UsageMetrics.reset()
 2026-11-14 18:04 | backlog | All F01-F23 done; added 3 candidates under ## Proposed (P01-P03) for human review
 2026-11-14 20:56 | PROPOSED | added P22-P24 candidate ideas (message copy / empty-state suggestions / scroll-to-bottom)
+2026-11-14 23:20 | PROPOSED | added P61-P63 candidate ideas (send-disabled while streaming / session title tooltip / shared relative-time util)

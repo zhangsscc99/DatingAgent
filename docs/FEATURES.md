@@ -48,6 +48,9 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P01 · Conversation history persistence** — optional localStorage-backed reload of the last session (opt-out toggle), so refresh doesn't lose context. Low risk; needs a size cap (~50 KB) and a "清除历史" action.
 - **P02 · Streaming tokens count** — `/api/chat/stream` currently lacks the `meta` badge data F21 added to the non-streaming path; emit a final SSE `meta` event with tool/latencyMs/tokens.
 - **P03 · Rate-limit headers** — expose `X-RateLimit-Remaining` and `Retry-After` on all `/api/*` responses so clients can back off gracefully instead of discovering the 429 by surprise.
+- **P61 · Composer send-disabled during streaming** — while a `/api/chat/stream` reply is in flight, disable the send button (visual dim) to avoid double-submit queuing; pure UI state already tracked by the streaming flag.
+- **P62 · Session title tooltip** — full (untruncated) session title on hover via native `title` attribute in the P08 history dropdown; one attribute, no layout change.
+- **P63 · Relative-time Intl helper** — extract P40's relative-time formatting into a shared util used by both session dropdown and meta badge, removing duplicated logic; no behavior change.
 
 - **P07 · Rate-limit status surface** — show remaining request budget as a subtle indicator near the composer (reads the headers from P03 client-side), warn colour at < 5 remaining. Purely UI; no backend change.
 - **P08 · Session list UI** — small "历史会话" dropdown listing active sessions from `GET /api/sessions` with per-item delete, reusing F01's endpoints; capped display of 10 entries.
