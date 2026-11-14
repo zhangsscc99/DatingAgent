@@ -161,34 +161,14 @@ export default function App() {
     setRecentSessions(getRecentSessions());
   }, [messages, sessionId, loading]);
 
-  const sendMessage = useCallback(
-    async (text: string) => {
-      if (!text.trim() || loading) return;
-
-      const prompt = text.trim();
-      const now = Date.now();
-      const userMsg: ChatMessage = {
-        id: `u-${now}`,
-        role: 'user',
-        content: prompt,
-        createdAt: now,
-      };
-      const assistantId = `a-${now}`;
+  /**
+   * Stream one assistant reply into `assistantId`. The caller owns the user
+   * bubble and the loading flag, so a retry can re-run the turn without
+   * appending a second copy of the same user message.
+   */
+  const streamReply = useCallback(
+    async (prompt: string, assistantId: string) => {
       const toolEvents: ToolEvent[] = [];
-
-      setMessages((prev) => [
-        ...prev,
-        userMsg,
-        {
-          id: assistantId,
-          role: 'assistant',
-          content: '',
-          createdAt: now,
-          streaming: true,
-          streamPhase: 'thinking',
-        },
-      ]);
-      setLoading(true);
 
       abortRef.current?.abort();
       abortRef.current = new AbortController();
@@ -317,19 +297,81 @@ export default function App() {
           error: true,
           retryPrompt: prompt,
         });
+      }
+    },
+    [profile, sessionId],
+  );
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim() || loading) return;
+
+      const prompt = text.trim();
+      const now = Date.now();
+      const assistantId = `a-${now}`;
+
+      setMessages((prev) => [
+        ...prev,
+        { id: `u-${now}`, role: 'user', content: prompt, createdAt: now },
+        {
+          id: assistantId,
+          role: 'assistant',
+          content: '',
+          createdAt: now,
+          streaming: true,
+          streamPhase: 'thinking',
+        },
+      ]);
+      setLoading(true);
+
+      try {
+        await streamReply(prompt, assistantId);
       } finally {
         setLoading(false);
       }
     },
-    [loading, sessionId, profile],
+    [loading, streamReply],
   );
 
+  /**
+   * Re-run the failed turn. The user bubble is reused when it is still the one
+   * right before the error, so retrying never duplicates the message in the
+   * visible conversation (or in the transcript sent back to the API).
+   */
   const handleRetry = useCallback(
     (messageId: string, prompt: string) => {
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
-      sendMessage(prompt);
+      if (loading) return;
+
+      const failedIndex = messages.findIndex((m) => m.id === messageId);
+      // Only the newest turn can be retried; anything else would append an
+      // out-of-order reply.
+      if (failedIndex < 0 || failedIndex !== messages.length - 1) return;
+
+      const previous = messages[failedIndex - 1];
+      const reuseUserBubble = previous?.role === 'user' && previous.content === prompt;
+      const now = Date.now();
+      const assistantId = `a-${now}`;
+      const retryUser: ChatMessage[] = reuseUserBubble
+        ? []
+        : [{ id: `u-${now}`, role: 'user', content: prompt, createdAt: now }];
+      const retryAssistant: ChatMessage = {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        createdAt: now,
+        streaming: true,
+        streamPhase: 'thinking',
+      };
+
+      setMessages((prev) => [
+        ...prev.filter((m) => m.id !== messageId),
+        ...retryUser,
+        retryAssistant,
+      ]);
+      setLoading(true);
+      void streamReply(prompt, assistantId).finally(() => setLoading(false));
     },
-    [sendMessage],
+    [loading, messages, streamReply],
   );
 
   const handleProfileSave = (next: UserProfile) => {

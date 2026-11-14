@@ -96,8 +96,14 @@ export default function ChatWindow({
         )}
 
         {!restoring &&
-          messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} onRetry={onRetry} />
+          messages.map((msg, index) => (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              // Only the newest bubble can be retried; retrying an older turn
+              // would append the reply out of order.
+              onRetry={index === messages.length - 1 ? onRetry : undefined}
+            />
           ))}
 
         <div ref={bottomRef} />

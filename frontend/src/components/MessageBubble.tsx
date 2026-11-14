@@ -80,6 +80,8 @@ function MessageBubble({ message, onRetry }: Props) {
             type="button"
             className="retry-btn"
             onClick={() => onRetry(message.id, message.retryPrompt!)}
+            aria-label="重试上一条消息"
+            title="重新发送上一条消息（不会重复添加）"
           >
             ↻ 重试
           </button>

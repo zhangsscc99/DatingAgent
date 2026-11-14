@@ -44,16 +44,18 @@ function sessionTitle(messages: ChatMessage[]): string {
   return text.length > 28 ? `${text.slice(0, 28)}…` : text;
 }
 
-/** Strip transient streaming/error fields before persisting */
+/** Strip transient streaming fields before persisting, but keep the retry
+ * affordance so a failed turn stays retryable after a reload. */
 export function serializeMessages(messages: ChatMessage[]): ChatMessage[] {
   return messages
     .filter((m) => !m.streaming)
-    .map(({ id, role, content, createdAt, toolEvents }) => ({
+    .map(({ id, role, content, createdAt, toolEvents, error, retryPrompt }) => ({
       id,
       role,
       content,
       createdAt,
       toolEvents: toolEvents?.map((t) => ({ ...t, status: 'done' as const })),
+      ...(error ? { error: true as const, retryPrompt } : {}),
     }));
 }
 
@@ -113,7 +115,7 @@ export async function syncSessionWithBackend(
     /* fall through to restore */
   }
 
-  const serialized = serializeMessages(messages);
+  const serialized = serializeMessages(messages).filter((m) => !m.error);
   if (serialized.length === 0) return;
 
   try {
