@@ -271,6 +271,16 @@ export function createApp(options: AppOptions = {}) {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
+    // F19: SSE keepalive — comment pings keep proxies from dropping idle streams.
+    // Interval is overridable (tests use a scaled-down value).
+    const KEEPALIVE_MS = Number(process.env.SSE_KEEPALIVE_MS) || 15_000;
+    const keepalive = setInterval(() => {
+      res.write(': ping\n\n');
+    }, KEEPALIVE_MS);
+    const stopKeepalive = () => clearInterval(keepalive);
+    res.on('close', stopKeepalive);
+    res.on('finish', stopKeepalive);
+
     let failed = false;
     try {
       for await (const event of harness.run(sanitized, session)) {
@@ -282,6 +292,7 @@ export function createApp(options: AppOptions = {}) {
       const msg = err instanceof Error ? err.message : String(err);
       res.write(`data: ${JSON.stringify({ type: 'error', data: { message: msg } })}\n\n`);
     }
+    stopKeepalive();
 
     usageMetrics.recordChat(Date.now() - startedAt, !failed);
     res.end();
