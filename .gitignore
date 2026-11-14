@@ -4,3 +4,7 @@ dist/
 .ralph/
 *.log
 .DS_Store
+
+# local secrets/process config
+ecosystem.config.cjs
+scripts/make-ecosystem.py
