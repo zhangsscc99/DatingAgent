@@ -29,7 +29,11 @@ export default function ChatWindow({
   const wasRestoring = useRef(false);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // F15: smooth scrolling is motion; honour the OS preference.
+    const reduced =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    bottomRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
   }, [messages, loading]);
 
   useEffect(() => {
@@ -46,7 +50,9 @@ export default function ChatWindow({
 
         {!restoring && messages.length === 0 && (
           <div className="welcome animate-in">
-            <div className="welcome-icon">🌹</div>
+            <div className="welcome-icon" aria-hidden="true">
+              🌹
+            </div>
             <h2>
               {profile?.name ? `你好，${profile.name}！` : '你好，我是 DatingAgent'}
             </h2>

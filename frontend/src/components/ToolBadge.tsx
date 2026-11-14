@@ -26,11 +26,13 @@ export default function ToolBadge({ event }: Props) {
         {icon}
       </span>
       <span className="tool-label">{event.label}</span>
-      <span className="tool-status" aria-label={isRunning ? '执行中' : '完成'}>
+      <span className="tool-status" role="img" aria-label={isRunning ? '执行中' : '完成'}>
         {isRunning ? (
-          <span className="spinner" />
+          <span className="spinner" aria-hidden="true" />
         ) : (
-          <span className="check">✓</span>
+          <span className="check" aria-hidden="true">
+            ✓
+          </span>
         )}
       </span>
     </div>

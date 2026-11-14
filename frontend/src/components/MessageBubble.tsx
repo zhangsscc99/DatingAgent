@@ -49,8 +49,14 @@ function MessageBubble({ message, onRetry }: Props) {
   return (
     <div
       className={`bubble-row animate-in ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}`}
+      role="group"
+      aria-label={isUser ? '你的消息' : 'DatingAgent 的回复'}
     >
-      {!isUser && <div className="avatar">🌹</div>}
+      {!isUser && (
+        <div className="avatar" aria-hidden="true">
+          🌹
+        </div>
+      )}
       <div className={`bubble ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}`}>
         {message.toolEvents && message.toolEvents.length > 0 && (
           <div className="tool-events">
@@ -105,7 +111,11 @@ function MessageBubble({ message, onRetry }: Props) {
           </div>
         )}
       </div>
-      {isUser && <div className="avatar user-avatar">你</div>}
+      {isUser && (
+        <div className="avatar user-avatar" aria-hidden="true">
+          你
+        </div>
+      )}
     </div>
   );
 }

@@ -41,6 +41,18 @@ export default function ProfileOnboarding({
     setError('');
   }, [open, initialProfile]);
 
+  // F15 — a dismissable dialog must close on Esc, not only on the × button.
+  useEffect(() => {
+    if (!open || !onClose) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -79,7 +91,9 @@ export default function ProfileOnboarding({
           </button>
         )}
         <div className="profile-header">
-          <span className="profile-icon">✨</span>
+          <span className="profile-icon" aria-hidden="true">
+            ✨
+          </span>
           <div>
             <h2 id="profile-title">完善你的资料</h2>
             <p>告诉我一点关于你的信息，我会给出更贴心的建议</p>

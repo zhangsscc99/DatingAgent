@@ -153,6 +153,16 @@ body {
   border-radius: 3px;
 }
 
+/*
+  Keyboard-focus safety net (F15). Components style their own :focus-visible
+  rings; this catches anything that does not (dialog buttons, native controls).
+  :where() keeps specificity at 0, so no component rule is ever overridden.
+*/
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

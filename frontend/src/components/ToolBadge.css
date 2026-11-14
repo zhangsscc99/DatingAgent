@@ -60,3 +60,15 @@
     transform: rotate(360deg);
   }
 }
+
+/* F15 — replaced by a static hollow ring; the adjacent status text stays. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    opacity: 0.6;
+  }
+
+  .tool-badge {
+    transition: none;
+  }
+}

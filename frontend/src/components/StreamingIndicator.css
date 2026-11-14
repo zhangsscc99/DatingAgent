@@ -45,3 +45,12 @@
     opacity: 1;
   }
 }
+
+/* F15 — the phase label carries the state; the bounce is decoration only. */
+@media (prefers-reduced-motion: reduce) {
+  .streaming-dots span {
+    animation: none;
+    opacity: 0.6;
+    transform: none;
+  }
+}

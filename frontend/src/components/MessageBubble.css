@@ -211,4 +211,14 @@
   .copy-btn {
     transition: none;
   }
+
+  /* Keep the caret as a solid block instead of a blinking one. */
+  .stream-cursor {
+    animation: none;
+    opacity: 0.75;
+  }
+
+  .retry-btn {
+    transition: none;
+  }
 }

@@ -126,6 +126,12 @@
   border-color: var(--accent);
 }
 
+/* F15 — the radio itself is tiny; ring the whole selectable card instead. */
+.goal-option:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .goal-option.selected {
   border-color: var(--accent);
   background: var(--accent-soft);
@@ -196,4 +202,30 @@
 .profile-close:hover {
   background: var(--surface-hover);
   color: var(--text);
+}
+
+/* F15 — dialog controls are icon-only / flat, so give them explicit rings. */
+.profile-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.profile-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* F15 — entrance animations are decoration; reduced-motion users get a snap-in. */
+@media (prefers-reduced-motion: reduce) {
+  .profile-overlay,
+  .profile-panel {
+    animation: none;
+  }
+
+  .goal-option,
+  .profile-btn,
+  .profile-close,
+  .profile-field input {
+    transition: none;
+  }
 }
