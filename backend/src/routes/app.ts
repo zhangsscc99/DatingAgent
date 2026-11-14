@@ -8,6 +8,7 @@ import { buildHealthReport } from '../lib/health.js';
 import { buildVersionReport } from '../lib/version.js';
 import { createRequestLogger } from '../lib/request-log.js';
 import { usageMetrics } from '../lib/metrics.js';
+import { sanitizeMessage } from '../lib/sanitize.js';
 import { getTool } from '../tools/registry.js';
 import {
   createRateLimiter,
@@ -222,7 +223,8 @@ export function createApp(options: AppOptions = {}) {
       language?: unknown;
     };
 
-    if (!message?.trim()) {
+    const sanitized = sanitizeMessage(message ?? '');
+    if (!sanitized.trim()) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
@@ -234,7 +236,7 @@ export function createApp(options: AppOptions = {}) {
     const startedAt = Date.now();
 
     try {
-      const reply = await harness.chat(message, session);
+      const reply = await harness.chat(sanitized, session);
       usageMetrics.recordChat(Date.now() - startedAt, true);
       res.json({ sessionId: session.sessionId, reply, language: session.language ?? 'auto' });
     } catch (err) {
@@ -252,7 +254,8 @@ export function createApp(options: AppOptions = {}) {
       language?: unknown;
     };
 
-    if (!message?.trim()) {
+    const sanitized = sanitizeMessage(message ?? '');
+    if (!sanitized.trim()) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
@@ -270,7 +273,7 @@ export function createApp(options: AppOptions = {}) {
 
     let failed = false;
     try {
-      for await (const event of harness.run(message, session)) {
+      for await (const event of harness.run(sanitized, session)) {
         res.write(`data: ${JSON.stringify(event)}\n\n`);
         if (event.type === 'done') break;
       }
