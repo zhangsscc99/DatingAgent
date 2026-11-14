@@ -50,3 +50,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 ## Done
 
 <!-- Move completed items here with the commit sha. -->
+- **P13 · Chat export** — "导出" button downloading the current conversation as plain-text .txt (timestamped filename), built entirely client-side from state.
+- **P14 · Composer auto-resize** — textarea grows with content up to ~6 lines then scrolls, so long prompts stay visible while typing. Purely CSS + a few lines of JS.
+- **P15 · Light/dark theme toggle** — a small toggle persisting `theme` in localStorage, respecting `prefers-color-scheme` as default; uses existing CSS variables only.
