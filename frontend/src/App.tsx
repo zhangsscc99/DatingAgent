@@ -18,6 +18,12 @@ import {
   markOnboardingComplete,
   saveProfile,
 } from './lib/profileStorage';
+import {
+  buildConversationMarkdown,
+  conversationFilename,
+  downloadMarkdown,
+  exportableMessages,
+} from './lib/exportConversation';
 import './App.css';
 
 const TOOL_LABELS: Record<string, string> = {
@@ -88,6 +94,8 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingComplete());
   const [editingProfile, setEditingProfile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [exportState, setExportState] = useState<'idle' | 'done' | 'failed'>('idle');
+  const exportTimer = useRef<number | null>(null);
   const [restoringSession, setRestoringSession] = useState(() => {
     const { activeSessionId, sessions } = loadChatState();
     const session = sessions.find((s) => s.id === activeSessionId);
@@ -136,6 +144,13 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [sidebarOpen]);
 
+  useEffect(
+    () => () => {
+      if (exportTimer.current !== null) window.clearTimeout(exportTimer.current);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (loading || !sessionId) return;
     const completed = messages.filter((m) => !m.streaming);
@@ -149,12 +164,14 @@ export default function App() {
       if (!text.trim() || loading) return;
 
       const prompt = text.trim();
+      const now = Date.now();
       const userMsg: ChatMessage = {
-        id: `u-${Date.now()}`,
+        id: `u-${now}`,
         role: 'user',
         content: prompt,
+        createdAt: now,
       };
-      const assistantId = `a-${Date.now()}`;
+      const assistantId = `a-${now}`;
       const toolEvents: ToolEvent[] = [];
 
       setMessages((prev) => [
@@ -164,6 +181,7 @@ export default function App() {
           id: assistantId,
           role: 'assistant',
           content: '',
+          createdAt: now,
           streaming: true,
           streamPhase: 'thinking',
         },
@@ -327,6 +345,23 @@ export default function App() {
 
   const handleQuickPrompt = (prompt: string) => sendMessage(prompt);
 
+  const canExport = exportableMessages(messages).length > 0;
+
+  const handleExport = useCallback(() => {
+    const markdown = buildConversationMarkdown(messages);
+    const ok = downloadMarkdown(markdown, conversationFilename());
+    if (!ok) {
+      setExportState('failed');
+    } else {
+      setExportState('done');
+    }
+    if (exportTimer.current !== null) window.clearTimeout(exportTimer.current);
+    exportTimer.current = window.setTimeout(() => {
+      setExportState('idle');
+      exportTimer.current = null;
+    }, 1500);
+  }, [messages]);
+
   const closeSidebar = () => setSidebarOpen(false);
 
   const handleNewChat = () => {
@@ -417,12 +452,39 @@ export default function App() {
               </div>
             </div>
           </div>
-          <div className="header-status" role="status" aria-live="polite">
-            <span
-              className={`status-dot ${health?.llmConfigured ? 'live' : 'mock'}`}
-              aria-hidden="true"
-            />
-            {health?.llmConfigured ? 'LLM 已连接' : 'Demo 模式'}
+          <div className="header-actions">
+            <button
+              type="button"
+              className={`export-btn${exportState === 'done' ? ' done' : ''}${
+                exportState === 'failed' ? ' failed' : ''
+              }`}
+              onClick={handleExport}
+              disabled={!canExport}
+              aria-label="导出当前对话为 Markdown"
+              title={
+                canExport
+                  ? '把当前对话导出为 Markdown 文件'
+                  : exportState === 'failed'
+                    ? '导出失败，请稍后重试'
+                    : '暂无内容可导出'
+              }
+            >
+              {exportState === 'done'
+                ? '✓ 已导出'
+                : exportState === 'failed'
+                  ? '导出失败'
+                  : '⬇ 导出 Markdown'}
+            </button>
+            <span className="export-status" role="status" aria-live="polite">
+              {exportState === 'done' ? '已下载 Markdown 文件' : exportState === 'failed' ? '导出失败' : ''}
+            </span>
+            <div className="header-status" role="status" aria-live="polite">
+              <span
+                className={`status-dot ${health?.llmConfigured ? 'live' : 'mock'}`}
+                aria-hidden="true"
+              />
+              {health?.llmConfigured ? 'LLM 已连接' : 'Demo 模式'}
+            </div>
           </div>
         </header>
         <ChatWindow

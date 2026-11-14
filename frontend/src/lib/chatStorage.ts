@@ -48,10 +48,11 @@ function sessionTitle(messages: ChatMessage[]): string {
 export function serializeMessages(messages: ChatMessage[]): ChatMessage[] {
   return messages
     .filter((m) => !m.streaming)
-    .map(({ id, role, content, toolEvents }) => ({
+    .map(({ id, role, content, createdAt, toolEvents }) => ({
       id,
       role,
       content,
+      createdAt,
       toolEvents: toolEvents?.map((t) => ({ ...t, status: 'done' as const })),
     }));
 }

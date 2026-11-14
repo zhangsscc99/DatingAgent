@@ -12,6 +12,8 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  /** Epoch millis when the bubble was created (used by the Markdown export) */
+  createdAt?: number;
   toolEvents?: ToolEvent[];
   /** True while SSE stream is active for this message */
   streaming?: boolean;
