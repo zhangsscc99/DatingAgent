@@ -8,8 +8,58 @@ import { buildHealthReport } from '../lib/health.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const harness = new AgentHarness();
-const sessions = new Map<string, AgentContext>();
 const frontendDist = path.resolve(__dirname, '../../../frontend/dist');
+
+/** Idle sessions are dropped after this long without activity. */
+const SESSION_IDLE_TTL_MS = 30 * 60 * 1000;
+/** Hard ceiling on concurrent sessions held in memory. */
+const MAX_SESSIONS = 500;
+
+interface SessionEntry {
+  context: AgentContext;
+  lastActiveAt: number;
+}
+
+const sessions = new Map<string, SessionEntry>();
+
+/** Drop sessions that have been idle past the TTL. Cheap: at most MAX_SESSIONS entries. */
+function evictIdleSessions(now = Date.now()): void {
+  for (const [id, entry] of sessions) {
+    if (now - entry.lastActiveAt > SESSION_IDLE_TTL_MS) sessions.delete(id);
+  }
+}
+
+/** Keep the store bounded by dropping the least recently active sessions first. */
+function enforceSessionCap(): void {
+  if (sessions.size <= MAX_SESSIONS) return;
+  const oldestFirst = [...sessions.entries()].sort(
+    (a, b) => a[1].lastActiveAt - b[1].lastActiveAt,
+  );
+  for (const [id] of oldestFirst) {
+    if (sessions.size <= MAX_SESSIONS) break;
+    sessions.delete(id);
+  }
+}
+
+/** Insert or refresh a session, then trim the store to its cap. */
+function putSession(context: AgentContext, now = Date.now()): void {
+  evictIdleSessions(now);
+  sessions.set(context.sessionId, { context, lastActiveAt: now });
+  enforceSessionCap();
+}
+
+/** Read a session and mark it active. Returns undefined when missing or expired. */
+function touchSession(id: string | undefined, now = Date.now()): AgentContext | undefined {
+  if (!id) return undefined;
+  const entry = sessions.get(id);
+  if (!entry) return undefined;
+  if (now - entry.lastActiveAt > SESSION_IDLE_TTL_MS) {
+    sessions.delete(id);
+    return undefined;
+  }
+  entry.lastActiveAt = now;
+  return entry.context;
+}
 
 export interface AppOptions {
   llmConfigured?: boolean;
@@ -38,10 +88,26 @@ export function createApp(options: AppOptions = {}) {
     });
   });
 
+  app.get('/api/sessions', (_req, res) => {
+    const now = Date.now();
+    evictIdleSessions(now);
+
+    let oldestLastActive = now;
+    for (const entry of sessions.values()) {
+      if (entry.lastActiveAt < oldestLastActive) oldestLastActive = entry.lastActiveAt;
+    }
+
+    // Counts and ages only — never session ids or profile data.
+    res.json({
+      count: sessions.size,
+      oldestAgeSec: sessions.size > 0 ? Math.floor((now - oldestLastActive) / 1000) : 0,
+    });
+  });
+
   app.post('/api/session', (req, res) => {
     const profile = (req.body?.profile ?? {}) as UserProfile;
     const session = createSession(profile);
-    sessions.set(session.sessionId, session);
+    putSession(session);
     res.json({ sessionId: session.sessionId });
   });
 
@@ -60,18 +126,24 @@ export function createApp(options: AppOptions = {}) {
       .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
       .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
-    const existing = sessions.get(sessionId);
+    const existing = touchSession(sessionId);
     const session = existing ?? createSession(profile ?? {});
     session.sessionId = sessionId;
     if (profile) session.profile = { ...session.profile, ...profile };
     if (history.length > 0) session.conversationHistory = history;
 
-    sessions.set(sessionId, session);
+    putSession(session);
     res.json({ sessionId, restored: true, messageCount: history.length });
   });
 
+  app.delete('/api/session/:id', (req, res) => {
+    // Deleting must not count as activity, so touch the map directly.
+    const deleted = sessions.delete(req.params.id);
+    res.json({ deleted });
+  });
+
   app.get('/api/session/:id', (req, res) => {
-    const session = sessions.get(req.params.id);
+    const session = touchSession(req.params.id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
     res.json({
       sessionId: session.sessionId,
@@ -92,12 +164,13 @@ export function createApp(options: AppOptions = {}) {
     }
 
     let session: AgentContext;
-    if (sessionId && sessions.has(sessionId)) {
-      session = sessions.get(sessionId)!;
+    const existing = touchSession(sessionId);
+    if (existing) {
+      session = existing;
       if (profile) session.profile = { ...session.profile, ...profile };
     } else {
       session = createSession(profile ?? {});
-      sessions.set(session.sessionId, session);
+      putSession(session);
     }
 
     try {
@@ -121,12 +194,13 @@ export function createApp(options: AppOptions = {}) {
     }
 
     let session: AgentContext;
-    if (sessionId && sessions.has(sessionId)) {
-      session = sessions.get(sessionId)!;
+    const existing = touchSession(sessionId);
+    if (existing) {
+      session = existing;
       if (profile) session.profile = { ...session.profile, ...profile };
     } else {
       session = createSession(profile ?? {});
-      sessions.set(session.sessionId, session);
+      putSession(session);
     }
 
     res.setHeader('Content-Type', 'text/event-stream');
