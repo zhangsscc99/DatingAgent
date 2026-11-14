@@ -41,7 +41,7 @@
   --shadow-drawer: 4px 0 24px rgba(20, 20, 35, 0.14);
   --shimmer: rgba(255, 255, 255, 0.7);
   --radius: 12px;
-  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --font: 'Inter', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', 'WenQuanYi Micro Hei', system-ui, -apple-system, sans-serif;
 }
 
 @media (max-width: 768px) {
