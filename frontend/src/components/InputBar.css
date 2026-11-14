@@ -58,7 +58,7 @@
   opacity: 0.6;
 }
 
-.input-bar button {
+.input-bar .input-send {
   width: 44px;
   height: 44px;
   background: var(--accent);
@@ -72,12 +72,12 @@
   transition: opacity 0.15s, transform 0.1s;
 }
 
-.input-bar button:hover:not(:disabled) {
+.input-bar .input-send:hover:not(:disabled) {
   opacity: 0.9;
   transform: translateY(-1px);
 }
 
-.input-bar button:disabled {
+.input-bar .input-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -88,9 +88,74 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-.input-bar button:focus-visible {
+.input-bar .input-send:focus-visible {
   outline: 2px solid var(--on-accent);
   outline-offset: 2px;
+}
+
+/* Keyboard-shortcut hint: quiet icon button, tooltip on hover/focus. */
+.input-hint {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.input-hint-btn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted, #8a8a92);
+  font-size: 15px;
+  line-height: 1;
+  cursor: help;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.input-hint-btn:hover,
+.input-hint:focus-within .input-hint-btn {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.input-hint-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.input-hint-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  z-index: 20;
+}
+
+.input-hint:hover .input-hint-tip,
+.input-hint:focus-within .input-hint-tip {
+  display: flex;
+}
+
+.input-hint-tip kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  font-family: var(--font);
+  font-size: 11px;
 }
 
 @media (max-width: 768px) {
@@ -99,7 +164,12 @@
     min-height: 48px;
   }
 
-  .input-bar button {
+  .input-bar .input-send {
+    width: 48px;
+    height: 48px;
+  }
+
+  .input-hint-btn {
     width: 48px;
     height: 48px;
   }
