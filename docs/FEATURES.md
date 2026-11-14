@@ -28,7 +28,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **F20 · Empty-state prompt chips** — when a conversation has no messages, show 3 tappable starter prompts (资料优化 / 聊天指导 / 约会规划) that prefill the composer. Acceptance: chip click fills the input, sends, and disappears after the first message.
 - [x] **F21 · Reply meta badge** — return `meta: {tool, latencyMs, tokens}` on `/api/chat` and render it as a subtle line under the reply; hide when `tokens` is unknown. Acceptance: badge shows tool name for a tool-using reply, absent for a plain one.
 - [x] **F22 · CJK font fallback** — this host renders Chinese labels as tofu in headless screenshots; add a proper `font-family` stack (system CJK names first) plus a `<link>`-free fallback so Chinese text uses whatever the OS has. Acceptance: computed style lists CJK families; no layout shift.
-- [ ] **F23 · Health metrics reset endpoint** — `POST /api/metrics/reset` (localhost-only, 403 otherwise) to zero counters without a restart. Acceptance: counters zero afterwards, non-local request → 403.
+- [x] **F23 · Health metrics reset endpoint** — `POST /api/metrics/reset` (localhost-only, 403 otherwise) to zero counters without a restart. Acceptance: counters zero afterwards, non-local request → 403.
 
 ## Done
 

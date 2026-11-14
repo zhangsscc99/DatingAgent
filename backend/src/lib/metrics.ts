@@ -45,7 +45,7 @@ export class UsageMetrics {
   private latencyTotalMs = 0;
   private lastMs = 0;
   private maxMs = 0;
-  private readonly startedAt = new Date().toISOString();
+  private startedAt = new Date().toISOString();
 
   recordRequest(): void {
     this.requestsTotal += 1;
@@ -66,6 +66,20 @@ export class UsageMetrics {
   recordTokens(promptTokens: number, completionTokens: number): void {
     this.promptTokens += asCount(promptTokens);
     this.completionTokens += asCount(completionTokens);
+  }
+
+  /** Zero every counter without restarting the process (admin/reset endpoint). */
+  reset(): void {
+    this.requestsTotal = 0;
+    this.chatTotal = 0;
+    this.chatErrors = 0;
+    this.promptTokens = 0;
+    this.completionTokens = 0;
+    this.latencySamples = 0;
+    this.latencyTotalMs = 0;
+    this.lastMs = 0;
+    this.maxMs = 0;
+    this.startedAt = new Date().toISOString();
   }
 
   snapshot(): MetricsSnapshot {

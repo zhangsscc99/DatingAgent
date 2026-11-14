@@ -24,3 +24,4 @@
 2026-11-14 16:57 | F20 | Empty-state starter chips: 3 tappable prompts (资料优化/聊天指导/约会规划) in welcome block; InputBar gains prefill() handle so a chip fills and focuses the composer; chips live only in the empty state so they vanish after the first message.
 2026-11-14 17:12 | F21 | /api/chat returns meta {tool, latencyMs, tokens}; SSE done event carries tool/tokens/latency; assistant bubbles show a subtle meta line, hidden when tokens unknown
 2026-11-14 17:41 | F22 | CJK font fallback stack added to --font (PingFang SC/Hiragino/Microsoft YaHei/Noto/WenQuanYi before system-ui), no external font link needed
+2026-11-14 17:55 | F23 | POST /api/metrics/reset (localhost-only, 403 otherwise) zeroes usage counters without restart; UsageMetrics.reset()

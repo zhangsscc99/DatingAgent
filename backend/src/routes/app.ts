@@ -122,6 +122,18 @@ export function createApp(options: AppOptions = {}) {
     res.json(buildVersionReport());
   });
 
+  // Localhost-only admin endpoint: zero the usage counters without a restart.
+  app.post('/api/metrics/reset', (req, res) => {
+    const remote = req.ip ?? '';
+    const isLocal = remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
+    if (!isLocal) {
+      res.status(403).json({ error: 'forbidden: localhost only' });
+      return;
+    }
+    usageMetrics.reset();
+    res.json({ ok: true, metrics: usageMetrics.snapshot() });
+  });
+
   app.get('/api/tools', (_req, res) => {
     const meta = [
       { name: 'analyze_profile', label: '资料优化', icon: '📝' },
