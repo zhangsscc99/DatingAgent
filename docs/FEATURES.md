@@ -66,3 +66,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P13 · Chat export** — "导出" button downloading the current conversation as plain-text .txt (timestamped filename), built entirely client-side from state.
 - **P14 · Composer auto-resize** — textarea grows with content up to ~6 lines then scrolls, so long prompts stay visible while typing. Purely CSS + a few lines of JS.
 - **P15 · Light/dark theme toggle** — a small toggle persisting `theme` in localStorage, respecting `prefers-color-scheme` as default; uses existing CSS variables only.
+
+- **P28 · Composer blur-fix placeholder** — placeholder text stays until first keystroke (some browsers clear it on focus), purely cosmetic UX fix.
+- **P29 · Chat meta badge i18n** — meta badge labels (工具/耗时) respect the P09 language toggle instead of hard-coded Chinese.
+- **P30 · Export filename sanitizer** — strip invalid filename chars from the F07 download name when session title is user-derived.
