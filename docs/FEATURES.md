@@ -40,6 +40,10 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P02 · Streaming tokens count** — `/api/chat/stream` currently lacks the `meta` badge data F21 added to the non-streaming path; emit a final SSE `meta` event with tool/latencyMs/tokens.
 - **P03 · Rate-limit headers** — expose `X-RateLimit-Remaining` and `Retry-After` on all `/api/*` responses so clients can back off gracefully instead of discovering the 429 by surprise.
 
+- **P07 · Rate-limit status surface** — show remaining request budget as a subtle indicator near the composer (reads the headers from P03 client-side), warn colour at < 5 remaining. Purely UI; no backend change.
+- **P08 · Session list UI** — small "历史会话" dropdown listing active sessions from `GET /api/sessions` with per-item delete, reusing F01's endpoints; capped display of 10 entries.
+- **P09 · Reply language quick toggle** — a 🌐 button beside the composer cycling zh/en/auto, mapping to F11's `language` param; state persisted per session in localStorage.
+
 ## Done
 
 <!-- Move completed items here with the commit sha. -->
