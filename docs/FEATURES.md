@@ -104,3 +104,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P58 · Composer focus on session switch** — after picking a session in the P33 dropdown, auto-focus the composer textarea; pure frontend, one `focus()` call.
 - **P59 · Copy feedback tick** — P31/P16 copy buttons briefly show "已复制" state for 1.5s instead of firing a toast; pure UI state.
 - **P60 · Health chip raw-time tooltip** — P27 footer chip tooltip shows the exact last-poll timestamp (HH:MM:SS) alongside latency; reuses the same poll state.
+- **P64 · Composer send on Ctrl/Cmd+Enter hint** — placeholder tooltip noting Enter sends / Shift+Enter newline; zero logic, pure text.
+- **P65 · Session list relative time** — P33 dropdown shows "x分钟前" instead of raw timestamps via an Intl.RelativeTimeFormat; pure frontend.
+- **P66 · Health chip latency color** — P27 chip turns amber above 1500ms, red above 5000ms; pure UI threshold on existing poll state.
