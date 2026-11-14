@@ -109,4 +109,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P66 · Health chip latency color** — P27 chip turns amber above 1500ms, red above 5000ms; pure UI threshold on existing poll state.
 - **P67 · Composer char counter tooltip** — P43 counter's tooltip explains the 4000 limit and where it comes from (F02); pure static text.
 - **P68 · Session dropdown keyboard hint** — label of the P33 dropdown shows a dim "点击展开" hint for keyboard users; pure cosmetic text.
-- **P69 · Toast dismiss via Esc** — pressing Escape closes the topmost toast; small key handler on the existing toast component, no new deps.
+- **P70 · Meta badge title attribute** — F21 badge gets a native `title` with full latency/tokens detail on hover; one attribute, no layout change.
+- **P71 · Export includes language tag** — F07 Markdown export notes the active P09 reply-language setting in the header line; pure string addition.
+- **P72 · Empty-state chips honour theme** — F20 starter chips use existing CSS variables only (audit + fix any hard-coded colours); no behavior change.
