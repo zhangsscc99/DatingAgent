@@ -70,3 +70,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P28 · Composer blur-fix placeholder** — placeholder text stays until first keystroke (some browsers clear it on focus), purely cosmetic UX fix.
 - **P29 · Chat meta badge i18n** — meta badge labels (工具/耗时) respect the P09 language toggle instead of hard-coded Chinese.
 - **P30 · Export filename sanitizer** — strip invalid filename chars from the F07 download name when session title is user-derived.
+
+- **P31 · Copy single message** — a small "复制" affordance on each chat bubble putting that message's text on the clipboard; pure frontend, reuses existing copy pattern from P16.
+- **P32 · Keyboard shortcut for export** — Ctrl/Cmd+E triggers F07's export when the chat view is focused; purely client-side key handler with a hint in the UI tooltip.
+- **P33 · Empty-session graceful state** — when the session list is empty, `GET /api/sessions` dropdown shows a disabled "暂无历史会话" option instead of a bare blank dropdown; pure UI.
