@@ -90,3 +90,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P43 · Composer char counter** — subtle `n / 2000` counter in the composer corner that only appears past 80% of a max length; pure frontend.
 - **P44 · Copy full conversation** — reuse P31/P16 copy pattern to copy all messages of the current session as plain text; no backend change.
 - **P45 · Toast auto-dismiss timer** — give success toasts a fixed 3s auto-dismiss (errors stay until closed) using the existing toast component.
+- **P49 · Session cleanup cron trigger** — localhost-only `POST /api/sessions/evict` reusing F01's idle-TTL logic so ops can force-expire stale sessions without waiting 30 min; reuses existing eviction code, no persistence.
+- **P50 · SSE stream abort endpoint** — support `x-stream-id` on `/api/chat/stream` and a `DELETE /api/stream/:id` that closes that SSE and aborts the LLM call, complementing P12's client-side AbortController; no new deps.
+- **P51 · Empty reply fallback** — if the LLM returns an empty/whitespace-only reply, retry once server-side then fall back to a fixed Chinese prompt string so the bubble is never blank; one small helper in the chat route.
