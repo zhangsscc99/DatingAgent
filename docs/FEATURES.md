@@ -95,3 +95,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P52 · Rate-limit per-session token bucket** — expose remaining quota in the F02 429 body as `{retryAfterSec}` instead of only the header, so the frontend can render a countdown; pure response shaping, no logic change.
 - **P53 · Chat input maxlength** — set `maxlength={4000}` on the composer textarea to match the F02 server limit, preventing 413s entirely at the UI layer; one attribute.
 - **P54 · Version endpoint uptime** — add `uptimeSec` from `process.uptime()` to `/api/version` payload, letting ops spot restarts without touching /api/health's contract; one field.
+- **P55 · Composer paste plain-text only** — on paste in the composer, strip rich-text formatting (paste as plain text) so Markdown export stays clean; small client handler.
+- **P56 · Session count badge** — show the number of sessions next to the P33 history dropdown label, updated from the same `/api/sessions` fetch; no extra requests.
+- **P57 · Export filename timestamp** — F07 export filename gains `YYYYMMDD-HHmm` suffix so repeated exports don't collide in Downloads; one-line change.
