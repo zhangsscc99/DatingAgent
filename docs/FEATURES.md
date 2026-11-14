@@ -78,3 +78,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P34 · Toast position consistency** — unify error/info toast placement to top-center with the same slide-in animation across chat and session views; pure CSS tweak.
 - **P35 · Composer placeholder rotation** — cycle 3 friendly placeholder strings in the composer when idle, purely frontend constants, no logic deps.
 - **P36 · Health latency in footer chip** — extend P27's footer dot tooltip with last /api/health latency in ms from the same poll; no extra requests.
+- **P37 · Chat scroll-to-bottom on new reply** — when a reply arrives while the user has scrolled up, show the P24 floating ↑ state without yanking the viewport; purely frontend scroll handling.
+- **P38 · Rate-limit retry countdown** — on a 429, render the `Retry-After` seconds as a countdown on the error toast so the user knows when to resend; pure UI.
+- **P39 · Export includes meta badges** — F07's Markdown export gains a per-reply `> meta` line (tool/latency) when F21 data exists; no new requests.
