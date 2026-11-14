@@ -30,6 +30,13 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **F22 · CJK font fallback** — this host renders Chinese labels as tofu in headless screenshots; add a proper `font-family` stack (system CJK names first) plus a `<link>`-free fallback so Chinese text uses whatever the OS has. Acceptance: computed style lists CJK families; no layout shift.
 - [x] **F23 · Health metrics reset endpoint** — `POST /api/metrics/reset` (localhost-only, 403 otherwise) to zero counters without a restart. Acceptance: counters zero afterwards, non-local request → 403.
 
+## Proposed
+
+<!-- Human review needed — these are candidates, not scheduled work. -->
+- **P01 · Conversation history persistence** — optional localStorage-backed reload of the last session (opt-out toggle), so refresh doesn't lose context. Low risk; needs a size cap (~50 KB) and a "清除历史" action.
+- **P02 · Streaming tokens count** — `/api/chat/stream` currently lacks the `meta` badge data F21 added to the non-streaming path; emit a final SSE `meta` event with tool/latencyMs/tokens.
+- **P03 · Rate-limit headers** — expose `X-RateLimit-Remaining` and `Retry-After` on all `/api/*` responses so clients can back off gracefully instead of discovering the 429 by surprise.
+
 ## Done
 
 <!-- Move completed items here with the commit sha. -->

@@ -25,3 +25,4 @@
 2026-11-14 17:12 | F21 | /api/chat returns meta {tool, latencyMs, tokens}; SSE done event carries tool/tokens/latency; assistant bubbles show a subtle meta line, hidden when tokens unknown
 2026-11-14 17:41 | F22 | CJK font fallback stack added to --font (PingFang SC/Hiragino/Microsoft YaHei/Noto/WenQuanYi before system-ui), no external font link needed
 2026-11-14 17:55 | F23 | POST /api/metrics/reset (localhost-only, 403 otherwise) zeroes usage counters without restart; UsageMetrics.reset()
+2026-11-14 18:04 | backlog | All F01-F23 done; added 3 candidates under ## Proposed (P01-P03) for human review
