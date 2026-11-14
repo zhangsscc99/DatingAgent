@@ -43,6 +43,9 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P07 · Rate-limit status surface** — show remaining request budget as a subtle indicator near the composer (reads the headers from P03 client-side), warn colour at < 5 remaining. Purely UI; no backend change.
 - **P08 · Session list UI** — small "历史会话" dropdown listing active sessions from `GET /api/sessions` with per-item delete, reusing F01's endpoints; capped display of 10 entries.
 - **P09 · Reply language quick toggle** — a 🌐 button beside the composer cycling zh/en/auto, mapping to F11's `language` param; state persisted per session in localStorage.
+- **P10 · Message length meter** — live character count (e.g. `1234/4000`) under the composer turning amber past 3500, so users see the 413 limit before hitting it. Purely UI.
+- **P11 · Offline / LLM-down banner** — when `/api/chat` returns 5xx or network fails, show a dismissible top banner "服务暂时不可用" with retry affordance instead of only inline error text. Purely UI.
+- **P12 · Stop generation button** — for `/api/chat/stream` calls, show a "停止" button that aborts via `AbortController` while streaming; backend already closes the SSE on client disconnect. Small frontend + no backend change.
 
 ## Done
 
