@@ -8,6 +8,7 @@ import { buildHealthReport } from '../lib/health.js';
 import { buildVersionReport } from '../lib/version.js';
 import { createRequestLogger } from '../lib/request-log.js';
 import { usageMetrics } from '../lib/metrics.js';
+import { getTool } from '../tools/registry.js';
 import {
   createRateLimiter,
   handleBodyErrors,
@@ -121,15 +122,32 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.get('/api/tools', (_req, res) => {
-    res.json({
-      tools: [
-        { name: 'analyze_profile', label: '资料优化', icon: '📝' },
-        { name: 'coach_conversation', label: '聊天指导', icon: '💬' },
-        { name: 'plan_date', label: '约会规划', icon: '📅' },
-        { name: 'check_compatibility', label: '匹配分析', icon: '💕' },
-        { name: 'get_relationship_advice', label: '关系建议', icon: '🎯' },
-      ],
+    const meta = [
+      { name: 'analyze_profile', label: '资料优化', icon: '📝' },
+      { name: 'coach_conversation', label: '聊天指导', icon: '💬' },
+      { name: 'plan_date', label: '约会规划', icon: '📅' },
+      { name: 'check_compatibility', label: '匹配分析', icon: '💕' },
+      { name: 'get_relationship_advice', label: '关系建议', icon: '🎯' },
+    ];
+
+    const tools = meta.map((entry) => {
+      const schema = getTool(entry.name)?.parameters as
+        | { properties?: Record<string, { type?: string; description?: string; enum?: string[]; items?: { type?: string } }>; required?: string[] }
+        | undefined;
+
+      const inputs = Object.entries(schema?.properties ?? {}).map(([name, prop]) => ({
+        name,
+        type: prop.type ?? 'string',
+        items: prop.items?.type,
+        enum: prop.enum,
+        description: prop.description,
+        required: schema?.required?.includes(name) ?? false,
+      }));
+
+      return { ...entry, inputs };
     });
+
+    res.json({ tools });
   });
 
   app.get('/api/sessions', (_req, res) => {
