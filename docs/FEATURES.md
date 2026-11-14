@@ -92,4 +92,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P45 · Toast auto-dismiss timer** — give success toasts a fixed 3s auto-dismiss (errors stay until closed) using the existing toast component.
 - **P49 · Session cleanup cron trigger** — localhost-only `POST /api/sessions/evict` reusing F01's idle-TTL logic so ops can force-expire stale sessions without waiting 30 min; reuses existing eviction code, no persistence.
 - **P50 · SSE stream abort endpoint** — support `x-stream-id` on `/api/chat/stream` and a `DELETE /api/stream/:id` that closes that SSE and aborts the LLM call, complementing P12's client-side AbortController; no new deps.
-- **P51 · Empty reply fallback** — if the LLM returns an empty/whitespace-only reply, retry once server-side then fall back to a fixed Chinese prompt string so the bubble is never blank; one small helper in the chat route.
+- **P52 · Rate-limit per-session token bucket** — expose remaining quota in the F02 429 body as `{retryAfterSec}` instead of only the header, so the frontend can render a countdown; pure response shaping, no logic change.
+- **P53 · Chat input maxlength** — set `maxlength={4000}` on the composer textarea to match the F02 server limit, preventing 413s entirely at the UI layer; one attribute.
+- **P54 · Version endpoint uptime** — add `uptimeSec` from `process.uptime()` to `/api/version` payload, letting ops spot restarts without touching /api/health's contract; one field.
