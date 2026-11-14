@@ -74,3 +74,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P31 · Copy single message** — a small "复制" affordance on each chat bubble putting that message's text on the clipboard; pure frontend, reuses existing copy pattern from P16.
 - **P32 · Keyboard shortcut for export** — Ctrl/Cmd+E triggers F07's export when the chat view is focused; purely client-side key handler with a hint in the UI tooltip.
 - **P33 · Empty-session graceful state** — when the session list is empty, `GET /api/sessions` dropdown shows a disabled "暂无历史会话" option instead of a bare blank dropdown; pure UI.
+
+- **P34 · Toast position consistency** — unify error/info toast placement to top-center with the same slide-in animation across chat and session views; pure CSS tweak.
+- **P35 · Composer placeholder rotation** — cycle 3 friendly placeholder strings in the composer when idle, purely frontend constants, no logic deps.
+- **P36 · Health latency in footer chip** — extend P27's footer dot tooltip with last /api/health latency in ms from the same poll; no extra requests.
