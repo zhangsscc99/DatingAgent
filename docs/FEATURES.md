@@ -33,6 +33,9 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 ## Proposed
 
 <!-- Human review needed — these are candidates, not scheduled work. -->
+- **P04 · Request id + error correlation** — attach a short `x-request-id` per request, echo it in error JSON and the structured log line, so a client-reported failure can be matched to its log entry. No persistence.
+- **P05 · Health probe detail** — `GET /api/health?verbose=1` (localhost-only) adds disk-free, RSS, uptime and last-error to the metrics payload, keeping the public health payload unchanged.
+- **P06 · Input history recall** — composer remembers the last 5 sent messages in localStorage with ↑ recall (terminal-style), capped at ~10 KB, purely client-side.
 - **P01 · Conversation history persistence** — optional localStorage-backed reload of the last session (opt-out toggle), so refresh doesn't lose context. Low risk; needs a size cap (~50 KB) and a "清除历史" action.
 - **P02 · Streaming tokens count** — `/api/chat/stream` currently lacks the `meta` badge data F21 added to the non-streaming path; emit a final SSE `meta` event with tool/latencyMs/tokens.
 - **P03 · Rate-limit headers** — expose `X-RateLimit-Remaining` and `Retry-After` on all `/api/*` responses so clients can back off gracefully instead of discovering the 429 by surprise.
