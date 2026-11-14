@@ -81,3 +81,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P37 · Chat scroll-to-bottom on new reply** — when a reply arrives while the user has scrolled up, show the P24 floating ↑ state without yanking the viewport; purely frontend scroll handling.
 - **P38 · Rate-limit retry countdown** — on a 429, render the `Retry-After` seconds as a countdown on the error toast so the user knows when to resend; pure UI.
 - **P39 · Export includes meta badges** — F07's Markdown export gains a per-reply `> meta` line (tool/latency) when F21 data exists; no new requests.
+- **P40 · Session list relative timestamps** — show "3 分钟前 / 2 天前" style relative times in the session dropdown instead of raw dates; pure formatting helper.
+- **P41 · Composer Enter-to-send hint** — small dim caption "Enter 发送 / Shift+Enter 换行" under the composer, purely static UI text.
+- **P42 · Footer chip click scrolls to top** — clicking the P27 health chip smooth-scrolls the chat view to the top; pure frontend handler.
