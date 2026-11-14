@@ -5,6 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { AgentHarness, createSession } from '../agent/harness.js';
 import type { AgentContext, UserProfile } from '../agent/types.js';
 import { buildHealthReport } from '../lib/health.js';
+import {
+  createRateLimiter,
+  handleBodyErrors,
+  rejectOversizedMessage,
+} from '../lib/guardrails.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const harness = new AgentHarness();
@@ -70,6 +75,11 @@ export function createApp(options: AppOptions = {}) {
   const app = express();
   app.use(cors());
   app.use(express.json());
+  app.use(handleBodyErrors);
+
+  // Shared per-IP budget for both chat endpoints (30 req/min).
+  const chatRateLimit = createRateLimiter();
+  const chatGuards = [chatRateLimit, rejectOversizedMessage];
 
   app.get('/api/health', (_req, res) => {
     const report = buildHealthReport(frontendDist, llmConfigured);
@@ -152,7 +162,7 @@ export function createApp(options: AppOptions = {}) {
     });
   });
 
-  app.post('/api/chat', async (req, res) => {
+  app.post('/api/chat', ...chatGuards, async (req, res) => {
     const { sessionId, message, profile } = req.body as {
       sessionId?: string;
       message: string;
@@ -182,7 +192,7 @@ export function createApp(options: AppOptions = {}) {
     }
   });
 
-  app.post('/api/chat/stream', async (req, res) => {
+  app.post('/api/chat/stream', ...chatGuards, async (req, res) => {
     const { sessionId, message, profile } = req.body as {
       sessionId?: string;
       message: string;

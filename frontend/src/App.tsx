@@ -28,6 +28,23 @@ const TOOL_LABELS: Record<string, string> = {
   get_relationship_advice: '关系建议',
 };
 
+/** Human-readable message for a failed chat request, using the API's JSON error shape. */
+async function describeChatError(res: Response): Promise<string> {
+  const retryAfter = res.headers.get('Retry-After');
+  if (res.status === 429) {
+    return `请求过于频繁，请 ${retryAfter ? `${retryAfter} 秒` : '稍'}后再试`;
+  }
+  if (res.status === 413) return '消息太长了，请精简到 4000 字以内再发送';
+
+  try {
+    const body = (await res.json()) as { error?: string };
+    if (body?.error) return body.error;
+  } catch {
+    // Non-JSON error body — fall through to the status code.
+  }
+  return `HTTP ${res.status}`;
+}
+
 function upsertAssistant(
   prev: ChatMessage[],
   assistantId: string,
@@ -172,7 +189,7 @@ export default function App() {
           signal: abortRef.current.signal,
         });
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(await describeChatError(res));
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
