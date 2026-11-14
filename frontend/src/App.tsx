@@ -4,6 +4,7 @@ import ChatWindow from './components/ChatWindow';
 import Sidebar from './components/Sidebar';
 import ProfileOnboarding from './components/ProfileOnboarding';
 import { useMediaQuery } from './hooks/useMediaQuery';
+import { useTheme } from './hooks/useTheme';
 import {
   clearActiveSession,
   getRecentSessions,
@@ -104,6 +105,7 @@ export default function App() {
   const abortRef = useRef<AbortController | null>(null);
   const restoredRef = useRef(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const { theme, toggle: toggleTheme } = useTheme();
 
   useEffect(() => {
     fetch('/api/tools')
@@ -453,6 +455,18 @@ export default function App() {
             </div>
           </div>
           <div className="header-actions">
+            <button
+              type="button"
+              className="theme-btn"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+              aria-pressed={theme === 'dark'}
+              title={theme === 'dark' ? '当前：深色 · 点击切换浅色' : '当前：浅色 · 点击切换深色'}
+            >
+              <span className="theme-icon" aria-hidden="true">
+                {theme === 'dark' ? '☀' : '☾'}
+              </span>
+            </button>
             <button
               type="button"
               className={`export-btn${exportState === 'done' ? ' done' : ''}${

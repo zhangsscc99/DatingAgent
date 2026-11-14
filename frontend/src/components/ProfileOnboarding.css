@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.65);
+  background: var(--overlay);
   backdrop-filter: blur(4px);
   animation: fadeIn 0.2s ease;
 }
@@ -26,7 +26,7 @@
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) + 4px);
   padding: 28px;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-panel);
   animation: slideUp 0.25s ease;
 }
 
@@ -137,7 +137,7 @@
 
 .profile-error {
   font-size: 13px;
-  color: #ff7675;
+  color: var(--danger);
 }
 
 .profile-actions {
@@ -160,7 +160,7 @@
 
 .profile-btn.primary {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .profile-btn.secondary {

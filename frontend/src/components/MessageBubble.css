@@ -39,7 +39,7 @@
 
 .bubble.user {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border-bottom-right-radius: 4px;
 }
 
@@ -68,7 +68,7 @@
 }
 
 .bubble.user .bubble-content strong {
-  color: white;
+  color: var(--on-accent);
 }
 
 .bubble-content code {
@@ -88,12 +88,12 @@
 }
 
 .bubble.error {
-  border-color: rgba(255, 107, 107, 0.4);
-  background: rgba(255, 107, 107, 0.08);
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
 }
 
 .bubble-row.error .bubble-content {
-  color: #ff8787;
+  color: var(--danger);
 }
 
 .markdown-streaming {
@@ -124,9 +124,9 @@
   margin-top: 10px;
   padding: 6px 14px;
   background: transparent;
-  border: 1px solid rgba(255, 107, 107, 0.5);
+  border: 1px solid var(--danger-border);
   border-radius: 20px;
-  color: #ff8787;
+  color: var(--danger);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -135,8 +135,8 @@
 }
 
 .retry-btn:hover {
-  background: rgba(255, 107, 107, 0.12);
-  border-color: #ff8787;
+  background: var(--danger-soft);
+  border-color: var(--danger);
 }
 
 .bubble-actions {
@@ -178,16 +178,16 @@
 
 .copy-btn.copied {
   opacity: 1;
-  color: #37b24d;
-  border-color: rgba(55, 178, 77, 0.5);
-  background: rgba(55, 178, 77, 0.1);
+  color: var(--success);
+  border-color: var(--success-border);
+  background: var(--success-soft);
 }
 
 .copy-btn.failed {
   opacity: 1;
-  color: #ff8787;
-  border-color: rgba(255, 107, 107, 0.5);
-  background: rgba(255, 107, 107, 0.1);
+  color: var(--danger);
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
 }
 
 .copy-status {

@@ -10,7 +10,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **F05 · Structured request logging** — middleware logging `{ts, id, method, path, status, ms, msgLen}` as JSON lines. No message content, no keys.
 - [x] **F06 · Copy reply button** — clipboard copy on assistant bubbles with a 1.5 s "copied" affordance; graceful fallback when `navigator.clipboard` is unavailable.
 - [x] **F07 · Export conversation** — "导出 Markdown" action downloads the current conversation as `.md` (role headings + timestamps).
-- [ ] **F08 · Theme toggle** — light/dark toggle persisted in `localStorage`, defaults to `prefers-color-scheme`, no flash of wrong theme.
+- [x] **F08 · Theme toggle** — light/dark toggle persisted in `localStorage`, defaults to `prefers-color-scheme`, no flash of wrong theme.
 - [ ] **F09 · Retry last message** — when a chat request errors, show "重试" that resends the last user message without duplicating history.
 - [ ] **F10 · Keyboard shortcuts** — `Ctrl/Cmd+Enter` send, `Esc` blur input, `Shift+Enter` newline; documented in a tooltip.
 - [ ] **F11 · Reply language switch** — optional `language: "zh" | "en" | "auto"` on `/api/chat`, appended as a directive to the system prompt; `auto` keeps current behaviour.

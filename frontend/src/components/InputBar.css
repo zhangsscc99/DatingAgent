@@ -44,7 +44,7 @@
 }
 
 .input-counter.at-limit {
-  color: #e5484d;
+  color: var(--danger);
   font-weight: 600;
 }
 
@@ -62,7 +62,7 @@
   width: 44px;
   height: 44px;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border: none;
   border-radius: var(--radius);
   font-size: 18px;
@@ -89,7 +89,7 @@
 }
 
 .input-bar button:focus-visible {
-  outline: 2px solid white;
+  outline: 2px solid var(--on-accent);
   outline-offset: 2px;
 }
 

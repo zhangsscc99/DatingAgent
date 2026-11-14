@@ -86,6 +86,41 @@
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
+.theme-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.theme-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.theme-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-icon {
+  display: block;
+  transform: translateY(0.5px);
+}
+
 .export-btn:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--accent);
@@ -103,13 +138,13 @@
 }
 
 .export-btn.done {
-  color: #00b894;
-  border-color: rgba(0, 184, 148, 0.45);
+  color: var(--success);
+  border-color: var(--success-border);
 }
 
 .export-btn.failed {
-  color: #e17055;
-  border-color: rgba(225, 112, 85, 0.45);
+  color: var(--danger);
+  border-color: var(--danger-border);
 }
 
 /* Screen-reader only: announces export result without shifting the header. */
@@ -133,12 +168,12 @@
 }
 
 .status-dot.live {
-  background: #00b894;
-  box-shadow: 0 0 8px rgba(0, 184, 148, 0.5);
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success-glow);
 }
 
 .status-dot.mock {
-  background: #fdcb6e;
+  background: var(--warning);
 }
 
 .menu-btn {
@@ -194,7 +229,7 @@
   position: fixed;
   inset: 0;
   z-index: 90;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--overlay);
   border: none;
   cursor: pointer;
   animation: backdrop-fade-in 0.25s ease;
@@ -230,6 +265,12 @@
 
   .header-actions {
     gap: 6px;
+  }
+
+  .theme-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
   }
 
   .export-btn {

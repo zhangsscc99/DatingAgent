@@ -6,7 +6,93 @@
   padding: 0;
 }
 
+/*
+  Palette: light is the base declaration, dark overrides live in the two blocks
+  below. `data-theme` is set on <html> by the inline bootstrap in index.html
+  before first paint, so a stored choice never flashes the wrong theme; the
+  media query only covers the no-JS / pre-script case and is excluded as soon as
+  an explicit theme attribute exists.
+*/
 :root {
+  color-scheme: light;
+  --bg: #f6f6f9;
+  --surface: #ffffff;
+  --surface-hover: #f0f0f5;
+  --border: #d9d9e4;
+  --text: #1c1c22;
+  --text-muted: #6b6b7d;
+  --text-secondary: #4a4a58;
+  --accent: #d81b74;
+  --accent-soft: rgba(216, 27, 116, 0.1);
+  --accent-glow: rgba(216, 27, 116, 0.24);
+  --user-bg: #ececf3;
+  --assistant-bg: #f4f4f8;
+  --success: #0b7350;
+  --success-soft: rgba(16, 138, 96, 0.12);
+  --success-border: rgba(16, 138, 96, 0.42);
+  --success-glow: rgba(16, 138, 96, 0.35);
+  --danger: #c92a2a;
+  --danger-soft: rgba(201, 42, 42, 0.1);
+  --danger-border: rgba(201, 42, 42, 0.45);
+  --warning: #b07d0a;
+  --on-accent: #ffffff;
+  --overlay: rgba(20, 20, 35, 0.42);
+  --shadow-panel: 0 24px 48px rgba(20, 20, 35, 0.16);
+  --shadow-drawer: 4px 0 24px rgba(20, 20, 35, 0.14);
+  --shimmer: rgba(255, 255, 255, 0.7);
+  --radius: 12px;
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --text-muted: #5a5a6b;
+    --border: #d9d9e3;
+  }
+}
+
+/* Dark palette — system preference, only until a theme attribute is present. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --bg: #0f0f12;
+    --surface: #1a1a22;
+    --surface-hover: #22222c;
+    --border: #2a2a36;
+    --text: #e8e8ed;
+    --text-muted: #8888a0;
+    --text-secondary: #a8a8bc;
+    --accent: #e84393;
+    --accent-soft: rgba(232, 67, 147, 0.15);
+    --accent-glow: rgba(232, 67, 147, 0.3);
+    --user-bg: #2d2d3a;
+    --assistant-bg: #1e1e28;
+    --success: #3ddc97;
+    --success-soft: rgba(0, 184, 148, 0.1);
+    --success-border: rgba(0, 184, 148, 0.4);
+    --success-glow: rgba(0, 184, 148, 0.5);
+    --danger: #ff8787;
+    --danger-soft: rgba(255, 107, 107, 0.1);
+    --danger-border: rgba(255, 107, 107, 0.5);
+    --warning: #fdcb6e;
+    --on-accent: #ffffff;
+    --overlay: rgba(0, 0, 0, 0.55);
+    --shadow-panel: 0 24px 48px rgba(0, 0, 0, 0.4);
+    --shadow-drawer: 4px 0 24px rgba(0, 0, 0, 0.35);
+    --shimmer: rgba(255, 255, 255, 0.06);
+  }
+
+  @media (max-width: 768px) {
+    :root:not([data-theme]) {
+      --text-muted: #a0a0b4;
+      --border: #353545;
+    }
+  }
+}
+
+/* Dark palette — explicit choice (or resolved from the system by the bootstrap). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
   --bg: #0f0f12;
   --surface: #1a1a22;
   --surface-hover: #22222c;
@@ -19,13 +105,23 @@
   --accent-glow: rgba(232, 67, 147, 0.3);
   --user-bg: #2d2d3a;
   --assistant-bg: #1e1e28;
-  --success: #6c5ce7;
-  --radius: 12px;
-  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --success: #3ddc97;
+  --success-soft: rgba(0, 184, 148, 0.1);
+  --success-border: rgba(0, 184, 148, 0.4);
+  --success-glow: rgba(0, 184, 148, 0.5);
+  --danger: #ff8787;
+  --danger-soft: rgba(255, 107, 107, 0.1);
+  --danger-border: rgba(255, 107, 107, 0.5);
+  --warning: #fdcb6e;
+  --on-accent: #ffffff;
+  --overlay: rgba(0, 0, 0, 0.55);
+  --shadow-panel: 0 24px 48px rgba(0, 0, 0, 0.4);
+  --shadow-drawer: 4px 0 24px rgba(0, 0, 0, 0.35);
+  --shimmer: rgba(255, 255, 255, 0.06);
 }
 
 @media (max-width: 768px) {
-  :root {
+  :root[data-theme='dark'] {
     --text-muted: #a0a0b4;
     --border: #353545;
   }
