@@ -5,6 +5,13 @@ import InputBar, { type InputBarHandle } from './InputBar';
 import SessionSkeleton from './SessionSkeleton';
 import './ChatWindow.css';
 
+/** F20: empty-state starter prompts; clicking one prefills the composer. */
+const STARTER_PROMPTS = [
+  { label: '资料优化', prompt: '帮我优化一下我的个人资料' },
+  { label: '聊天指导', prompt: '对方回复很冷淡，我该怎么继续聊？' },
+  { label: '约会规划', prompt: '帮我规划一次第一次约会' },
+];
+
 interface Props {
   messages: ChatMessage[];
   loading: boolean;
@@ -75,6 +82,18 @@ export default function ChatWindow({
                 完善资料，获得更个性化建议 →
               </button>
             )}
+            <div className="starter-chips" role="group" aria-label="开始话题">
+              {STARTER_PROMPTS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  className="starter-chip"
+                  onClick={() => inputRef.current?.prefill(p.prompt)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
             <div className="welcome-features">
               <div className="feature">
                 <span aria-hidden="true">🔧</span>

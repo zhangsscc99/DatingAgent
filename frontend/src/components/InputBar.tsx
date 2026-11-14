@@ -3,6 +3,8 @@ import './InputBar.css';
 
 export interface InputBarHandle {
   focus: () => void;
+  /** Fill the composer with `text` and focus it (used by empty-state chips). */
+  prefill: (text: string) => void;
 }
 
 interface Props {
@@ -27,6 +29,10 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ onSend, d
 
   useImperativeHandle(ref, () => ({
     focus: () => textareaRef.current?.focus(),
+    prefill: (text: string) => {
+      setText(text);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    },
   }));
 
   const submit = () => {

@@ -125,3 +125,34 @@
     padding: 12px 16px;
   }
 }
+
+/* F20: empty-state starter prompt chips */
+.starter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.starter-chip {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.15));
+  background: transparent;
+  color: var(--text-primary, inherit);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.starter-chip:hover {
+  background: var(--accent-soft, rgba(255, 64, 129, 0.1));
+  border-color: var(--accent, #ff4081);
+  transform: translateY(-1px);
+}
+
+.starter-chip:focus-visible {
+  outline: 2px solid var(--accent, #ff4081);
+  outline-offset: 2px;
+}
