@@ -6,6 +6,7 @@ import { AgentHarness, createSession } from '../agent/harness.js';
 import type { AgentContext, UserProfile } from '../agent/types.js';
 import { buildHealthReport } from '../lib/health.js';
 import { buildVersionReport } from '../lib/version.js';
+import { createRequestLogger } from '../lib/request-log.js';
 import {
   createRateLimiter,
   handleBodyErrors,
@@ -75,6 +76,8 @@ export function createApp(options: AppOptions = {}) {
   const llmConfigured = options.llmConfigured ?? Boolean(process.env.OPENAI_API_KEY?.trim());
   const app = express();
   app.use(cors());
+  // Registered before the body parser so even rejected payloads get a log line.
+  app.use(createRequestLogger());
   app.use(express.json());
   app.use(handleBodyErrors);
 
