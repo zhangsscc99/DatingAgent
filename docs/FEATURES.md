@@ -31,6 +31,9 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **F23 · Health metrics reset endpoint** — `POST /api/metrics/reset` (localhost-only, 403 otherwise) to zero counters without a restart. Acceptance: counters zero afterwards, non-local request → 403.
 
 ## Proposed
+- **P22 · Message copy button** — hover a bubble to reveal a one-click "复制" that copies its text via navigator.clipboard, with brief 已复制 feedback; no layout shift.
+- **P23 · Empty-state suggestions** — when a conversation has no messages, show 3 tappable starter prompts (e.g. 自我介绍/找话题/化解尴尬) that fill the composer.
+- **P24 · Scroll-to-bottom button** — floating ↑ button appears when scrolled away from latest message in chat view; smooth-scrolls back.
 
 <!-- Human review needed — these are candidates, not scheduled work. -->
 - **P04 · Request id + error correlation** — attach a short `x-request-id` per request, echo it in error JSON and the structured log line, so a client-reported failure can be matched to its log entry. No persistence.
