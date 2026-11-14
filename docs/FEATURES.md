@@ -84,3 +84,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P40 · Session list relative timestamps** — show "3 分钟前 / 2 天前" style relative times in the session dropdown instead of raw dates; pure formatting helper.
 - **P41 · Composer Enter-to-send hint** — small dim caption "Enter 发送 / Shift+Enter 换行" under the composer, purely static UI text.
 - **P42 · Footer chip click scrolls to top** — clicking the P27 health chip smooth-scrolls the chat view to the top; pure frontend handler.
+- **P43 · Composer char counter** — subtle `n / 2000` counter in the composer corner that only appears past 80% of a max length; pure frontend.
+- **P44 · Copy full conversation** — reuse P31/P16 copy pattern to copy all messages of the current session as plain text; no backend change.
+- **P45 · Toast auto-dismiss timer** — give success toasts a fixed 3s auto-dismiss (errors stay until closed) using the existing toast component.
