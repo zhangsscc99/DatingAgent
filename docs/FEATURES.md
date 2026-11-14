@@ -107,3 +107,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P64 · Composer send on Ctrl/Cmd+Enter hint** — placeholder tooltip noting Enter sends / Shift+Enter newline; zero logic, pure text.
 - **P65 · Session list relative time** — P33 dropdown shows "x分钟前" instead of raw timestamps via an Intl.RelativeTimeFormat; pure frontend.
 - **P66 · Health chip latency color** — P27 chip turns amber above 1500ms, red above 5000ms; pure UI threshold on existing poll state.
+- **P67 · Composer char counter tooltip** — P43 counter's tooltip explains the 4000 limit and where it comes from (F02); pure static text.
+- **P68 · Session dropdown keyboard hint** — label of the P33 dropdown shows a dim "点击展开" hint for keyboard users; pure cosmetic text.
+- **P69 · Toast dismiss via Esc** — pressing Escape closes the topmost toast; small key handler on the existing toast component, no new deps.
