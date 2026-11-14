@@ -15,7 +15,9 @@ Cron runs this loop every 10 minutes. These are hard constraints for any agent w
 3. `bash scripts/ci-deploy.sh` → build, pm2 restart, `/api/health` poll, live `/api/chat` smoke test.
 4. Non-zero exit → `bash scripts/rollback.sh`, leave the box unticked, report the build error. Do not attempt a second fix in the same run.
 5. Success → tick the box, append `YYYY-MM-DD HH:MM | F0X | what changed` to `docs/DEVLOG.md`, then
-   `git add -A && git commit -m "feat: F0X <summary>"`.
+   `git add -A && git commit -m "feat: F0X <summary>"`, and finally `bash scripts/refresh-version.sh`
+   (restarts pm2 so `/api/version` gitSha matches the commit just made — the sha is resolved at process
+   start in `backend/src/lib/git-sha.ts`, so a restart is enough; it exits 0 only on exact equality).
 
 ## Environment
 - `npm` at `/usr/local/bin/npm`, pm2 at `/root/.nvm/versions/node/v24.5.0/bin/pm2` (scripts set `PATH`).

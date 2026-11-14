@@ -32,7 +32,7 @@ function readGitSha() {
   const fromEnv = process.env.GIT_SHA?.trim();
   if (fromEnv) return fromEnv.slice(0, 40);
   try {
-    const sha = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], {
+    const sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
       cwd: repoRoot,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],

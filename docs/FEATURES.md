@@ -21,7 +21,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 
 ## Sprint 2 (seeded 2026-11-14)
 
-- [ ] **F16 · Fix stale /api/version sha** — `gitSha` currently reports the *previous* commit because `ci-deploy.sh` builds before the loop commits. Generate build-info after commit, or have ci-deploy re-run `node scripts/gen-build-info` + rebuild only the backend after commit. Acceptance: `/api/version` gitSha == `git rev-parse --short HEAD` on a clean tree.
+- [x] **F16 · Fix stale /api/version sha** — `gitSha` currently reports the *previous* commit because `ci-deploy.sh` builds before the loop commits. Generate build-info after commit, or have ci-deploy re-run `node scripts/gen-build-info` + rebuild only the backend after commit. Acceptance: `/api/version` gitSha == `git rev-parse --short HEAD` on a clean tree.
 - [ ] **F17 · Tool input schemas in /api/tools** — expose each tool's parameter names/types (derive from the zod schemas in `tools/registry.ts`) so the UI can show what each tool needs. Acceptance: `/api/tools` returns `inputs` per tool; no schema duplication.
 - [ ] **F18 · Control-character sanitisation** — strip NUL/ESC and other control chars from `message` before it reaches the LLM; keep newlines/tabs. Acceptance: `\u0000`-laden message returns 200 and the log line stays single-line valid JSON.
 - [ ] **F19 · SSE keepalive** — send a `: ping` comment every 15 s on `/api/chat/stream` while the model is thinking, so proxies don't drop idle connections. Acceptance: a deliberately slow tool still streams to completion through a 30 s window.
