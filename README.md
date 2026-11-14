@@ -69,6 +69,36 @@ bash scripts/deploy.sh
 
 若前端未构建，`status` 为 `degraded` 且 HTTP 503。
 
+## API
+
+生产实例（pm2 `dating-agent`）监听 `3012`，下文用 `BASE` 指代；本地开发默认 `3001`。
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/api/health` | 状态、uptime、内存、LLM 配置、前端构建；`degraded` → 503 |
+| GET | `/api/version` | `{version, gitSha, buildTime, node}`，构建期注入 |
+| GET | `/api/tools` | 工具列表 `{name, label, icon}` |
+| GET | `/api/sessions` | `{count, oldestAgeSec}`，不含内容与 PII |
+| POST | `/api/session` | body `{profile?}` → `{sessionId}` |
+| POST | `/api/session/restore` | body `{sessionId, messages?, profile?}` → `{sessionId, restored, messageCount}` |
+| GET | `/api/session/:id` | `{sessionId, profile, history}`，不存在 404 |
+| DELETE | `/api/session/:id` | `{deleted: true\|false}` |
+| POST | `/api/chat` | body `{sessionId?, message, profile?, language?}` → `{sessionId, reply, language}` |
+| POST | `/api/chat/stream` | 同上，SSE 事件 `thinking`/`tool_start`/`tool_end`/`message`/`error`/`done` |
+
+限制：`message` 超过 4000 字符 → 413；`/api/chat*` 每 IP 30 次/分钟 → 429（带 `Retry-After`）；`language` 仅接受 `zh`/`en`/`auto`，其它值 400。
+
+```bash
+BASE=http://localhost:3012
+
+curl -s $BASE/api/health
+curl -s -X POST $BASE/api/chat -H 'Content-Type: application/json' \
+  -d '{"message":"他三天没回我消息，怎么办？","language":"zh"}'
+curl -sN -X POST $BASE/api/chat/stream -H 'Content-Type: application/json' \
+  -d '{"message":"帮我看看交友资料","language":"auto"}'
+curl -s -X DELETE $BASE/api/session/<sessionId>
+```
+
 ### systemd 部署
 
 1. 将项目安装到 `/opt/dating-agent`（或修改 unit 中的路径）
