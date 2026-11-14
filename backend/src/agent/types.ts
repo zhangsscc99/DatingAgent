@@ -39,10 +39,17 @@ export interface ToolCall {
   arguments: Record<string, unknown>;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+}
+
 export interface LLMResponse {
   content: string | null;
   toolCalls: ToolCall[];
   finishReason: 'stop' | 'tool_calls' | 'length';
+  /** Provider-reported token usage; absent when the provider omits it. */
+  usage?: TokenUsage;
 }
 
 export interface AgentEvent {

@@ -1,5 +1,11 @@
 import type { LLMResponse, Message, ToolCall, ToolDefinition } from '../agent/types.js';
 
+interface ChatCompletionUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+}
+
 interface ChatCompletionChoice {
   message: {
     content: string | null;
@@ -66,7 +72,10 @@ export class LLMClient {
       throw new Error(`LLM API error ${res.status}: ${err}`);
     }
 
-    const data = (await res.json()) as { choices: ChatCompletionChoice[] };
+    const data = (await res.json()) as {
+      choices: ChatCompletionChoice[];
+      usage?: ChatCompletionUsage;
+    };
     const choice = data.choices[0];
     const toolCalls: ToolCall[] = (choice.message.tool_calls ?? []).map((tc) => ({
       id: tc.id,
@@ -78,6 +87,12 @@ export class LLMClient {
       content: choice.message.content,
       toolCalls,
       finishReason: choice.finish_reason === 'tool_calls' ? 'tool_calls' : 'stop',
+      usage: data.usage
+        ? {
+            promptTokens: data.usage.prompt_tokens ?? 0,
+            completionTokens: data.usage.completion_tokens ?? 0,
+          }
+        : undefined,
     };
   }
 

@@ -16,7 +16,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **F11 · Reply language switch** — optional `language: "zh" | "en" | "auto"` on `/api/chat`, appended as a directive to the system prompt; `auto` keeps current behaviour.
 - [x] **F12 · Test suite** — add `vitest` at the repo root with tests for `tools/registry.ts` (unknown tool → error), `lib/health.ts` (missing dist → `degraded`), and harness tool-loop dispatch. Add `npm test`.
 - [x] **F13 · README API reference** — endpoint table + copy-paste `curl` examples, kept under 40 lines added.
-- [ ] **F14 · Usage metrics** — count requests/tokens/avg latency in memory and expose them on `/api/health` under `metrics`; no persistence.
+- [x] **F14 · Usage metrics** — count requests/tokens/avg latency in memory and expose them on `/api/health` under `metrics`; no persistence.
 - [ ] **F15 · Accessibility pass** — `aria-label`s on icon buttons, visible focus rings, `prefers-reduced-motion` guard for the streaming animation.
 
 ## Done

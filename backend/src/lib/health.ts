@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { serverStartedAt } from '../config/runtime.js';
 import { BUILD_INFO } from '../generated/build-info.js';
+import { usageMetrics, type MetricsSnapshot } from './metrics.js';
 
 export interface HealthReport {
   status: 'ok' | 'degraded';
@@ -19,6 +20,8 @@ export interface HealthReport {
     built: boolean;
     indexExists: boolean;
   };
+  /** In-memory counters since process start; nothing is persisted. */
+  metrics: MetricsSnapshot;
 }
 
 export function buildHealthReport(frontendDist: string, llmConfigured: boolean): HealthReport {
@@ -42,6 +45,7 @@ export function buildHealthReport(frontendDist: string, llmConfigured: boolean):
       built: fs.existsSync(frontendDist),
       indexExists,
     },
+    metrics: usageMetrics.snapshot(),
   };
 }
 

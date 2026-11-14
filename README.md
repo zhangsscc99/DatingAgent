@@ -55,7 +55,7 @@ bash scripts/deploy.sh
 
 ### 健康检查
 
-`GET /api/health` 返回运行状态、uptime、内存占用、LLM 是否配置，以及 `frontend/dist` 是否已构建：
+`GET /api/health` 返回运行状态、uptime、内存占用、LLM 是否配置，以及 `frontend/dist` 是否已构建，另附进程内累计的 `metrics`（重启即清零，不落盘）：
 
 ```json
 {
@@ -63,7 +63,12 @@ bash scripts/deploy.sh
   "uptimeSeconds": 42,
   "memory": { "rssMb": 55.2, "heapUsedMb": 12.1, "heapTotalMb": 18.0 },
   "llmConfigured": false,
-  "frontend": { "built": true, "indexExists": true }
+  "frontend": { "built": true, "indexExists": true },
+  "metrics": {
+    "requests": { "total": 12, "chat": 3, "chatErrors": 0 },
+    "tokens": { "prompt": 1840, "completion": 512, "total": 2352 },
+    "latency": { "chatSamples": 3, "avgMs": 1420.5, "lastMs": 980, "maxMs": 2100 }
+  }
 }
 ```
 
@@ -75,7 +80,7 @@ bash scripts/deploy.sh
 
 | Method | Path | 说明 |
 |--------|------|------|
-| GET | `/api/health` | 状态、uptime、内存、LLM 配置、前端构建；`degraded` → 503 |
+| GET | `/api/health` | 状态、uptime、内存、LLM 配置、前端构建、`metrics` 用量；`degraded` → 503 |
 | GET | `/api/version` | `{version, gitSha, buildTime, node}`，构建期注入 |
 | GET | `/api/tools` | 工具列表 `{name, label, icon}` |
 | GET | `/api/sessions` | `{count, oldestAgeSec}`，不含内容与 PII |

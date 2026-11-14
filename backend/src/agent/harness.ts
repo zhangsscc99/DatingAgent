@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { AgentContext, AgentEvent, Message, ReplyLanguage } from './types.js';
 import { LLMClient } from '../llm/client.js';
+import { usageMetrics } from '../lib/metrics.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
 
 const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感的 AI 恋爱关系顾问。
@@ -65,6 +66,9 @@ export class AgentHarness {
 
     for (let turn = 0; turn < this.maxTurns; turn++) {
       const response = await this.llm.chat(messages, toolRegistry);
+      if (response.usage) {
+        usageMetrics.recordTokens(response.usage.promptTokens, response.usage.completionTokens);
+      }
 
       if (response.toolCalls.length > 0) {
         messages.push({

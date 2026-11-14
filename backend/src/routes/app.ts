@@ -7,6 +7,7 @@ import type { AgentContext, ReplyLanguage, UserProfile } from '../agent/types.js
 import { buildHealthReport } from '../lib/health.js';
 import { buildVersionReport } from '../lib/version.js';
 import { createRequestLogger } from '../lib/request-log.js';
+import { usageMetrics } from '../lib/metrics.js';
 import {
   createRateLimiter,
   handleBodyErrors,
@@ -96,6 +97,11 @@ export function createApp(options: AppOptions = {}) {
   const llmConfigured = options.llmConfigured ?? Boolean(process.env.OPENAI_API_KEY?.trim());
   const app = express();
   app.use(cors());
+  // Cheap counter; runs before everything so rejected requests are still counted.
+  app.use((_req, _res, next) => {
+    usageMetrics.recordRequest();
+    next();
+  });
   // Registered before the body parser so even rejected payloads get a log line.
   app.use(createRequestLogger());
   app.use(express.json());
@@ -207,11 +213,14 @@ export function createApp(options: AppOptions = {}) {
     }
 
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
+    const startedAt = Date.now();
 
     try {
       const reply = await harness.chat(message, session);
+      usageMetrics.recordChat(Date.now() - startedAt, true);
       res.json({ sessionId: session.sessionId, reply, language: session.language ?? 'auto' });
     } catch (err) {
+      usageMetrics.recordChat(Date.now() - startedAt, false);
       const msg = err instanceof Error ? err.message : String(err);
       res.status(500).json({ error: msg });
     }
@@ -234,22 +243,26 @@ export function createApp(options: AppOptions = {}) {
     }
 
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
+    const startedAt = Date.now();
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
 
+    let failed = false;
     try {
       for await (const event of harness.run(message, session)) {
         res.write(`data: ${JSON.stringify(event)}\n\n`);
         if (event.type === 'done') break;
       }
     } catch (err) {
+      failed = true;
       const msg = err instanceof Error ? err.message : String(err);
       res.write(`data: ${JSON.stringify({ type: 'error', data: { message: msg } })}\n\n`);
     }
 
+    usageMetrics.recordChat(Date.now() - startedAt, !failed);
     res.end();
   });
 
