@@ -158,3 +158,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P100 · Health chip keyboard focus** — P27 footer chip becomes a real `<button>` with visible focus ring so keyboard users can reach it (P42/P81 rely on clicking); pure a11y, no behavior change.
 - **P101 · Export button disabled when empty** — F07 export and P16 copy actions are disabled (dim + `aria-disabled`) when the conversation has zero messages, preventing empty .md files; pure UI state.
 - **P102 · Backlog lint in refresh-version** — `scripts/refresh-version.sh` exits non-zero if `/api/version` sha mismatch persists after restart, so the loop catches stale builds immediately; shell-only, no app change.
+- **P118 · Health degraded reason field** — when /api/health reports `degraded`, include a one-word `reason` (e.g. "llm" vs "memory") so the README's P93 semantics are actionable; one field.
+- **P119 · Copy-all-transcript action** — footer gains a "复制全文" button that copies the whole conversation as plain text, reusing P31's clipboard pattern; pure frontend.
+- **P120 · Version footer title attr** — the P76 gitSha span gets a `title` with the full build time so hovering explains the short sha; one attribute.

@@ -32,3 +32,4 @@
 2026-11-15 00:26 | PROPOSED | added P79-P81 candidate ideas (header status dot / export metadata header / health chip copy)
 2026-11-15 01:20 | PROPOSED | added P94-P96 candidate ideas (scroll-btn aria label / session empty state / version uptime field)
 2026-11-15 02:26 | PROPOSED | added P109-P111 candidate ideas (SSE heartbeat / export HTML-escape / title edit lock)
+2026-11-15 02:58 | PROPOSED | added P118-P120 candidate ideas (health degraded reason / copy-all transcript / version title attr)
