@@ -72,6 +72,11 @@ function readStoredLanguage(): ReplyLanguage {
   return 'auto';
 }
 
+/** Document lang for the reply-language preference; the shell stays Chinese except for explicit English. */
+export function documentLangFor(language: ReplyLanguage): string {
+  return language === 'en' ? 'en' : 'zh-CN';
+}
+
 /** Human-readable message for a failed chat request, using the API's JSON error shape. */
 async function describeChatError(res: Response): Promise<string> {
   const retryAfter = res.headers.get('Retry-After');
@@ -191,6 +196,10 @@ export default function App() {
   useEffect(() => {
     if (!isMobile) setSidebarOpen(false);
   }, [isMobile]);
+
+  useEffect(() => {
+    document.documentElement.lang = documentLangFor(language);
+  }, [language]);
 
   useEffect(() => {
     if (!sidebarOpen) return;
