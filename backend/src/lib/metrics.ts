@@ -28,6 +28,8 @@ export interface MetricsSnapshot {
   };
   /** ISO timestamp of the first counter update (process start for practical purposes). */
   startedAt: string;
+  /** Resident set size at snapshot time, rounded to whole MB — makes memory growth observable. */
+  rssMB: number;
 }
 
 /** Non-negative integer guard so a malformed provider payload cannot poison the counters. */
@@ -102,6 +104,7 @@ export class UsageMetrics {
         maxMs: round1(this.maxMs),
       },
       startedAt: this.startedAt,
+      rssMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
     };
   }
 }
