@@ -161,3 +161,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P118 · Health degraded reason field** — when /api/health reports `degraded`, include a one-word `reason` (e.g. "llm" vs "memory") so the README's P93 semantics are actionable; one field.
 - **P119 · Copy-all-transcript action** — footer gains a "复制全文" button that copies the whole conversation as plain text, reusing P31's clipboard pattern; pure frontend.
 - **P120 · Version footer title attr** — the P76 gitSha span gets a `title` with the full build time so hovering explains the short sha; one attribute.
+- **P121 · Composer textarea spellcheck off** — set `spellcheck={false}` on the composer so dating-advice slang/pinyin isn't red-underlined; one attribute, pure frontend.
+- **P122 · Error toast role="alert"** — chat error toasts get `role="alert"` so screen readers announce failures without focus theft; one attribute, reuses existing toast.
+- **P123 · Health poll backoff on failure** — the P27 health poll skips its next tick after a failed fetch (doubling interval once, capped at 5 min) so a down backend isn't hammered; small timer tweak.
