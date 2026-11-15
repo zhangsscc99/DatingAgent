@@ -47,7 +47,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **P26 · Regenerate reply** — "换一个" action on the last assistant bubble that re-issues the same user message, replacing that single reply in place.
 - [x] **P27 · System-status footer** — tiny footer dot on /api/health status (green ok / yellow degraded), polled every 60 s; no keys or PII shown.
 
-- **P109 · SSE heartbeat comment** — send a `: keepalive` SSE comment on `/api/chat/stream` every 15s while the model thinks, so proxies don't cut idle connections; pure backend, no payload change.
+- [x] **P109 · SSE heartbeat comment** — send a `: keepalive` SSE comment on `/api/chat/stream` every 15s while the model thinks, so proxies don't cut idle connections; pure backend, no payload change. Satisfied by the existing F19 implementation (`: ping` comment every 15s, cleared on close/finish/end).
 - **P110 · HTML-escape exported text** — F07 Markdown export escapes `<`, `>`, `&` in user/LLM text so a pasted `<script>` can't execute if the .md is rendered as HTML; pure string map.
 - **P111 · Disable title edit while sending** — the session title input is read-only while a reply is streaming, avoiding mid-flight rename races; one `disabled` binding.
 - **P112 · `/api/version` no-store cache header** — same `Cache-Control: no-store` protection as P46 but for the build-info endpoint, so a proxy can't pin a stale gitSha; one header line.
