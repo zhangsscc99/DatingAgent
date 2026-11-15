@@ -4,7 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AgentHarness, createSession, parseReplyLanguage } from '../agent/harness.js';
 import type { AgentContext, ChatResult, ReplyLanguage, UserProfile } from '../agent/types.js';
-import { buildHealthReport } from '../lib/health.js';
+import { buildHealthReport, buildVerboseHealth } from '../lib/health.js';
+import { apiErrors } from '../lib/last-error.js';
 import { buildVersionReport } from '../lib/version.js';
 import { createRequestLogger, errorBody, requestId } from '../lib/request-log.js';
 import { usageMetrics } from '../lib/metrics.js';
@@ -76,6 +77,12 @@ export interface AppOptions {
   llmModel?: string;
 }
 
+/** Loopback-only guard for localhost admin surfaces (verbose health, metrics reset). */
+function isLoopback(req: express.Request): boolean {
+  const remote = req.ip ?? req.socket.remoteAddress ?? '';
+  return remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
+}
+
 /**
  * Resolve the session for one chat turn. A pinned `language` sticks to the
  * session so later turns keep the same reply language without resending it.
@@ -115,6 +122,21 @@ export function createApp(options: AppOptions = {}) {
     res.setHeader('Referrer-Policy', 'no-referrer');
     next();
   });
+  // P05: remember the most recent 5xx under /api/* for the verbose health probe.
+  app.use('/api', (req, res, next) => {
+    res.on('finish', () => {
+      if (res.statusCode < 500) return;
+      const raw = req.originalUrl || req.url || '';
+      const queryAt = raw.indexOf('?');
+      apiErrors.record({
+        ts: new Date().toISOString(),
+        method: req.method,
+        path: queryAt === -1 ? raw : raw.slice(0, queryAt),
+        status: res.statusCode,
+      });
+    });
+    next();
+  });
   app.use(express.json());
   app.use(handleBodyErrors);
 
@@ -122,9 +144,18 @@ export function createApp(options: AppOptions = {}) {
   const chatRateLimit = createRateLimiter();
   const chatGuards = [chatRateLimit, rejectOversizedMessage];
 
-  app.get('/api/health', (_req, res) => {
+  app.get('/api/health', (req, res) => {
     res.set('Cache-Control', 'no-store');
     const report = buildHealthReport(frontendDist, llmConfigured, llmModel);
+    // P05: verbose diagnostics are localhost-only; remote callers always get
+    // the plain public payload with no `verbose` key.
+    if (req.query.verbose === '1' && isLoopback(req)) {
+      res.status(report.status === 'ok' ? 200 : 503).json({
+        ...report,
+        verbose: buildVerboseHealth(frontendDist, apiErrors.latest()),
+      });
+      return;
+    }
     res.status(report.status === 'ok' ? 200 : 503).json(report);
   });
 
@@ -135,9 +166,7 @@ export function createApp(options: AppOptions = {}) {
 
   // Localhost-only admin endpoint: zero the usage counters without a restart.
   app.post('/api/metrics/reset', (req, res) => {
-    const remote = req.ip ?? '';
-    const isLocal = remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
-    if (!isLocal) {
+    if (!isLoopback(req)) {
       res.status(403).json(errorBody(res, 'forbidden: localhost only'));
       return;
     }

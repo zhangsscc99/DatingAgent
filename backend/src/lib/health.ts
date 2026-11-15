@@ -3,6 +3,7 @@ import path from 'node:path';
 import { serverStartedAt } from '../config/runtime.js';
 import { BUILD_INFO } from '../generated/build-info.js';
 import { usageMetrics, type MetricsSnapshot } from './metrics.js';
+import type { LastApiError } from './last-error.js';
 
 export interface HealthReport {
   status: 'ok' | 'degraded';
@@ -61,4 +62,43 @@ export function buildHealthReport(
 
 function roundMb(bytes: number): number {
   return Math.round((bytes / 1024 / 1024) * 10) / 10;
+}
+
+/**
+ * P05 — extra diagnostics merged into the health payload only for
+ * `GET /api/health?verbose=1` from a loopback client. The public payload
+ * (`HealthReport`) is left untouched.
+ */
+export interface VerboseHealthReport {
+  /** Free bytes on the filesystem holding the frontend dist; null when statfs is unavailable. */
+  diskFreeBytes: number | null;
+  /** Raw resident set size in bytes (the rounded MB `memory` block stays untouched). */
+  rssBytes: number;
+  /** Integer seconds since process start. */
+  uptimeSeconds: number;
+  /** Most recent 5xx under `/api/*` since process start; null when nothing failed. */
+  lastError: LastApiError | null;
+}
+
+export function buildVerboseHealth(
+  frontendDist: string,
+  lastError: LastApiError | null,
+): VerboseHealthReport {
+  return {
+    diskFreeBytes: diskFreeBytes(frontendDist),
+    rssBytes: process.memoryUsage().rss,
+    uptimeSeconds: Math.floor(process.uptime()),
+    lastError,
+  };
+}
+
+/** Free bytes for unprivileged users on the volume holding `target`. Never throws. */
+function diskFreeBytes(target: string): number | null {
+  try {
+    if (typeof fs.statfsSync !== 'function') return null;
+    const stats = fs.statfsSync(target);
+    return stats.bavail * stats.bsize;
+  } catch {
+    return null;
+  }
 }
