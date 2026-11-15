@@ -64,3 +64,4 @@
 2026-11-15 18:25 | F25 | Terminal /api/* 404 handler returns JSON {error,requestId} ahead of the SPA catch-all
 2026-11-15 18:37 | P115 | audit: favicon already served (204 / svg 200), no code change
 2026-11-15 18:50 | P116 | README: health payload fields + metrics sub-object docs; tools row now lists inputs
+2026-11-15 19:03 | P117 | export button aria-label now mirrors visible text （导出 Markdown / 已导出 / 导出失败）

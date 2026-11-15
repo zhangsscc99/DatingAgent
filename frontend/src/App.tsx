@@ -720,7 +720,13 @@ export default function App() {
               }`}
               onClick={handleExport}
               disabled={!canExport}
-              aria-label="导出当前对话为 Markdown"
+              aria-label={
+                exportState === 'done'
+                  ? '已导出'
+                  : exportState === 'failed'
+                    ? '导出失败'
+                    : '导出 Markdown'
+              }
               title={
                 canExport
                   ? '把当前对话导出为 Markdown 文件'
