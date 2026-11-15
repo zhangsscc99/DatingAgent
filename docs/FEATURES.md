@@ -179,3 +179,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P136 · Escape closes modal** — pressing Escape closes any open modal/dialog (e.g. confirm dialogs) and restores focus to the trigger; small keydown handler, pure a11y.
 - **P137 · prefers-reduced-motion disables smooth scroll** — the P24 scroll-to-bottom and chat auto-scroll use `behavior:'auto'` when the user prefers reduced motion; one media-query check, pure frontend.
 - **P138 · Health payload node version field** — add `node: process.version` to `/api/health` so testers can confirm the runtime; one line in `lib/health.ts`, no schema break.
+- **P139 · Health payload RSS field** — add `rssMB` from `process.memoryUsage().rss` (rounded MB) to `/api/health` metrics so memory growth is observable without SSH; one field, no schema break.
+- **P140 · Session dropdown recency sort** — audit the P33 session list ordering and sort by most-recently-updated first (one comparator) so the current chat is always at the top; pure frontend.
+- **P141 · Message list role=log** — give the chat message container `role="log"` so screen readers treat new replies as live-updated history; one attribute, pure a11y.
