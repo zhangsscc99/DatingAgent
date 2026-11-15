@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { startDialogDismiss } from '../lib/dialogDismiss';
 import type { UserProfile } from '../types';
 import './ProfileOnboarding.css';
 
@@ -41,17 +42,28 @@ export default function ProfileOnboarding({
     setError('');
   }, [open, initialProfile]);
 
-  // F15 — a dismissable dialog must close on Esc, not only on the × button.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<Element | null>(null);
+  const wasOpenRef = useRef(open);
+  if (open !== wasOpenRef.current) {
+    wasOpenRef.current = open;
+    // P136 — read activeElement before this commit lands the autofocused
+    // input, so the element that opened the dialog can regain focus later.
+    openerRef.current = open ? document.activeElement : null;
+  }
+
+  // P136 — Escape dismisses via close (edit) or skip (onboarding), Tab
+  // stays trapped inside the panel, and the opener regains focus on close.
   useEffect(() => {
-    if (!open || !onClose) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      onClose();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+    if (!open) return;
+    const handle = startDialogDismiss({
+      onClose,
+      onSkip: allowSkip ? onSkip : undefined,
+      getPanel: () => panelRef.current,
+      opener: openerRef.current,
+    });
+    return () => handle.stop();
+  }, [open, onClose, onSkip, allowSkip]);
 
   if (!open) return null;
 
@@ -84,7 +96,7 @@ export default function ProfileOnboarding({
 
   return (
     <div className="profile-overlay" role="dialog" aria-modal="true" aria-labelledby="profile-title">
-      <div className="profile-panel">
+      <div className="profile-panel" ref={panelRef}>
         {onClose && (
           <button type="button" className="profile-close" onClick={onClose} aria-label="关闭">
             ×

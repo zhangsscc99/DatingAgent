@@ -81,3 +81,4 @@
 2026-11-15 22:50 | P152 | message count per session row: exported pure formatMessageCount (array→n 条, undefined/null/non-array→0 条, non-throwing, non-mutating) in Sidebar.tsx; dim .recent-chat-count chip rendered inside the switch button beside .recent-chat-time via a .recent-chat-meta flex row, hover title 共 n 条消息; CSS reuses --text-muted only, no layout/behaviour change to filter/groups/rename/delete; frontend/test/message-count.test.ts
 2026-11-15 23:05 | P128 | exported pure documentLangFor (en→en, zh/auto/unknown→zh-CN) beside readStoredLanguage; one useEffect writes document.documentElement.lang on language change; frontend/test/document-lang.test.ts
 2026-11-15 23:19 | P135 | useHealthPoll skips ticks while document.hidden, polls on visibilitychange; extracted startHealthPoll + vitest
+2026-11-15 23:40 | P136 | Escape closes the profile overlay in onboarding+edit modes via the existing skip/close path, opener regains focus, Tab contained; modal-escape.test.ts
