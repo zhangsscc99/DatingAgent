@@ -205,6 +205,11 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
         <textarea
           ref={textareaRef}
           id="chat-input"
+          spellCheck={false}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          enterKeyHint="send"
           value={text}
           onChange={(e) => {
             // P06: typing or pasting leaves history-browse mode.
