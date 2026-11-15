@@ -21,6 +21,15 @@ interface Props {
   busy?: boolean;
 }
 
+export function filterRecentSessions(
+  sessions: StoredChatSession[],
+  query: string,
+): StoredChatSession[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return sessions;
+  return sessions.filter((s) => s.title.toLowerCase().includes(q));
+}
+
 const QUICK_PROMPTS = [
   { icon: '📝', label: '优化资料', prompt: '帮我看看交友资料怎么写更有吸引力' },
   { icon: '💬', label: '聊天回复', prompt: '对方说「周末有什么安排」，我该怎么回复？' },
@@ -49,6 +58,8 @@ export default function Sidebar({
   const editInputRef = useRef<HTMLInputElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
+  const [filterQuery, setFilterQuery] = useState('');
+  const visibleSessions = filterRecentSessions(recentSessions, filterQuery);
 
   useEffect(() => {
     if (!editingId) return;
@@ -123,8 +134,27 @@ export default function Sidebar({
       {recentSessions.length > 0 && (
         <section className="sidebar-section recent-chats" aria-label="最近对话">
           <h3>最近对话</h3>
+          <input
+            type="text"
+            className="recent-chat-filter"
+            value={filterQuery}
+            placeholder="筛选对话"
+            aria-label="筛选对话"
+            onChange={(e) => setFilterQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setFilterQuery('');
+                e.currentTarget.blur();
+              }
+            }}
+          />
           <ul className="recent-chat-list">
-            {recentSessions.map((s) => {
+            {visibleSessions.length === 0 && (
+              <li className="recent-chat-empty" aria-live="polite">
+                无匹配对话
+              </li>
+            )}
+            {visibleSessions.map((s) => {
               const commitRename = () => {
                 // Enter already exits edit mode; ignore the blur that follows.
                 if (editingId !== s.id) return;
