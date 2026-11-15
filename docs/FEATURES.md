@@ -50,6 +50,9 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P109 · SSE heartbeat comment** — send a `: keepalive` SSE comment on `/api/chat/stream` every 15s while the model thinks, so proxies don't cut idle connections; pure backend, no payload change.
 - **P110 · HTML-escape exported text** — F07 Markdown export escapes `<`, `>`, `&` in user/LLM text so a pasted `<script>` can't execute if the .md is rendered as HTML; pure string map.
 - **P111 · Disable title edit while sending** — the session title input is read-only while a reply is streaming, avoiding mid-flight rename races; one `disabled` binding.
+- **P112 · `/api/version` no-store cache header** — same `Cache-Control: no-store` protection as P46 but for the build-info endpoint, so a proxy can't pin a stale gitSha; one header line.
+- **P113 · Streaming status via aria-live** — announce "正在生成…" through the existing visually-hidden aria-live region when a stream starts and clear it on completion, reusing P103's pattern; pure frontend.
+- **P114 · Composer maxlength hint** — set `maxlength={4000}` on the composer textarea so browsers hard-stop typing past the 413 limit; one attribute.
 
 <!-- Human review needed — these are candidates, not scheduled work. -->
 - **P04 · Request id + error correlation** — attach a short `x-request-id` per request, echo it in error JSON and the structured log line, so a client-reported failure can be matched to its log entry. No persistence.
