@@ -36,6 +36,7 @@ import {
   downloadMarkdown,
   exportableMessages,
 } from './lib/exportConversation';
+import { pushInputHistory } from './lib/inputHistory';
 import { regeneratePromptFor } from './lib/regenerate';
 import './App.css';
 
@@ -383,6 +384,9 @@ export default function App() {
       const now = Date.now();
       const assistantId = `a-${now}`;
 
+      // P06: the composer draft is already cleared; remember the message for
+      // ArrowUp recall (purely client-side, best-effort localStorage).
+      pushInputHistory(prompt);
       setMessages((prev) => [
         ...prev,
         { id: `u-${now}`, role: 'user', content: prompt, createdAt: now },

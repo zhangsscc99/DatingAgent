@@ -65,3 +65,4 @@
 2026-11-15 18:37 | P115 | audit: favicon already served (204 / svg 200), no code change
 2026-11-15 18:50 | P116 | README: health payload fields + metrics sub-object docs; tools row now lists inputs
 2026-11-15 19:03 | P117 | export button aria-label now mirrors visible text （导出 Markdown / 已导出 / 导出失败）
+2026-11-15 19:21 | P06 | lib/inputHistory.ts persists last 5 sent messages (newest-last, consecutive-dup drop, ~10KB serialized cap, try/catch->memory fallback); InputBar ArrowUp/Down recall guarded by empty-box/caret-0 (modifiers bypassed), Esc/past-newest restores pre-browse draft, sr-only aria-live 已恢复历史消息 n/N; App sendMessage records via pushInputHistory; P114 ticked (already satisfied); input-history.test.ts guards + behaviour (85 tests total)

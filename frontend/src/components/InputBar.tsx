@@ -6,6 +6,7 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react';
+import { loadInputHistory } from '../lib/inputHistory';
 import './InputBar.css';
 
 export interface InputBarHandle {
@@ -59,6 +60,14 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   const draftIdRef = useRef(draftId);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // P06: terminal-style recall of sent messages. `historyPos` counts steps
+  // back from the newest entry (null = not browsing); `browseDraft` holds
+  // the text that was in the box when browsing started so it is never lost.
+  const historyPosRef = useRef<number | null>(null);
+  const historyRef = useRef<string[]>([]);
+  const browseDraftRef = useRef('');
+  const [historyAnnouncement, setHistoryAnnouncement] = useState('');
+
   // Session switch: load that session's draft (the old one is already persisted).
   useEffect(() => {
     if (draftIdRef.current === draftId) return;
@@ -82,6 +91,7 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   useImperativeHandle(ref, () => ({
     focus: () => textareaRef.current?.focus(),
     prefill: (text: string) => {
+      historyPosRef.current = null;
       setText(text);
       requestAnimationFrame(() => textareaRef.current?.focus());
     },
@@ -89,18 +99,88 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
 
   const submit = () => {
     if (!text.trim() || disabled) return;
+    historyPosRef.current = null;
     onSend(text);
     setText('');
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
+  const announceRecall = (pos: number, total: number) => {
+    setHistoryAnnouncement(`已恢复历史消息 ${pos + 1}/${total}`);
+  };
+
+  /** ArrowUp: step one entry older (history is stored newest-last). */
+  const stepBackHistory = () => {
+    if (historyPosRef.current === null) {
+      historyRef.current = loadInputHistory();
+      if (historyRef.current.length === 0) return;
+      browseDraftRef.current = textareaRef.current?.value ?? text;
+      historyPosRef.current = 0;
+    } else if (historyPosRef.current < historyRef.current.length - 1) {
+      historyPosRef.current += 1;
+    }
+    const entry = historyRef.current[historyRef.current.length - 1 - historyPosRef.current];
+    setText(entry);
+    announceRecall(historyPosRef.current, historyRef.current.length);
+  };
+
+  /** ArrowDown: step one entry newer; past the newest restores the draft. */
+  const stepForwardHistory = () => {
+    if (historyPosRef.current === null) return;
+    if (historyPosRef.current > 0) {
+      historyPosRef.current -= 1;
+      const entry = historyRef.current[historyRef.current.length - 1 - historyPosRef.current];
+      setText(entry);
+      announceRecall(historyPosRef.current, historyRef.current.length);
+    } else {
+      historyPosRef.current = null;
+      setText(browseDraftRef.current);
+      setHistoryAnnouncement('已恢复草稿');
+    }
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Esc: drop focus out of the composer (mobile keyboard dismissal, Tab-out on desktop).
+    // Esc: while browsing history, leave history mode and hand the saved
+    // draft back; otherwise drop focus out of the composer (mobile keyboard
+    // dismissal, Tab-out on desktop).
     if (e.key === 'Escape') {
       e.preventDefault();
+      if (historyPosRef.current !== null) {
+        historyPosRef.current = null;
+        setText(browseDraftRef.current);
+        setHistoryAnnouncement('已恢复草稿');
+        return;
+      }
       textareaRef.current?.blur();
       return;
     }
+
+    // P06: ↑/↓ recall sent messages like a terminal — only when it cannot
+    // fight normal editing (empty box, caret at offset 0, or already
+    // browsing) and never with a modifier held.
+    if (
+      (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+      !e.shiftKey &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey
+    ) {
+      const el = textareaRef.current;
+      if (e.key === 'ArrowDown') {
+        if (historyPosRef.current === null) return;
+        e.preventDefault();
+        stepForwardHistory();
+        return;
+      }
+      const caretAtStart =
+        el !== null && el.selectionStart === 0 && el.selectionEnd === 0;
+      if (historyPosRef.current !== null || el?.value === '' || caretAtStart) {
+        e.preventDefault();
+        stepBackHistory();
+      }
+      return;
+    }
+
     if (e.key !== 'Enter') return;
 
     // Shift+Enter keeps the default newline behaviour.
@@ -115,6 +195,9 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
 
   return (
     <div className="input-bar" role="form" aria-label="发送消息">
+      <span className="sr-only" role="status" aria-live="polite">
+        {historyAnnouncement}
+      </span>
       <label htmlFor="chat-input" className="sr-only">
         输入你的问题
       </label>
@@ -123,7 +206,11 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           ref={textareaRef}
           id="chat-input"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            // P06: typing or pasting leaves history-browse mode.
+            historyPosRef.current = null;
+            setText(e.target.value);
+          }}
           onKeyDown={handleKeyDown}
           placeholder="描述你的问题，例如：对方说「在干嘛」，我该怎么回？"
           rows={1}
@@ -132,7 +219,7 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           aria-label="输入你的问题"
           aria-disabled={disabled}
           aria-describedby={showCounter ? 'chat-input-counter' : undefined}
-          title={`Enter 发送 · Shift+Enter 换行 · ${MOD_KEY}+Enter 发送 · Esc 收起输入`}
+          title={`Enter 发送 · Shift+Enter 换行 · ${MOD_KEY}+Enter 发送 · ↑ 历史消息 · Esc 收起输入`}
         />
         {showCounter && (
           <span
@@ -162,6 +249,9 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           </span>
           <span>
             <kbd>Shift+Enter</kbd> 换行
+          </span>
+          <span>
+            <kbd>↑</kbd>/<kbd>↓</kbd> 历史消息
           </span>
           <span>
             <kbd>Esc</kbd> 收起输入框
