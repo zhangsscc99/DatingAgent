@@ -34,9 +34,9 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **P108 · Theme-aware meta theme-color** — update the `<meta name="theme-color">` when the F08 toggle switches light/dark so mobile browser chrome matches; pure attribute update.
 
 ## Proposed
-- **P46 · Health endpoint cache headers** — add `Cache-Control: no-store` to `/api/health` so proxies never serve a stale status; one middleware line, no payload change.
-- **P47 · Session title from first message** — derive a truncated (≤20 char) title from the first user message and show it in the session dropdown instead of raw IDs; pure frontend string slice.
-- **P48 · Focus input after send** — after a reply completes, refocus the composer so keyboard users can type immediately; one `focus()` call, no layout change.
+- [x] **P46 · Health endpoint cache headers** — add `Cache-Control: no-store` to `/api/health` so proxies never serve a stale status; one middleware line, no payload change.
+- [ ] **P47 · Session title from first message** — derive a truncated (≤20 char) title from the first user message and show it in the session dropdown instead of raw IDs; pure frontend string slice.
+- [ ] **P48 · Focus input after send** — after a reply completes, refocus the composer so keyboard users can type immediately; one `focus()` call, no layout change.
 - **P22 · Message copy button** — hover a bubble to reveal a one-click "复制" that copies its text via navigator.clipboard, with brief 已复制 feedback; no layout shift.
 - **P23 · Empty-state suggestions** — when a conversation has no messages, show 3 tappable starter prompts (e.g. 自我介绍/找话题/化解尴尬) that fill the composer.
 - **P24 · Scroll-to-bottom button** — floating ↑ button appears when scrolled away from latest message in chat view; smooth-scrolls back.

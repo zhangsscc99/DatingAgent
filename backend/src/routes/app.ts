@@ -116,6 +116,7 @@ export function createApp(options: AppOptions = {}) {
   const chatGuards = [chatRateLimit, rejectOversizedMessage];
 
   app.get('/api/health', (_req, res) => {
+    res.set('Cache-Control', 'no-store');
     const report = buildHealthReport(frontendDist, llmConfigured, llmModel);
     res.status(report.status === 'ok' ? 200 : 503).json(report);
   });
