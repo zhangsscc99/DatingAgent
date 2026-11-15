@@ -130,3 +130,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P88 · Session delete confirm** — P33 history dropdown's per-item delete gets a `confirm()` guard so a stray click can't drop a session; one line, no layout change.
 - **P89 · Health JSON pretty toggle** — `GET /api/health?pretty=1` returns the same payload with 2-space indentation for humans reading it in a browser; pure response formatting.
 - **P90 · Export copies tool lines** — F07 Markdown export marks messages that used a tool with a `(tool: name)` suffix, reusing F21's meta data; pure string addition.
+- **P91 · Composer hint respects language toggle** — the "Enter 发送 / Shift+Enter 换行" caption (P41) and composer hints switch text with the P09 language setting; one small map, no new state.
+- **P92 · Version endpoint headers** — return `Cache-Control: no-store` and expose `X-Build-Time` on `/api/version` so testers can confirm a fresh deploy from response headers alone; two header lines, no body change.
+- **P93 · Health status field documentation** — README table gains a one-row explanation of `status: ok|degraded` semantics (what makes it degraded); docs-only, no code.
