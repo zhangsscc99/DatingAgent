@@ -54,7 +54,7 @@ export default function ChatWindow({
 
   return (
     <div className="chat-window">
-      <div className="messages" aria-busy={restoring || loading}>
+      <div className="messages" role="log" aria-busy={restoring || loading}>
         {restoring && <SessionSkeleton />}
 
         {!restoring && messages.length === 0 && (
