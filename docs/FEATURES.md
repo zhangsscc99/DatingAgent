@@ -167,3 +167,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P124 · Composer autocomplete off** — set `autocomplete="off"` on the composer textarea so browsers don't suggest previously-sent personal messages; one attribute, pure frontend.
 - **P125 · Export button title tooltip** — F07 export action gets a native `title` explaining the .md download format and filename pattern; one attribute, no layout change.
 - **P126 · Session dropdown focus return** — when the P33 history dropdown closes, focus returns to its trigger button so keyboard users don't lose their place; one `focus()` call, pure a11y.
+- **P127 · Composer autocapitalize/autocorrect off** — set `autoCapitalize="none"` and `autoCorrect="off"` on the composer textarea alongside P124's autocomplete so mobile keyboards stop mangling slang/pinyin input; two attributes, pure frontend.
+- **P128 · Document lang syncs with language toggle** — when the P09 language setting changes, set `document.documentElement.lang` to `zh-CN` or `en` so screen readers use the right pronunciation; one `useEffect`, no new state.
+- **P129 · Health chip aria-pressed** — the P27 footer chip that toggles the details panel gets `aria-pressed` reflecting open/closed so screen readers announce the toggle state; one attribute, pure frontend.
