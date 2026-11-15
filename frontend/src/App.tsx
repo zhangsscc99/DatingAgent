@@ -557,6 +557,7 @@ export default function App() {
         }}
         onNewChat={handleNewChat}
         onSelectChat={handleSelectChat}
+        busy={loading}
         onEditProfile={() => {
           setEditingProfile(true);
           closeSidebar();

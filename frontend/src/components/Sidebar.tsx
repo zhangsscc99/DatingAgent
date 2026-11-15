@@ -15,6 +15,7 @@ interface Props {
   onNewChat: () => void;
   onSelectChat?: (sessionId: string) => void;
   onEditProfile?: () => void;
+  busy?: boolean;
 }
 
 function formatRelativeTime(ts: number): string {
@@ -47,6 +48,7 @@ export default function Sidebar({
   onNewChat,
   onSelectChat,
   onEditProfile,
+  busy = false,
 }: Props) {
   const sidebarRef = useRef<HTMLElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -122,6 +124,8 @@ export default function Sidebar({
                   type="button"
                   className={`recent-chat-item${s.id === activeSessionId ? ' active' : ''}`}
                   onClick={() => onSelectChat?.(s.id)}
+                  disabled={busy}
+                  aria-disabled={busy || undefined}
                   title={s.title}
                   aria-current={s.id === activeSessionId ? 'true' : undefined}
                 >

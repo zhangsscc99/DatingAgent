@@ -136,7 +136,7 @@
   transition: background 0.15s, border-color 0.15s;
 }
 
-.recent-chat-item:hover {
+.recent-chat-item:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--border);
 }
@@ -144,6 +144,11 @@
 .recent-chat-item.active {
   background: var(--accent-soft);
   border-color: var(--accent);
+}
+
+.recent-chat-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .recent-chat-item:focus-visible {

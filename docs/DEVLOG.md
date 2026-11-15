@@ -52,3 +52,4 @@
 2026-11-15 11:26 | P27 | SystemStatusFooter pinned under ChatWindow: useHealthPoll fetches /api/health now + every 60s (last known status kept on failure, reachable flag warns); lib/healthStatus coarse helpers render green/amber/muted dot + aria-live label (运行正常/服务降级/无法连接/检测中) via CSS vars only; vitest covers helpers
 2026-11-15 11:39 | P109 | verified existing F19 SSE keepalive on /api/chat/stream (: ping every 15s, interval cleared on close/finish/end); no code change, docs tick only
 2026-11-15 11:51 | P110 | exportConversation: escapeHtml helper (&& first, then < and >) applied to message body text in buildConversationMarkdown; Markdown scaffold stays raw; no deps
+2026-11-15 12:04 | P111 | no title-edit input exists; guarded session-select buttons in Sidebar with disabled={busy} (App loading flag) + aria-disabled + dimmed style to prevent mid-stream session/title races
