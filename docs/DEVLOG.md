@@ -42,3 +42,4 @@
 2026-11-15 05:40 | P140 | recent sessions sorted newest-update first via getRecentSessions comparator
 2026-11-15 05:52 | P141 | chat message container gets role="log" for screen-reader live history
 2026-11-15 06:30 | PROPOSED | added P142-P144 candidate ideas (nosniff header, enterkeyhint=send, format-detection telephone=no)
+2026-11-15 06:30 | PROPOSED | added P145-P147 candidate ideas (Referrer-Policy, X-Accel-Buffering off on stream, X-Frame-Options DENY)

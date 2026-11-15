@@ -185,3 +185,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P142 · Nosniff header on API responses** — set `X-Content-Type-Options: nosniff` on all `/api/*` responses so browsers can't MIME-sniff JSON error bodies as HTML; one middleware line, no payload change.
 - **P143 · Composer enterkeyhint=send** — set `enterKeyHint="send"` on the composer textarea so mobile keyboards show a send key instead of a generic return; one attribute, pure frontend.
 - **P144 · format-detection telephone=no** — add `<meta name="format-detection" content="telephone=no">` so iOS Safari doesn't auto-link numbers in chat replies as fake phone links; one meta tag in index.html.
+- **P145 · Referrer-Policy header on API** — set `Referrer-Policy: no-referrer` on `/api/*` responses so chat URLs/query strings never leak to third parties via the Referer header; one middleware line, no payload change.
+- **P146 · X-Accel-Buffering off on stream** — send `X-Accel-Buffering: no` on `/api/chat/stream` so any future nginx proxy doesn't buffer SSE tokens and stall replies; one response header, no behavior change behind direct Node.
+- **P147 · X-Frame-Options DENY** — set `X-Frame-Options: DENY` on all responses so the chat UI can't be embedded in an iframe (clickjacking guard for a single-user app); one header line, no layout change.
