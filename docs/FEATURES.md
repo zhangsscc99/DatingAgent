@@ -38,6 +38,9 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P23 · Empty-state suggestions** — when a conversation has no messages, show 3 tappable starter prompts (e.g. 自我介绍/找话题/化解尴尬) that fill the composer.
 - **P24 · Scroll-to-bottom button** — floating ↑ button appears when scrolled away from latest message in chat view; smooth-scrolls back.
 - **P25 · Character counter** — live char count near the composer that turns amber as the 4000-char 413 limit approaches; resets on send.
+- **P103 · Copy-reply accessible feedback** — announce "已复制" via a visually-hidden `aria-live="polite"` region instead of a transient toast, so screen readers get the confirmation; pure frontend.
+- **P104 · Health uptime field** — add `uptimeSec: process.uptime()` to `/api/health` payload; one line in `lib/health.ts`, no schema break.
+- **P105 · Composer autofocus on load** — focus the message input once on first page load (respecting `prefers-reduced-motion` users who may use screen readers; skip if any modal is open); one `useEffect` + `focus()`.
 - **P26 · Regenerate reply** — "换一个" action on the last assistant bubble that re-issues the same user message, replacing that single reply in place.
 - **P27 · System-status footer** — tiny footer dot on /api/health status (green ok / yellow degraded), polled every 60 s; no keys or PII shown.
 
