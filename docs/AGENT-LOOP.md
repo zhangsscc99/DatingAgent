@@ -5,6 +5,7 @@ Cron runs this loop every 10 minutes. These are hard constraints for any agent w
 ## Scope
 - Work only inside `/www/DatingAgent`. Never touch `/www/jinshu` or other projects/pm2 apps.
 - One feature per run: first **unchecked** item in `docs/FEATURES.md`, top-down. No batching.
+- Sprint sections are exhausted once every `- [ ]` is ticked. Under `## Proposed`, plain `- **Pxx · …` bullets WITHOUT a checkbox also count as unscheduled candidates — `grep -c '^- \[ \]'` returning 0 does NOT mean the backlog is empty. Pick the safest such bullet, convert it to `- [ ]` for the run, and tick it on success; never claim "backlog complete" while unflagged bullets remain.
 - Never modify secrets or process config: `ecosystem.config.cjs`, `.env*`, `scripts/make-ecosystem.py`, `scripts/ci-deploy.sh`, `scripts/rollback.sh`. They are gitignored and hold the live LLM key.
 - No new runtime dependencies unless the feature is impossible without one. No framework swaps, no unrelated refactors.
 - `git push origin main` is required after each successful feature commit — the loop must publish.
