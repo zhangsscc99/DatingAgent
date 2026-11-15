@@ -39,3 +39,4 @@
 2026-11-15 04:54 | P107 | /api/health now reports llmModel from env config
 2026-11-15 04:54 | P108 | meta theme-color follows the light/dark toggle
 2026-11-15 05:28 | P139 | /api/health metrics gains rssMB (process.memoryUsage().rss, whole MB)
+2026-11-15 05:40 | P140 | recent sessions sorted newest-update first via getRecentSessions comparator

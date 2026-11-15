@@ -91,7 +91,7 @@ export function setActiveSessionId(sessionId: string | null): void {
 }
 
 export function getRecentSessions(): StoredChatSession[] {
-  return loadChatState().sessions;
+  return [...loadChatState().sessions].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export function getSession(sessionId: string): StoredChatSession | undefined {
