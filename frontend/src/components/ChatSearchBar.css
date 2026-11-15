@@ -1,0 +1,113 @@
+/*
+  P19: floating search bar. Absolute overlay inside .messages-wrap so opening
+  it never reflows the bubbles underneath; all colours come from the shared
+  theme variables so light and dark both work.
+*/
+.chat-search-bar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  max-width: calc(100% - 32px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px var(--border);
+  animation: chat-search-in 0.18s ease;
+}
+
+@keyframes chat-search-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.chat-search-input {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  width: 200px;
+}
+
+.chat-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.chat-search-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.chat-search-status {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.chat-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.chat-search-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.chat-search-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chat-search-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (max-width: 768px) {
+  .chat-search-input {
+    width: 140px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-search-bar {
+    animation: none;
+  }
+
+  .chat-search-btn {
+    transition: none;
+  }
+}

@@ -3,6 +3,8 @@ import type { ChatMessage, UserProfile } from '../types';
 import MessageBubble from './MessageBubble';
 import InputBar, { type InputBarHandle } from './InputBar';
 import SessionSkeleton from './SessionSkeleton';
+import ChatSearchBar from './ChatSearchBar';
+import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
 import './ChatWindow.css';
 
 /** F15: smooth scrolling is motion; honour the OS preference. */
@@ -57,6 +59,18 @@ export default function ChatWindow({
   const wasLoading = useRef(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
+  // P19: client-side search over the rendered conversation.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const normalizedQuery = normalizeQuery(query);
+  const searching = searchOpen && isSearching(query);
+  const matches = matchMessages(messages, query);
+  const matchCount = matches.length;
+  const renderedMessages = searching ? matches : messages;
+  const activeMatch = matchCount === 0 ? 0 : Math.min(activeIndex, matchCount - 1);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
@@ -77,6 +91,43 @@ export default function ChatWindow({
     bottomRef.current?.scrollIntoView({
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
     });
+  };
+
+  // P19: clamp the focused match when the result set shrinks or empties.
+  useEffect(() => {
+    setActiveIndex((i) => (matchCount === 0 ? 0 : Math.min(i, matchCount - 1)));
+  }, [matchCount]);
+
+  // P19: keep the focused match in view while stepping through results.
+  const activeMatchId = searching && matchCount > 0 ? matches[activeMatch].id : null;
+  useEffect(() => {
+    if (!activeMatchId) return;
+    const row = listRef.current?.querySelector(
+      `[data-message-id="${CSS.escape(activeMatchId)}"]`,
+    );
+    row?.scrollIntoView({
+      block: 'nearest',
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
+  }, [activeMatchId]);
+
+  const handleQueryChange = (q: string) => {
+    setQuery(q);
+    setActiveIndex(0);
+  };
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setQuery('');
+    setActiveIndex(0);
+  };
+
+  const nextMatch = () => {
+    if (matchCount > 0) setActiveIndex((i) => (i + 1) % matchCount);
+  };
+
+  const prevMatch = () => {
+    if (matchCount > 0) setActiveIndex((i) => (i - 1 + matchCount) % matchCount);
   };
 
   useEffect(() => {
@@ -115,6 +166,31 @@ export default function ChatWindow({
   return (
     <div className="chat-window">
       <div className="messages-wrap">
+        {!restoring && messages.length > 0 && !searchOpen && (
+          <button
+            type="button"
+            className="search-toggle"
+            aria-label="搜索对话"
+            title="搜索当前对话"
+            onClick={() => {
+              setSearchOpen(true);
+              setActiveIndex(0);
+            }}
+          >
+            🔍
+          </button>
+        )}
+        {searchOpen && (
+          <ChatSearchBar
+            query={query}
+            matchCount={matchCount}
+            activeIndex={activeMatch}
+            onQueryChange={handleQueryChange}
+            onNext={nextMatch}
+            onPrev={prevMatch}
+            onClose={closeSearch}
+          />
+        )}
         <div
           ref={listRef}
           className="messages"
@@ -124,7 +200,11 @@ export default function ChatWindow({
         >
         {restoring && <SessionSkeleton />}
 
-        {!restoring && messages.length === 0 && (
+        {!restoring && searching && matchCount === 0 && (
+          <div className="search-empty">没有找到包含「{query.trim()}」的消息</div>
+        )}
+
+        {!restoring && !searchOpen && messages.length === 0 && (
           <div className="welcome animate-in">
             <div className="welcome-icon" aria-hidden="true">
               🌹
@@ -191,16 +271,17 @@ export default function ChatWindow({
         )}
 
         {!restoring &&
-          messages.map((msg, index) => (
+          renderedMessages.map((msg, index) => (
             <MessageBubble
               key={msg.id}
               message={msg}
               busy={loading}
-              // Only the newest bubble can be retried or regenerated; acting
-              // on an older turn would append the reply out of order.
-              onRetry={index === messages.length - 1 ? onRetry : undefined}
+              highlightQuery={searching ? normalizedQuery : undefined}
+              // Only the newest rendered bubble can be retried or regenerated;
+              // acting on an older turn would append the reply out of order.
+              onRetry={index === renderedMessages.length - 1 ? onRetry : undefined}
               onRegenerate={
-                index === messages.length - 1 && msg.role === 'assistant'
+                index === renderedMessages.length - 1 && msg.role === 'assistant'
                   ? onRegenerate
                   : undefined
               }

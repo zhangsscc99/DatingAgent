@@ -282,6 +282,22 @@
   }
 }
 
+/* P19: inline keyword hit inside a plain-text user bubble — the pink user
+   background gets a contrasting surface chip so the mark stays readable. */
+.bubble.user .match {
+  background: var(--surface);
+  color: var(--accent);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+/* P19: assistant replies render markdown, so the whole bubble gets a subtle
+   ring instead of inline marks. */
+.bubble.search-match {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
 /* F21: subtle per-reply metadata line under assistant replies */
 .reply-meta {
   display: flex;

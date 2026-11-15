@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { ChatMessage } from '../types';
 import { copyText } from '../lib/clipboard';
+import { highlightSegments } from '../lib/messageSearch';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
 import './MessageBubble.css';
@@ -13,14 +14,22 @@ interface Props {
   onRegenerate?: (messageId: string) => void;
   /** True while a request is in flight — disables the regenerate action. */
   busy?: boolean;
+  /** P19: normalized search keyword — marks hits in user bubbles, flags assistant ones. */
+  highlightQuery?: string;
 }
 
 type CopyState = 'idle' | 'copied' | 'failed';
 
 const COPY_FEEDBACK_MS = 1500;
 
-function MessageBubble({ message, onRetry, onRegenerate, busy = false }: Props) {
+function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlightQuery }: Props) {
   const isUser = message.role === 'user';
+  // Assistant bubbles render through ReactMarkdown, so the whole bubble is
+  // flagged instead of marking inline hits (P19).
+  const searchHit =
+    !isUser &&
+    !!highlightQuery &&
+    message.content.toLowerCase().includes(highlightQuery.toLowerCase());
   const showStreamingIndicator =
     !isUser && message.streaming && !message.content && message.streamPhase;
   const showCursor = !isUser && message.streaming && !!message.content && !message.error;
@@ -64,6 +73,7 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false }: Props) 
   return (
     <div
       className={`bubble-row animate-in ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}`}
+      data-message-id={message.id}
       role="group"
       aria-label={isUser ? '你的消息' : 'DatingAgent 的回复'}
     >
@@ -72,7 +82,10 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false }: Props) 
           🌹
         </div>
       )}
-      <div className={`bubble ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}`}>
+      <div
+        className={`bubble ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}${searchHit ? ' search-match' : ''}`}
+        data-search-match={searchHit ? 'true' : undefined}
+      >
         {message.toolEvents && message.toolEvents.length > 0 && (
           <div className="tool-events">
             {message.toolEvents.map((t, i) => (
@@ -82,7 +95,19 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false }: Props) 
         )}
         <div className="bubble-content">
           {isUser ? (
-            message.content
+            highlightQuery ? (
+              highlightSegments(message.content, highlightQuery).map((segment, i) =>
+                segment.hit ? (
+                  <mark key={i} className="match">
+                    {segment.text}
+                  </mark>
+                ) : (
+                  <span key={i}>{segment.text}</span>
+                ),
+              )
+            ) : (
+              message.content
+            )
           ) : showStreamingIndicator ? (
             <StreamingIndicator phase={message.streamPhase!} />
           ) : (
