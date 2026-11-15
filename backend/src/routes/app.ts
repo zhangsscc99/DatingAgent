@@ -122,6 +122,7 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.get('/api/version', (_req, res) => {
+    res.set('Cache-Control', 'no-store');
     res.json(buildVersionReport());
   });
 

@@ -50,7 +50,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **P109 · SSE heartbeat comment** — send a `: keepalive` SSE comment on `/api/chat/stream` every 15s while the model thinks, so proxies don't cut idle connections; pure backend, no payload change. Satisfied by the existing F19 implementation (`: ping` comment every 15s, cleared on close/finish/end).
 - [x] **P110 · HTML-escape exported text** — F07 Markdown export escapes `<`, `>`, `&` in user/LLM text so a pasted `<script>` can't execute if the .md is rendered as HTML; pure string map.
 - [x] **P111 · Disable title edit while sending** — the session title input is read-only while a reply is streaming, avoiding mid-flight rename races; one `disabled` binding.
-- **P112 · `/api/version` no-store cache header** — same `Cache-Control: no-store` protection as P46 but for the build-info endpoint, so a proxy can't pin a stale gitSha; one header line.
+- [x] **P112 · `/api/version` no-store cache header** — same `Cache-Control: no-store` protection as P46 but for the build-info endpoint, so a proxy can't pin a stale gitSha; one header line.
 - **P113 · Streaming status via aria-live** — announce "正在生成…" through the existing visually-hidden aria-live region when a stream starts and clear it on completion, reusing P103's pattern; pure frontend.
 - **P115 · Favicon 404 guard** — audit the static asset path served for the favicon so requests don't 404 in server logs; one-line fix if missing.
 - **P116 · README metrics field docs** — document the F14 `metrics` object shape in the README endpoint table; docs-only.
