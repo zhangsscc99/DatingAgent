@@ -4,7 +4,9 @@ import MessageBubble from './MessageBubble';
 import InputBar, { type InputBarHandle } from './InputBar';
 import SessionSkeleton from './SessionSkeleton';
 import ChatSearchBar from './ChatSearchBar';
+import ErrorToast from './ErrorToast';
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
+import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
 import './ChatWindow.css';
 
@@ -41,6 +43,10 @@ interface Props {
   onSetupProfile?: () => void;
   /** P07: last known request budget from chat response headers (null until the first response). */
   rateLimit?: RateLimitBudget | null;
+  /** P17: transient error toast over the message list (null = hidden). */
+  errorToast?: ErrorToastState | null;
+  onToastRetry?: () => void;
+  onToastDismiss?: () => void;
 }
 
 export default function ChatWindow({
@@ -55,6 +61,9 @@ export default function ChatWindow({
   onRegenerate,
   onSetupProfile,
   rateLimit = null,
+  errorToast = null,
+  onToastRetry,
+  onToastDismiss,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -170,6 +179,14 @@ export default function ChatWindow({
   return (
     <div className="chat-window">
       <div className="messages-wrap">
+        {errorToast && (
+          <ErrorToast
+            text={errorToast.text}
+            retrying={loading}
+            onRetry={onToastRetry ?? (() => {})}
+            onDismiss={onToastDismiss ?? (() => {})}
+          />
+        )}
         {!restoring && messages.length > 0 && !searchOpen && (
           <button
             type="button"

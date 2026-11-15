@@ -38,6 +38,7 @@ import {
   exportableMessages,
 } from './lib/exportConversation';
 import { copyText } from './lib/clipboard';
+import { createErrorToast, type ErrorToastState } from './lib/errorToast';
 import { pushInputHistory } from './lib/inputHistory';
 import { regeneratePromptFor } from './lib/regenerate';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
@@ -147,6 +148,10 @@ export default function App() {
   const copyExportTimer = useRef<number | null>(null);
   // P11: top banner for outage-class failures (network error or HTTP 5xx).
   const [serviceDownBanner, setServiceDownBanner] = useState(false);
+  // P17: single-slot error toast — a fresh failure replaces it and restarts
+  // the 8 s auto-dismiss window.
+  const [errorToast, setErrorToast] = useState<ErrorToastState | null>(null);
+  const [toastCtl] = useState(() => createErrorToast(setErrorToast));
   const [restoringSession, setRestoringSession] = useState(() => {
     const { activeSessionId, sessions } = loadChatState();
     const session = sessions.find((s) => s.id === activeSessionId);
@@ -200,8 +205,9 @@ export default function App() {
     () => () => {
       if (exportTimer.current !== null) window.clearTimeout(exportTimer.current);
       if (copyExportTimer.current !== null) window.clearTimeout(copyExportTimer.current);
+      toastCtl.destroy();
     },
-    [],
+    [toastCtl],
   );
 
   useEffect(() => {
@@ -407,10 +413,16 @@ export default function App() {
    * P11: reconcile the outage banner with a finished turn — a success or a
    * non-outage error hides it, a qualifying failure shows (or re-shows) it.
    */
-  const noteStreamOutcome = useCallback((outcome: StreamOutcome) => {
-    if (outcome.status === 'aborted') return;
-    setServiceDownBanner(outcome.status === 'error' && Boolean(outcome.serviceDown));
-  }, []);
+  const noteStreamOutcome = useCallback(
+    (outcome: StreamOutcome) => {
+      if (outcome.status === 'aborted') return;
+      setServiceDownBanner(outcome.status === 'error' && Boolean(outcome.serviceDown));
+      // P17: every failed turn surfaces a transient toast; a success resolves it.
+      if (outcome.status === 'error') toastCtl.show(outcome.errorText);
+      else toastCtl.dismiss();
+    },
+    [toastCtl],
+  );
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -504,6 +516,12 @@ export default function App() {
       }
     }
   }, [loading, messages, handleRetry]);
+
+  /** P17: toast retry shares the banner's path — newest failed turn, no dupes. */
+  const handleToastRetry = useCallback(() => {
+    toastCtl.dismiss();
+    handleServiceRetry();
+  }, [toastCtl, handleServiceRetry]);
 
   /**
    * P26: re-issue the prompt that produced the last assistant reply, replacing
@@ -622,6 +640,7 @@ export default function App() {
 
   const handleNewChat = () => {
     abortRef.current?.abort();
+    toastCtl.dismiss();
     setMessages([]);
     setSessionId(null);
     setLoading(false);
@@ -635,6 +654,7 @@ export default function App() {
       return;
     }
     abortRef.current?.abort();
+    toastCtl.dismiss();
     const session = getRecentSessions().find((s) => s.id === id);
     if (!session) return;
     setRestoringSession(true);
@@ -668,6 +688,7 @@ export default function App() {
 
     if (id === sessionId) {
       abortRef.current?.abort();
+      toastCtl.dismiss();
       setMessages([]);
       setSessionId(null);
       setLoading(false);
@@ -880,6 +901,9 @@ export default function App() {
           onRegenerate={handleRegenerate}
           onSetupProfile={() => setEditingProfile(true)}
           rateLimit={rateLimit}
+          errorToast={errorToast}
+          onToastRetry={handleToastRetry}
+          onToastDismiss={toastCtl.dismiss}
         />
         <SystemStatusFooter />
       </main>

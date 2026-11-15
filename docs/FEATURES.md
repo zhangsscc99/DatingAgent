@@ -87,7 +87,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **P11 · Offline / LLM-down banner** — when `/api/chat` or `/api/chat/stream` returns 5xx or the network fails, show a dismissible top banner "服务暂时不可用" with a retry affordance instead of only inline error text. Purely UI.
 - [x] **P12 · Stop generation button** — for `/api/chat/stream` calls, show a "停止" button that aborts via `AbortController` while streaming; backend already closes the SSE on client disconnect. Small frontend + no backend change.
 - [x] **P16 · Copy export as Markdown** — beside F07's download, a "复制 Markdown" action putting the same formatted transcript on the clipboard; pure frontend reuse of the export builder.
-- **P17 · Unread error toast timing** — auto-dismiss chat error toasts after 8 s with a close button, instead of persistent banners that accumulate. Purely UI, no state deps.
+- [x] **P17 · Unread error toast timing** — auto-dismiss chat error toasts after 8 s with a close button, instead of persistent banners that accumulate. Purely UI, no state deps.
 - [x] **P18 · Health self-check chip** — tiny dot in the header polling `/api/health` every 60 s, green/red on llmConfigured status; purely decorative, no alerting. — already satisfied: header status dot (LLM 已连接 / Demo 模式) driven by the `/api/health` poll
 
 - [x] **P19 · Chat message search** — a small search box filtering rendered messages client-side by keyword with match highlighting; no backend change.
