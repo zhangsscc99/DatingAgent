@@ -37,6 +37,12 @@ import {
 import { regeneratePromptFor } from './lib/regenerate';
 import './App.css';
 
+const STREAM_PHASE_LABELS: Record<StreamPhase, string> = {
+  thinking: '正在思考',
+  tool: '正在调用工具',
+  generating: '正在生成回复',
+};
+
 const TOOL_LABELS: Record<string, string> = {
   analyze_profile: '资料优化',
   coach_conversation: '聊天指导',
@@ -513,6 +519,11 @@ export default function App() {
 
   const closeSidebar = () => setSidebarOpen(false);
 
+  const streamingPhase = messages.find((m) => m.streaming)?.streamPhase;
+  const streamAnnouncement = streamingPhase
+    ? `正在生成…${STREAM_PHASE_LABELS[streamingPhase]}`
+    : '';
+
   const handleNewChat = () => {
     abortRef.current?.abort();
     setMessages([]);
@@ -543,6 +554,9 @@ export default function App() {
 
   return (
     <div className="app">
+      <span className="sr-only" role="status" aria-live="polite">
+        {streamAnnouncement}
+      </span>
       <Sidebar
         tools={tools}
         profile={profile}

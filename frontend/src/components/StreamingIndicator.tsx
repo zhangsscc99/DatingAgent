@@ -13,7 +13,7 @@ interface Props {
 
 export default function StreamingIndicator({ phase }: Props) {
   return (
-    <div className="streaming-indicator" role="status" aria-live="polite">
+    <div className="streaming-indicator" aria-hidden="true">
       <span className="streaming-label">{PHASE_LABELS[phase]}</span>
       <span className="streaming-dots" aria-hidden="true">
         <span />

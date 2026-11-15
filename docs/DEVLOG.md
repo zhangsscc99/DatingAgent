@@ -54,3 +54,4 @@
 2026-11-15 11:51 | P110 | exportConversation: escapeHtml helper (&& first, then < and >) applied to message body text in buildConversationMarkdown; Markdown scaffold stays raw; no deps
 2026-11-15 12:04 | P111 | no title-edit input exists; guarded session-select buttons in Sidebar with disabled={busy} (App loading flag) + aria-disabled + dimmed style to prevent mid-stream session/title races
 2026-11-15 12:16 | P112 | /api/version now sends Cache-Control: no-store (P92 claim was stale; added res.set on the handler, matching P46 convention)
+2026-11-15 12:29 | P113 | persistent sr-only aria-live region in App announces 正在生成…+phase while any message streams; StreamingIndicator made aria-hidden to avoid double announcements
