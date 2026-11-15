@@ -1,4 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import { errorBody } from './request-log.js';
 
 /** Longest chat message the API accepts, in characters. Mirrored in the frontend input. */
 export const MAX_MESSAGE_CHARS = 4000;
@@ -55,10 +56,9 @@ export function createRateLimiter(options: RateLimitOptions = {}): RequestHandle
       const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
       res.setHeader('Retry-After', String(retryAfter));
       res.setHeader('X-RateLimit-Reset', String(Math.ceil(bucket.resetAt / 1000)));
-      res.status(429).json({
-        error: `Too many requests — retry in ${retryAfter}s`,
-        retryAfter,
-      });
+      res.status(429).json(
+        errorBody(res, `Too many requests — retry in ${retryAfter}s`, { retryAfter }),
+      );
       return;
     }
 
@@ -72,10 +72,11 @@ export function rejectOversizedMessage(req: Request, res: Response, next: NextFu
   const message = body?.message;
 
   if (typeof message === 'string' && message.length > MAX_MESSAGE_CHARS) {
-    res.status(413).json({
-      error: `Message too long: ${message.length} characters (max ${MAX_MESSAGE_CHARS})`,
-      maxChars: MAX_MESSAGE_CHARS,
-    });
+    res.status(413).json(
+      errorBody(res, `Message too long: ${message.length} characters (max ${MAX_MESSAGE_CHARS})`, {
+        maxChars: MAX_MESSAGE_CHARS,
+      }),
+    );
     return;
   }
 
@@ -95,12 +96,12 @@ export function handleBodyErrors(
   const type = (err as { type?: string } | null)?.type;
 
   if (type === 'entity.too.large') {
-    res.status(413).json({ error: 'Request body too large' });
+    res.status(413).json(errorBody(res, 'Request body too large'));
     return;
   }
 
   if (type === 'entity.parse.failed') {
-    res.status(400).json({ error: 'Invalid JSON body' });
+    res.status(400).json(errorBody(res, 'Invalid JSON body'));
     return;
   }
 

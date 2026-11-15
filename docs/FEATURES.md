@@ -58,7 +58,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P114 · Composer maxlength hint** — set `maxlength={4000}` on the composer textarea so browsers hard-stop typing past the 413 limit; one attribute.
 
 <!-- Human review needed — these are candidates, not scheduled work. -->
-- **P04 · Request id + error correlation** — attach a short `x-request-id` per request, echo it in error JSON and the structured log line, so a client-reported failure can be matched to its log entry. No persistence.
+- [x] **P04 · Request id + error correlation** — `X-Request-Id` and the log line's `id` already exist (F05 `lib/request-log.ts`); remaining gap: every JSON error response under `/api/*` must carry the same `requestId` field (`{error, requestId}`), including 400/403/404/413/429/500, the SSE `error` event and the JSON body-error handler in `lib/guardrails.ts`, so a client-reported failure can be matched to its log entry. No persistence, no new deps, no payload break beyond the added field.
 - **P05 · Health probe detail** — `GET /api/health?verbose=1` (localhost-only) adds disk-free, RSS, uptime and last-error to the metrics payload, keeping the public health payload unchanged.
 - **P06 · Input history recall** — composer remembers the last 5 sent messages in localStorage with ↑ recall (terminal-style), capped at ~10 KB, purely client-side.
 - **P01 · Conversation history persistence** — optional localStorage-backed reload of the last session (opt-out toggle), so refresh doesn't lose context. Low risk; needs a size cap (~50 KB) and a "清除历史" action.

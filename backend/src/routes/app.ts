@@ -6,7 +6,7 @@ import { AgentHarness, createSession, parseReplyLanguage } from '../agent/harnes
 import type { AgentContext, ChatResult, ReplyLanguage, UserProfile } from '../agent/types.js';
 import { buildHealthReport } from '../lib/health.js';
 import { buildVersionReport } from '../lib/version.js';
-import { createRequestLogger } from '../lib/request-log.js';
+import { createRequestLogger, errorBody, requestId } from '../lib/request-log.js';
 import { usageMetrics } from '../lib/metrics.js';
 import { sanitizeMessage } from '../lib/sanitize.js';
 import { getTool } from '../tools/registry.js';
@@ -131,7 +131,7 @@ export function createApp(options: AppOptions = {}) {
     const remote = req.ip ?? '';
     const isLocal = remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
     if (!isLocal) {
-      res.status(403).json({ error: 'forbidden: localhost only' });
+      res.status(403).json(errorBody(res, 'forbidden: localhost only'));
       return;
     }
     usageMetrics.reset();
@@ -198,7 +198,7 @@ export function createApp(options: AppOptions = {}) {
     };
 
     if (!sessionId?.trim()) {
-      return res.status(400).json({ error: 'sessionId is required' });
+      return res.status(400).json(errorBody(res, 'sessionId is required'));
     }
 
     const history = (messages ?? [])
@@ -223,7 +223,7 @@ export function createApp(options: AppOptions = {}) {
 
   app.get('/api/session/:id', (req, res) => {
     const session = touchSession(req.params.id);
-    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (!session) return res.status(404).json(errorBody(res, 'Session not found'));
     res.json({
       sessionId: session.sessionId,
       profile: session.profile,
@@ -241,11 +241,11 @@ export function createApp(options: AppOptions = {}) {
 
     const sanitized = sanitizeMessage(message ?? '');
     if (!sanitized.trim()) {
-      return res.status(400).json({ error: 'Message is required' });
+      return res.status(400).json(errorBody(res, 'Message is required'));
     }
 
     if (language !== undefined && parseReplyLanguage(language) === undefined) {
-      return res.status(400).json({ error: 'language must be one of "zh", "en", "auto"' });
+      return res.status(400).json(errorBody(res, 'language must be one of "zh", "en", "auto"'));
     }
 
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
@@ -263,7 +263,7 @@ export function createApp(options: AppOptions = {}) {
     } catch (err) {
       usageMetrics.recordChat(Date.now() - startedAt, false);
       const msg = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ error: msg });
+      res.status(500).json(errorBody(res, msg));
     }
   });
 
@@ -277,11 +277,11 @@ export function createApp(options: AppOptions = {}) {
 
     const sanitized = sanitizeMessage(message ?? '');
     if (!sanitized.trim()) {
-      return res.status(400).json({ error: 'Message is required' });
+      return res.status(400).json(errorBody(res, 'Message is required'));
     }
 
     if (language !== undefined && parseReplyLanguage(language) === undefined) {
-      return res.status(400).json({ error: 'language must be one of "zh", "en", "auto"' });
+      return res.status(400).json(errorBody(res, 'language must be one of "zh", "en", "auto"'));
     }
 
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
@@ -313,6 +313,10 @@ export function createApp(options: AppOptions = {}) {
             type: 'done',
             data: { ...d, latencyMs: Date.now() - startedAt },
           };
+        } else if (event.type === 'error') {
+          // P04: harness-level failures get the same correlation id.
+          const d = event.data as Record<string, unknown>;
+          event = { type: 'error', data: { ...d, requestId: requestId(res) } };
         }
         res.write(`data: ${JSON.stringify(event)}\n\n`);
         if (event.type === 'done') break;
@@ -320,7 +324,7 @@ export function createApp(options: AppOptions = {}) {
     } catch (err) {
       failed = true;
       const msg = err instanceof Error ? err.message : String(err);
-      res.write(`data: ${JSON.stringify({ type: 'error', data: { message: msg } })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'error', data: { message: msg, requestId: requestId(res) } })}\n\n`);
     }
     stopKeepalive();
 
@@ -331,7 +335,7 @@ export function createApp(options: AppOptions = {}) {
   app.use(express.static(frontendDist));
   app.get('*', (_req, res) => {
     res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
-      if (err) res.status(404).json({ error: 'Frontend not built' });
+      if (err) res.status(404).json(errorBody(res, 'Frontend not built'));
     });
   });
 

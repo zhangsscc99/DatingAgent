@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Request, RequestHandler } from 'express';
+import type { Request, RequestHandler, Response } from 'express';
 
 /** One access-log record. Deliberately no message text, headers, IPs or keys. */
 export interface RequestLogLine {
@@ -27,6 +27,30 @@ function newRequestId(): string {
   return randomUUID().replace(/-/g, '').slice(0, 12);
 }
 
+/**
+ * Correlation id for the in-flight request — the same value sent as
+ * `X-Request-Id` and logged in the access line. Read from `res.locals`
+ * (set by `createRequestLogger`), falling back to the response header.
+ */
+export function requestId(res: Response): string | undefined {
+  const local = res.locals.requestId;
+  if (typeof local === 'string') return local;
+  const header = res.getHeader('X-Request-Id');
+  return typeof header === 'string' ? header : undefined;
+}
+
+/**
+ * Standard `{error, requestId}` payload for every JSON error response under
+ * `/api/*`, so a client-reported failure can be matched to its log entry.
+ */
+export function errorBody(
+  res: Response,
+  error: string,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return { error, requestId: requestId(res), ...extra };
+}
+
 /** Length of a chat message in characters; 0 for non-chat requests. Never the text. */
 function messageLength(req: Request): number {
   const body = req.body as { message?: unknown } | undefined;
@@ -48,6 +72,7 @@ export function createRequestLogger(
     let logged = false;
 
     res.setHeader('X-Request-Id', id);
+    res.locals.requestId = id;
 
     const log = (): void => {
       if (logged) return;
