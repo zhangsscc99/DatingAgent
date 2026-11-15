@@ -48,6 +48,22 @@
   font-weight: 600;
 }
 
+/* P07: subtle per-IP request-budget readout, mirrored on the counter's row. */
+.rate-limit-indicator {
+  position: absolute;
+  left: 12px;
+  bottom: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #8a8a92);
+  pointer-events: none;
+}
+
+.rate-limit-indicator.warn {
+  color: var(--warning);
+  font-weight: 600;
+}
+
 .input-bar textarea:focus {
   outline: none;
   border-color: var(--accent);

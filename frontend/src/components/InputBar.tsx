@@ -7,6 +7,11 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { loadInputHistory } from '../lib/inputHistory';
+import {
+  formatRateLimit,
+  rateLimitWarning,
+  type RateLimitBudget,
+} from '../lib/rateLimitStatus';
 import './InputBar.css';
 
 export interface InputBarHandle {
@@ -24,6 +29,8 @@ interface Props {
   onStop?: () => void;
   /** Per-session key so each conversation keeps its own unsent draft. */
   draftKey?: string;
+  /** P07: last known chat request budget; null until the first response arrives. */
+  rateLimit?: RateLimitBudget | null;
 }
 
 /** Must match MAX_MESSAGE_CHARS in backend/src/lib/guardrails.ts (413 above it). */
@@ -52,7 +59,7 @@ const MOD_KEY =
     : 'Ctrl';
 
 const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
-  { onSend, disabled, streaming = false, onStop, draftKey },
+  { onSend, disabled, streaming = false, onStop, draftKey, rateLimit = null },
   ref,
 ) {
   const draftId = draftKey ?? 'default';
@@ -192,6 +199,11 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   };
 
   const showCounter = text.length >= COUNTER_THRESHOLD;
+  // P07: the rate-limit readout sits beside the counter inside the field, so
+  // reserve the same bottom padding whenever either is visible.
+  const showRateLimit = rateLimit !== null;
+  const fieldClass =
+    showCounter || showRateLimit ? 'input-field has-counter' : 'input-field';
 
   return (
     <div className="input-bar" role="form" aria-label="发送消息">
@@ -201,7 +213,7 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
       <label htmlFor="chat-input" className="sr-only">
         输入你的问题
       </label>
-      <div className={showCounter ? 'input-field has-counter' : 'input-field'}>
+      <div className={fieldClass}>
         <textarea
           ref={textareaRef}
           id="chat-input"
@@ -226,6 +238,19 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           aria-describedby={showCounter ? 'chat-input-counter' : undefined}
           title={`Enter 发送 · Shift+Enter 换行 · ${MOD_KEY}+Enter 发送 · ↑ 历史消息 · Esc 收起输入`}
         />
+        {rateLimit !== null && (
+          <span
+            className={
+              rateLimitWarning(rateLimit)
+                ? 'rate-limit-indicator warn'
+                : 'rate-limit-indicator'
+            }
+            title="每分钟请求额度（服务端限流，窗口自动恢复）"
+            aria-label={`${formatRateLimit(rateLimit)}，每分钟额度`}
+          >
+            {formatRateLimit(rateLimit)}
+          </span>
+        )}
         {showCounter && (
           <span
             id="chat-input-counter"

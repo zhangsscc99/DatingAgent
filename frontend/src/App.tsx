@@ -39,6 +39,7 @@ import {
 import { copyText } from './lib/clipboard';
 import { pushInputHistory } from './lib/inputHistory';
 import { regeneratePromptFor } from './lib/regenerate';
+import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
 import './App.css';
 
 const STREAM_PHASE_LABELS: Record<StreamPhase, string> = {
@@ -137,6 +138,9 @@ export default function App() {
   const [exportState, setExportState] = useState<'idle' | 'done' | 'failed'>('idle');
   const [copyExportState, setCopyExportState] = useState<'idle' | 'done' | 'failed'>('idle');
   const [language, setLanguage] = useState<ReplyLanguage>(() => readStoredLanguage());
+  // P07: last known per-IP request budget, from chat response headers; stays
+  // null until the first response so nothing is fabricated at startup.
+  const [rateLimit, setRateLimit] = useState<RateLimitBudget | null>(null);
   const exportTimer = useRef<number | null>(null);
   const copyExportTimer = useRef<number | null>(null);
   const [restoringSession, setRestoringSession] = useState(() => {
@@ -233,6 +237,11 @@ export default function App() {
           }),
           signal: abortRef.current.signal,
         });
+
+        // P07: headers arrive before the stream body, and error replies (e.g.
+        // 429) carry the same budget — update whenever they are present.
+        const budget = parseRateLimit(res.headers);
+        if (budget) setRateLimit(budget);
 
         if (!res.ok) throw new Error(await describeChatError(res));
         const reader = res.body!.getReader();
@@ -822,6 +831,7 @@ export default function App() {
           onRetry={handleRetry}
           onRegenerate={handleRegenerate}
           onSetupProfile={() => setEditingProfile(true)}
+          rateLimit={rateLimit}
         />
         <SystemStatusFooter />
       </main>

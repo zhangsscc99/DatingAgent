@@ -5,6 +5,7 @@ import InputBar, { type InputBarHandle } from './InputBar';
 import SessionSkeleton from './SessionSkeleton';
 import ChatSearchBar from './ChatSearchBar';
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
+import type { RateLimitBudget } from '../lib/rateLimitStatus';
 import './ChatWindow.css';
 
 /** F15: smooth scrolling is motion; honour the OS preference. */
@@ -38,6 +39,8 @@ interface Props {
   /** P26: regenerate the newest assistant reply in place. */
   onRegenerate?: (messageId: string) => void;
   onSetupProfile?: () => void;
+  /** P07: last known request budget from chat response headers (null until the first response). */
+  rateLimit?: RateLimitBudget | null;
 }
 
 export default function ChatWindow({
@@ -51,6 +54,7 @@ export default function ChatWindow({
   onRetry,
   onRegenerate,
   onSetupProfile,
+  rateLimit = null,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -310,6 +314,7 @@ export default function ChatWindow({
         onStop={onStop}
         disabled={loading || restoring}
         draftKey={sessionId ?? 'default'}
+        rateLimit={rateLimit}
       />
     </div>
   );
