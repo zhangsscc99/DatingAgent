@@ -86,7 +86,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **P10 · Message length meter** — live character count (e.g. `1234/4000`) under the composer turning amber past 3500, so users see the 413 limit before hitting it. Purely UI. — already satisfied: InputBar shows a live `{len}/4000` counter with an at-limit style
 - **P11 · Offline / LLM-down banner** — when `/api/chat` returns 5xx or network fails, show a dismissible top banner "服务暂时不可用" with retry affordance instead of only inline error text. Purely UI.
 - [x] **P12 · Stop generation button** — for `/api/chat/stream` calls, show a "停止" button that aborts via `AbortController` while streaming; backend already closes the SSE on client disconnect. Small frontend + no backend change.
-- **P16 · Copy export as Markdown** — beside F07's download, a "复制 Markdown" action putting the same formatted transcript on the clipboard; pure frontend reuse of the export builder.
+- [x] **P16 · Copy export as Markdown** — beside F07's download, a "复制 Markdown" action putting the same formatted transcript on the clipboard; pure frontend reuse of the export builder.
 - **P17 · Unread error toast timing** — auto-dismiss chat error toasts after 8 s with a close button, instead of persistent banners that accumulate. Purely UI, no state deps.
 - [x] **P18 · Health self-check chip** — tiny dot in the header polling `/api/health` every 60 s, green/red on llmConfigured status; purely decorative, no alerting. — already satisfied: header status dot (LLM 已连接 / Demo 模式) driven by the `/api/health` poll
 

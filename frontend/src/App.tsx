@@ -36,6 +36,7 @@ import {
   downloadMarkdown,
   exportableMessages,
 } from './lib/exportConversation';
+import { copyText } from './lib/clipboard';
 import { pushInputHistory } from './lib/inputHistory';
 import { regeneratePromptFor } from './lib/regenerate';
 import './App.css';
@@ -134,8 +135,10 @@ export default function App() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [exportState, setExportState] = useState<'idle' | 'done' | 'failed'>('idle');
+  const [copyExportState, setCopyExportState] = useState<'idle' | 'done' | 'failed'>('idle');
   const [language, setLanguage] = useState<ReplyLanguage>(() => readStoredLanguage());
   const exportTimer = useRef<number | null>(null);
+  const copyExportTimer = useRef<number | null>(null);
   const [restoringSession, setRestoringSession] = useState(() => {
     const { activeSessionId, sessions } = loadChatState();
     const session = sessions.find((s) => s.id === activeSessionId);
@@ -188,6 +191,7 @@ export default function App() {
   useEffect(
     () => () => {
       if (exportTimer.current !== null) window.clearTimeout(exportTimer.current);
+      if (copyExportTimer.current !== null) window.clearTimeout(copyExportTimer.current);
     },
     [],
   );
@@ -547,6 +551,17 @@ export default function App() {
     }, 1500);
   }, [messages]);
 
+  const handleCopyMarkdown = useCallback(async () => {
+    const markdown = buildConversationMarkdown(messages);
+    const ok = await copyText(markdown);
+    setCopyExportState(ok ? 'done' : 'failed');
+    if (copyExportTimer.current !== null) window.clearTimeout(copyExportTimer.current);
+    copyExportTimer.current = window.setTimeout(() => {
+      setCopyExportState('idle');
+      copyExportTimer.current = null;
+    }, 2000);
+  }, [messages]);
+
   const closeSidebar = () => setSidebarOpen(false);
 
   const streamingPhase = messages.find((m) => m.streaming)?.streamPhase;
@@ -745,8 +760,47 @@ export default function App() {
                   ? '导出失败'
                   : '⬇ 导出 Markdown'}
             </button>
+            <button
+              type="button"
+              data-testid="copy-markdown"
+              className={`copy-export-btn${copyExportState === 'done' ? ' done' : ''}${
+                copyExportState === 'failed' ? ' failed' : ''
+              }`}
+              onClick={() => {
+                void handleCopyMarkdown();
+              }}
+              disabled={!canExport}
+              aria-label={
+                copyExportState === 'done'
+                  ? '已复制'
+                  : copyExportState === 'failed'
+                    ? '复制失败'
+                    : '复制 Markdown'
+              }
+              title={
+                canExport
+                  ? '把当前对话以 Markdown 格式复制到剪贴板'
+                  : copyExportState === 'failed'
+                    ? '复制失败，请稍后重试'
+                    : '暂无内容可复制'
+              }
+            >
+              {copyExportState === 'done'
+                ? '✓ 已复制'
+                : copyExportState === 'failed'
+                  ? '复制失败'
+                  : '⧉ 复制 Markdown'}
+            </button>
             <span className="export-status" role="status" aria-live="polite">
-              {exportState === 'done' ? '已下载 Markdown 文件' : exportState === 'failed' ? '导出失败' : ''}
+              {copyExportState === 'done'
+                ? '已复制到剪贴板'
+                : copyExportState === 'failed'
+                  ? '复制失败'
+                  : exportState === 'done'
+                    ? '已下载 Markdown 文件'
+                    : exportState === 'failed'
+                      ? '导出失败'
+                      : ''}
             </span>
             <div className="header-status" role="status" aria-live="polite">
               <span

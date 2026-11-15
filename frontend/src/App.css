@@ -73,7 +73,8 @@
   flex-shrink: 0;
 }
 
-.export-btn {
+.export-btn,
+.copy-export-btn {
   font-size: 12px;
   font-family: inherit;
   color: var(--text-muted);
@@ -167,28 +168,33 @@
   background: var(--surface, var(--bg));
 }
 
-.export-btn:hover:not(:disabled) {
+.export-btn:hover:not(:disabled),
+.copy-export-btn:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--accent);
   color: var(--text);
 }
 
-.export-btn:focus-visible {
+.export-btn:focus-visible,
+.copy-export-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-.export-btn:disabled {
+.export-btn:disabled,
+.copy-export-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.export-btn.done {
+.export-btn.done,
+.copy-export-btn.done {
   color: var(--success);
   border-color: var(--success-border);
 }
 
-.export-btn.failed {
+.export-btn.failed,
+.copy-export-btn.failed {
   color: var(--danger);
   border-color: var(--danger-border);
 }
@@ -324,7 +330,8 @@
     font-size: 14px;
   }
 
-  .export-btn {
+  .export-btn,
+  .copy-export-btn {
     font-size: 11px;
     padding: 5px 8px;
   }

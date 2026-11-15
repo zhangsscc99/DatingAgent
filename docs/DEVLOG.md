@@ -70,3 +70,4 @@
 2026-11-15 19:49 | F27 | composer textarea gains spellCheck=false, autoComplete/autoCorrect=off, autoCapitalize=none, enterKeyHint=send
 2026-11-15 20:01 | F28 | /api/health payload gains node: process.version (type + value in lib/health.ts); README endpoint table + example document the field
 2026-11-15 20:36 | docs | dedupe stale Proposed candidates: P01, P08, P09, P10, P18, P20, P21, P61, P62 verified already implemented in code, ticked with evidence notes; real remaining pool = P05/P07/P11/P16/P17 (+P63 refactor)
+2026-11-15 20:51 | P16 | copy-export button beside F07 download copies the same buildConversationMarkdown output via lib/clipboard copyText; 复制 Markdown/已复制/复制失败 feedback, 2s auto-clear timer cleaned on unmount, announcement through the existing export-status aria-live region; copy-export-btn reuses export-btn CSS tokens

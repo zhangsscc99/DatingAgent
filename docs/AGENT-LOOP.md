@@ -7,7 +7,7 @@ Cron runs this loop every 10 minutes. These are hard constraints for any agent w
 - One feature per run: first **unchecked** item in `docs/FEATURES.md`, top-down. No batching.
 - Never modify secrets or process config: `ecosystem.config.cjs`, `.env*`, `scripts/make-ecosystem.py`, `scripts/ci-deploy.sh`, `scripts/rollback.sh`. They are gitignored and hold the live LLM key.
 - No new runtime dependencies unless the feature is impossible without one. No framework swaps, no unrelated refactors.
-- `git push` is forbidden — commits stay local.
+- `git push origin main` is required after each successful feature commit — the loop must publish.
 
 ## Workflow
 1. `git status --porcelain`: if dirty from a previous run, run `bash scripts/rollback.sh` and report that instead of starting new work.
