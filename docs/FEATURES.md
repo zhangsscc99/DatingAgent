@@ -52,6 +52,9 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P111 · Disable title edit while sending** — the session title input is read-only while a reply is streaming, avoiding mid-flight rename races; one `disabled` binding.
 - **P112 · `/api/version` no-store cache header** — same `Cache-Control: no-store` protection as P46 but for the build-info endpoint, so a proxy can't pin a stale gitSha; one header line.
 - **P113 · Streaming status via aria-live** — announce "正在生成…" through the existing visually-hidden aria-live region when a stream starts and clear it on completion, reusing P103's pattern; pure frontend.
+- **P115 · Favicon 404 guard** — audit the static asset path served for the favicon so requests don't 404 in server logs; one-line fix if missing.
+- **P116 · README metrics field docs** — document the F14 `metrics` object shape in the README endpoint table; docs-only.
+- **P117 · Export button aria-label** — F07 export action gets an explicit `aria-label` matching its visible text for screen readers; one attribute.
 - **P114 · Composer maxlength hint** — set `maxlength={4000}` on the composer textarea so browsers hard-stop typing past the 413 limit; one attribute.
 
 <!-- Human review needed — these are candidates, not scheduled work. -->
