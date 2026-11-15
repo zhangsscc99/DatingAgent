@@ -29,11 +29,11 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **F21 · Reply meta badge** — return `meta: {tool, latencyMs, tokens}` on `/api/chat` and render it as a subtle line under the reply; hide when `tokens` is unknown. Acceptance: badge shows tool name for a tool-using reply, absent for a plain one.
 - [x] **F22 · CJK font fallback** — this host renders Chinese labels as tofu in headless screenshots; add a proper `font-family` stack (system CJK names first) plus a `<link>`-free fallback so Chinese text uses whatever the OS has. Acceptance: computed style lists CJK families; no layout shift.
 - [x] **F23 · Health metrics reset endpoint** — `POST /api/metrics/reset` (localhost-only, 403 otherwise) to zero counters without a restart. Acceptance: counters zero afterwards, non-local request → 403.
+- [x] **P106 · Unsent draft persistence** — keep the composer's in-progress text in localStorage per session so a refresh doesn't lose a half-typed message; cleared on send, capped at 4 KB, pure frontend.
+- [x] **P107 · Health payload model field** — include the configured LLM model name (from env, not the key) in `/api/health` so testers can confirm which model is live; one field, no schema break.
+- [x] **P108 · Theme-aware meta theme-color** — update the `<meta name="theme-color">` when the F08 toggle switches light/dark so mobile browser chrome matches; pure attribute update.
 
 ## Proposed
-- **P106 · Unsent draft persistence** — keep the composer's in-progress text in localStorage per session so a refresh doesn't lose a half-typed message; cleared on send, capped at 4 KB, pure frontend.
-- **P107 · Health payload model field** — include the configured LLM model name (from env, not the key) in `/api/health` so testers can confirm which model is live; one field, no schema break.
-- **P108 · Theme-aware meta theme-color** — update the `<meta name="theme-color">` when the F08 toggle switches light/dark so mobile browser chrome matches; pure attribute update.
 - **P46 · Health endpoint cache headers** — add `Cache-Control: no-store` to `/api/health` so proxies never serve a stale status; one middleware line, no payload change.
 - **P47 · Session title from first message** — derive a truncated (≤20 char) title from the first user message and show it in the session dropdown instead of raw IDs; pure frontend string slice.
 - **P48 · Focus input after send** — after a reply completes, refocus the composer so keyboard users can type immediately; one `focus()` call, no layout change.

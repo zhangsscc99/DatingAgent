@@ -15,6 +15,8 @@ export interface HealthReport {
     heapTotalMb: number;
   };
   llmConfigured: boolean;
+  /** Configured LLM model name (never the API key), for deploy verification. */
+  llmModel: string;
   frontend: {
     distPath: string;
     built: boolean;
@@ -24,7 +26,11 @@ export interface HealthReport {
   metrics: MetricsSnapshot;
 }
 
-export function buildHealthReport(frontendDist: string, llmConfigured: boolean): HealthReport {
+export function buildHealthReport(
+  frontendDist: string,
+  llmConfigured: boolean,
+  llmModel = 'gpt-4o-mini',
+): HealthReport {
   const indexPath = path.join(frontendDist, 'index.html');
   const indexExists = fs.existsSync(indexPath);
   const mem = process.memoryUsage();
@@ -40,6 +46,7 @@ export function buildHealthReport(frontendDist: string, llmConfigured: boolean):
       heapTotalMb: roundMb(mem.heapTotal),
     },
     llmConfigured,
+    llmModel,
     frontend: {
       distPath: frontendDist,
       built: fs.existsSync(frontendDist),

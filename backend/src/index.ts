@@ -2,7 +2,7 @@ import { loadAndValidateEnv } from './config/env.js';
 import { createApp } from './routes/app.js';
 
 const config = loadAndValidateEnv();
-const app = createApp({ llmConfigured: config.llm.configured });
+const app = createApp({ llmConfigured: config.llm.configured, llmModel: config.llm.model });
 
 const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(`🌹 DatingAgent backend running on http://0.0.0.0:${config.port}`);

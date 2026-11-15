@@ -73,6 +73,7 @@ function touchSession(id: string | undefined, now = Date.now()): AgentContext | 
 
 export interface AppOptions {
   llmConfigured?: boolean;
+  llmModel?: string;
 }
 
 /**
@@ -97,6 +98,7 @@ function resolveChatSession(
 
 export function createApp(options: AppOptions = {}) {
   const llmConfigured = options.llmConfigured ?? Boolean(process.env.OPENAI_API_KEY?.trim());
+  const llmModel = options.llmModel ?? (process.env.LLM_MODEL?.trim() || 'gpt-4o-mini');
   const app = express();
   app.use(cors());
   // Cheap counter; runs before everything so rejected requests are still counted.
@@ -114,7 +116,7 @@ export function createApp(options: AppOptions = {}) {
   const chatGuards = [chatRateLimit, rejectOversizedMessage];
 
   app.get('/api/health', (_req, res) => {
-    const report = buildHealthReport(frontendDist, llmConfigured);
+    const report = buildHealthReport(frontendDist, llmConfigured, llmModel);
     res.status(report.status === 'ok' ? 200 : 503).json(report);
   });
 

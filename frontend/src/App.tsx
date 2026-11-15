@@ -605,6 +605,7 @@ export default function App() {
           loading={loading}
           restoring={restoringSession}
           profile={profile}
+          sessionId={sessionId}
           onSend={sendMessage}
           onRetry={handleRetry}
           onSetupProfile={() => setEditingProfile(true)}

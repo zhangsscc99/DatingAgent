@@ -20,8 +20,15 @@ export function readThemePreference(): { theme: Theme; explicit: boolean } {
   return { theme: systemTheme(), explicit: false };
 }
 
+/** Keep in sync with the `--bg` values in index.css and the index.html bootstrap. */
+const THEME_COLORS: Record<Theme, string> = { light: '#f6f6f9', dark: '#0f0f12' };
+
 function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
+  // Mobile browser chrome follows <meta name="theme-color">; keep it matching.
+  document
+    .querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', THEME_COLORS[theme]);
 }
 
 export function useTheme(): { theme: Theme; toggle: () => void } {

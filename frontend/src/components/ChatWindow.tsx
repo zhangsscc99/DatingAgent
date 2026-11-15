@@ -17,6 +17,7 @@ interface Props {
   loading: boolean;
   restoring?: boolean;
   profile?: UserProfile | null;
+  sessionId?: string | null;
   onSend: (text: string) => void;
   onRetry?: (messageId: string, prompt: string) => void;
   onSetupProfile?: () => void;
@@ -27,6 +28,7 @@ export default function ChatWindow({
   loading,
   restoring = false,
   profile,
+  sessionId,
   onSend,
   onRetry,
   onSetupProfile,
@@ -134,7 +136,12 @@ export default function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
-      <InputBar ref={inputRef} onSend={onSend} disabled={loading || restoring} />
+      <InputBar
+        ref={inputRef}
+        onSend={onSend}
+        disabled={loading || restoring}
+        draftKey={sessionId ?? 'default'}
+      />
     </div>
   );
 }

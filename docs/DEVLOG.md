@@ -35,3 +35,6 @@
 2026-11-15 02:58 | PROPOSED | added P118-P120 candidate ideas (health degraded reason / copy-all transcript / version title attr)
 2026-11-15 03:57 | PROPOSED | added P133-P135 candidate ideas (skip-link / print stylesheet / visibility-paused health poll)
 2026-11-15 04:09 | PROPOSED | added P136-P138 candidate ideas (escape-close modal / reduced-motion scroll / health node version)
+2026-11-15 04:54 | P106 | per-session composer drafts persisted in localStorage (4 KB cap, cleared on send)
+2026-11-15 04:54 | P107 | /api/health now reports llmModel from env config
+2026-11-15 04:54 | P108 | meta theme-color follows the light/dark toggle

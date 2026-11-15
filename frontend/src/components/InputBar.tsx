@@ -1,4 +1,11 @@
-import { forwardRef, useImperativeHandle, useRef, useState, type KeyboardEvent } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react';
 import './InputBar.css';
 
 export interface InputBarHandle {
@@ -10,12 +17,28 @@ export interface InputBarHandle {
 interface Props {
   onSend: (text: string) => void;
   disabled?: boolean;
+  /** Per-session key so each conversation keeps its own unsent draft. */
+  draftKey?: string;
 }
 
 /** Must match MAX_MESSAGE_CHARS in backend/src/lib/guardrails.ts (413 above it). */
 const MAX_MESSAGE_CHARS = 4000;
 /** Show the counter once the user is close to the cap. */
 const COUNTER_THRESHOLD = 3600;
+/** Persisted drafts are capped at 4 KB so localStorage stays small. */
+const MAX_DRAFT_CHARS = 4096;
+
+function draftStorageKey(draftKey: string): string {
+  return `datingagent-draft:${draftKey}`;
+}
+
+function loadDraft(draftKey: string): string {
+  try {
+    return localStorage.getItem(draftStorageKey(draftKey))?.slice(0, MAX_DRAFT_CHARS) ?? '';
+  } catch {
+    return '';
+  }
+}
 
 /** Show ⌘ on Apple platforms, Ctrl elsewhere — purely cosmetic hint text. */
 const MOD_KEY =
@@ -23,9 +46,34 @@ const MOD_KEY =
     ? '⌘'
     : 'Ctrl';
 
-const InputBar = forwardRef<InputBarHandle, Props>(function InputBar({ onSend, disabled }, ref) {
-  const [text, setText] = useState('');
+const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
+  { onSend, disabled, draftKey },
+  ref,
+) {
+  const draftId = draftKey ?? 'default';
+  const [text, setText] = useState(() => loadDraft(draftId));
+  const draftIdRef = useRef(draftId);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Session switch: load that session's draft (the old one is already persisted).
+  useEffect(() => {
+    if (draftIdRef.current === draftId) return;
+    draftIdRef.current = draftId;
+    setText(loadDraft(draftId));
+  }, [draftId]);
+
+  // Persist the in-progress draft; cleared on send when `text` empties.
+  useEffect(() => {
+    try {
+      if (text) {
+        localStorage.setItem(draftStorageKey(draftId), text.slice(0, MAX_DRAFT_CHARS));
+      } else {
+        localStorage.removeItem(draftStorageKey(draftId));
+      }
+    } catch {
+      // Storage unavailable — drafts are best-effort only.
+    }
+  }, [text, draftId]);
 
   useImperativeHandle(ref, () => ({
     focus: () => textareaRef.current?.focus(),
