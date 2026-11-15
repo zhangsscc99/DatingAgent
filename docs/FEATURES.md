@@ -121,3 +121,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P79 · Chat header status dot** — small green/amber dot next to the header title fed by the existing P27 health poll (green <2000ms, amber otherwise); pure UI, no new requests.
 - **P80 · Export session metadata header** — F07 Markdown export gains a one-line metadata header (session title + message count) above the existing content; pure string formatting.
 - **P81 · Health chip click copies status JSON** — clicking the P27 chip copies the latest health JSON to clipboard reusing P31's copy pattern with its tick feedback; no backend change.
+- **P82 · Favicon + document title** — ship a simple SVG favicon and set `document.title` to "DatingAgent" so browser tabs aren't blank/generic; pure static asset, no runtime logic.
+- **P83 · Reply meta tool tooltip** — when the F21 meta badge shows a tool name, add a `title` attribute explaining what the tool did (reuse `/api/tools` description); one attribute, no API change.
+- **P84 · Composer paste guard** — when pasting text over the 4000-char limit, cap the inserted text at the limit and flash the char counter red once; pure frontend string slice, prevents predictable 413s.
