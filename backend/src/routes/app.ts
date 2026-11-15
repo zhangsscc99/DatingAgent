@@ -332,6 +332,12 @@ export function createApp(options: AppOptions = {}) {
     res.end();
   });
 
+  // Terminal /api 404: anything unmatched above is a missing endpoint, not a
+  // SPA route — reply JSON so clients never hit `Unexpected token '<'`.
+  app.use('/api', (_req, res) => {
+    res.status(404).json(errorBody(res, 'Not found'));
+  });
+
   app.use(express.static(frontendDist));
   app.get('/favicon.ico', (_req, res) => res.status(204).end());
   app.get('*', (_req, res) => {
