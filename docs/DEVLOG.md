@@ -30,3 +30,4 @@
 2026-11-14 23:20 | PROPOSED | added P61-P63 candidate ideas (send-disabled while streaming / session title tooltip / shared relative-time util)
 2026-11-14 23:30 | PROPOSED | added P64-P66 candidate ideas (kbd hint tooltip / relative session times / latency color)
 2026-11-15 00:26 | PROPOSED | added P79-P81 candidate ideas (header status dot / export metadata header / health chip copy)
+2026-11-15 01:20 | PROPOSED | added P94-P96 candidate ideas (scroll-btn aria label / session empty state / version uptime field)

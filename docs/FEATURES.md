@@ -133,3 +133,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P91 · Composer hint respects language toggle** — the "Enter 发送 / Shift+Enter 换行" caption (P41) and composer hints switch text with the P09 language setting; one small map, no new state.
 - **P92 · Version endpoint headers** — return `Cache-Control: no-store` and expose `X-Build-Time` on `/api/version` so testers can confirm a fresh deploy from response headers alone; two header lines, no body change.
 - **P93 · Health status field documentation** — README table gains a one-row explanation of `status: ok|degraded` semantics (what makes it degraded); docs-only, no code.
+- **P94 · Scroll-to-bottom button a11y label** — the F24 button gets `aria-label="滚动到底部"` and focus styling; one attribute, no layout change.
+- **P95 · Session dropdown empty-state text** — when no sessions exist the P33 dropdown shows a dim "暂无历史会话" line instead of blank space; pure static text.
+- **P96 · Version endpoint uptime field** — add `uptimeSec` to /api/version payload alongside gitSha so one request confirms both build freshness and restart; one field.
