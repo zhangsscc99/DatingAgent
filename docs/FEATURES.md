@@ -192,7 +192,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P132 · Session list keyboard navigation** — arrow-up/arrow-down moves focus between items in the session dropdown so keyboard users can switch sessions without tabbing through every control; one onKeyDown, pure frontend.
 - **P133 · Skip-to-content link** — a visually-hidden "跳到主要内容" link as the first focusable element jumps focus to the chat area on Tab; pure a11y, no layout change.
 - **P134 · Print stylesheet for transcript** — a small `@media print` block hides composer/buttons so Ctrl+P of the chat view prints a clean transcript; pure CSS.
-- **P135 · Pause health poll when hidden** — the P27 health poll skips its tick while `document.hidden` and resumes on visibilitychange, avoiding wasted requests in background tabs; small timer tweak.
+- [x] **P135 · Pause health poll when hidden** — the P27 health poll skips its tick while `document.hidden` and resumes on visibilitychange, avoiding wasted requests in background tabs; small timer tweak.
 - **P136 · Escape closes modal** — pressing Escape closes any open modal/dialog (e.g. confirm dialogs) and restores focus to the trigger; small keydown handler, pure a11y.
 - **P137 · prefers-reduced-motion disables smooth scroll** — the P24 scroll-to-bottom and chat auto-scroll use `behavior:'auto'` when the user prefers reduced motion; one media-query check, pure frontend.
 - **P138 · Health payload node version field** — add `node: process.version` to `/api/health` so testers can confirm the runtime; one line in `lib/health.ts`, no schema break.
