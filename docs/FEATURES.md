@@ -182,3 +182,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **P139 · Health payload RSS field** — add `rssMB` from `process.memoryUsage().rss` (rounded MB) to `/api/health` metrics so memory growth is observable without SSH; one field, no schema break.
 - [x] **P140 · Session dropdown recency sort** — audit the P33 session list ordering and sort by most-recently-updated first (one comparator) so the current chat is always at the top; pure frontend.
 - [x] **P141 · Message list role=log** — give the chat message container `role="log"` so screen readers treat new replies as live-updated history; one attribute, pure a11y.
+- **P142 · Nosniff header on API responses** — set `X-Content-Type-Options: nosniff` on all `/api/*` responses so browsers can't MIME-sniff JSON error bodies as HTML; one middleware line, no payload change.
+- **P143 · Composer enterkeyhint=send** — set `enterKeyHint="send"` on the composer textarea so mobile keyboards show a send key instead of a generic return; one attribute, pure frontend.
+- **P144 · format-detection telephone=no** — add `<meta name="format-detection" content="telephone=no">` so iOS Safari doesn't auto-link numbers in chat replies as fake phone links; one meta tag in index.html.
