@@ -74,7 +74,9 @@ describe('P150 · sidebar session filter', () => {
 
     it('filters over a stable copy and keeps rename state keyed per row', () => {
       const sidebar = read('components/Sidebar.tsx');
-      expect(sidebar).toContain('visibleSessions.map((s) =>');
+      // P151 groups the filtered list; rows now map per group over it.
+      expect(sidebar).toContain('group.sessions.map((s) =>');
+      expect(sidebar).toContain('groupSessionsByDay(visibleSessions)');
       expect(sidebar).toContain('filterRecentSessions(recentSessions, filterQuery)');
       // Rename/edit state is keyed to the session id, so a changed filter can
       // never attach an edit box to a different row.

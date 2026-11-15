@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import type { StoredChatSession } from '../lib/chatStorage';
 import { formatRelativeTime } from '../lib/relativeTime';
 import type { ToolInfo, UserProfile } from '../types';
@@ -28,6 +28,59 @@ export function filterRecentSessions(
   const q = query.trim().toLowerCase();
   if (!q) return sessions;
   return sessions.filter((s) => s.title.toLowerCase().includes(q));
+}
+
+export type SessionDayGroupLabel = '今天' | '昨天' | '更早';
+
+export interface SessionDayGroup {
+  label: SessionDayGroupLabel;
+  sessions: StoredChatSession[];
+}
+
+const DAY_GROUP_ORDER: SessionDayGroupLabel[] = ['今天', '昨天', '更早'];
+
+function localDayStart(timestamp: number): number {
+  const d = new Date(timestamp);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+/** Bucket an already-filtered session list by local calendar day. Pure:
+ * preserves incoming row order inside each bucket, omits empty groups, and
+ * never mutates the input. Invalid/missing updatedAt lands in 更早. */
+export function groupSessionsByDay(
+  sessions: StoredChatSession[],
+  now: number = Date.now(),
+): SessionDayGroup[] {
+  const nowDate = new Date(now);
+  const todayStart = new Date(
+    nowDate.getFullYear(),
+    nowDate.getMonth(),
+    nowDate.getDate(),
+  ).getTime();
+  const yesterdayStart = new Date(
+    nowDate.getFullYear(),
+    nowDate.getMonth(),
+    nowDate.getDate() - 1,
+  ).getTime();
+
+  const buckets: Record<SessionDayGroupLabel, StoredChatSession[]> = {
+    今天: [],
+    昨天: [],
+    更早: [],
+  };
+  for (const s of sessions) {
+    const dayStart = localDayStart(s.updatedAt);
+    const label: SessionDayGroupLabel =
+      dayStart >= todayStart
+        ? '今天'
+        : dayStart === yesterdayStart
+          ? '昨天'
+          : '更早';
+    buckets[label].push(s);
+  }
+  return DAY_GROUP_ORDER.filter((label) => buckets[label].length > 0).map(
+    (label) => ({ label, sessions: buckets[label] }),
+  );
 }
 
 const QUICK_PROMPTS = [
@@ -60,6 +113,7 @@ export default function Sidebar({
   const [editingValue, setEditingValue] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
   const visibleSessions = filterRecentSessions(recentSessions, filterQuery);
+  const sessionGroups = groupSessionsByDay(visibleSessions);
 
   useEffect(() => {
     if (!editingId) return;
@@ -154,76 +208,81 @@ export default function Sidebar({
                 无匹配对话
               </li>
             )}
-            {visibleSessions.map((s) => {
-              const commitRename = () => {
-                // Enter already exits edit mode; ignore the blur that follows.
-                if (editingId !== s.id) return;
-                const next = editingValue.trim();
-                if (next && next !== s.title) onRenameChat?.(s.id, next);
-                setEditingId(null);
-              };
-              return (
-                <li key={s.id} className="recent-chat-row">
-                  {editingId === s.id ? (
-                    <input
-                      ref={editInputRef}
-                      type="text"
-                      className="recent-chat-rename-input"
-                      value={editingValue}
-                      maxLength={40}
-                      disabled={busy}
-                      aria-label={`重命名对话：${s.title}`}
-                      onChange={(e) => setEditingValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') commitRename();
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
-                      onBlur={commitRename}
-                    />
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className={`recent-chat-item${s.id === activeSessionId ? ' active' : ''}`}
-                        onClick={() => onSelectChat?.(s.id)}
-                        disabled={busy}
-                        aria-disabled={busy || undefined}
-                        title={s.title}
-                        aria-current={s.id === activeSessionId ? 'true' : undefined}
-                      >
-                        <span className="recent-chat-title">{s.title}</span>
-                        <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="recent-chat-rename"
-                        onClick={() => {
-                          setEditingId(s.id);
-                          setEditingValue(s.title);
-                        }}
-                        disabled={busy}
-                        aria-disabled={busy || undefined}
-                        aria-label={`重命名对话：${s.title}`}
-                        title={`重命名对话：${s.title}`}
-                      >
-                        <span aria-hidden="true">✎</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="recent-chat-delete"
-                        onClick={() => onDeleteChat?.(s.id)}
-                        disabled={busy}
-                        aria-disabled={busy || undefined}
-                        aria-label={`删除对话：${s.title}`}
-                        title={`删除对话：${s.title}`}
-                      >
-                        <span aria-hidden="true">×</span>
-                      </button>
-                    </>
-                  )}
-                </li>
-              );
-            })}
+            {sessionGroups.map((group) => (
+              <Fragment key={group.label}>
+                <li className="recent-chat-group">{group.label}</li>
+                {group.sessions.map((s) => {
+                  const commitRename = () => {
+                    // Enter already exits edit mode; ignore the blur that follows.
+                    if (editingId !== s.id) return;
+                    const next = editingValue.trim();
+                    if (next && next !== s.title) onRenameChat?.(s.id, next);
+                    setEditingId(null);
+                  };
+                  return (
+                    <li key={s.id} className="recent-chat-row">
+                      {editingId === s.id ? (
+                        <input
+                          ref={editInputRef}
+                          type="text"
+                          className="recent-chat-rename-input"
+                          value={editingValue}
+                          maxLength={40}
+                          disabled={busy}
+                          aria-label={`重命名对话：${s.title}`}
+                          onChange={(e) => setEditingValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') commitRename();
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                          onBlur={commitRename}
+                        />
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className={`recent-chat-item${s.id === activeSessionId ? ' active' : ''}`}
+                            onClick={() => onSelectChat?.(s.id)}
+                            disabled={busy}
+                            aria-disabled={busy || undefined}
+                            title={s.title}
+                            aria-current={s.id === activeSessionId ? 'true' : undefined}
+                          >
+                            <span className="recent-chat-title">{s.title}</span>
+                            <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="recent-chat-rename"
+                            onClick={() => {
+                              setEditingId(s.id);
+                              setEditingValue(s.title);
+                            }}
+                            disabled={busy}
+                            aria-disabled={busy || undefined}
+                            aria-label={`重命名对话：${s.title}`}
+                            title={`重命名对话：${s.title}`}
+                          >
+                            <span aria-hidden="true">✎</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="recent-chat-delete"
+                            onClick={() => onDeleteChat?.(s.id)}
+                            disabled={busy}
+                            aria-disabled={busy || undefined}
+                            aria-label={`删除对话：${s.title}`}
+                            title={`删除对话：${s.title}`}
+                          >
+                            <span aria-hidden="true">×</span>
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </Fragment>
+            ))}
           </ul>
         </section>
       )}

@@ -147,6 +147,20 @@
   color: var(--text-muted);
 }
 
+.recent-chat-group {
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  cursor: default;
+  user-select: none;
+}
+
+.recent-chat-group:not(:first-child) {
+  margin-top: 6px;
+}
+
 .recent-chat-row {
   display: flex;
   align-items: stretch;
