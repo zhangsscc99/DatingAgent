@@ -60,17 +60,37 @@ bash scripts/deploy.sh
 ```json
 {
   "status": "ok",
+  "service": "DatingAgent",
+  "version": "1.0.0",
   "uptimeSeconds": 42,
   "memory": { "rssMb": 55.2, "heapUsedMb": 12.1, "heapTotalMb": 18.0 },
   "llmConfigured": false,
-  "frontend": { "built": true, "indexExists": true },
+  "llmModel": "gpt-4o-mini",
+  "frontend": { "distPath": "/www/DatingAgent/frontend/dist", "built": true, "indexExists": true },
   "metrics": {
     "requests": { "total": 12, "chat": 3, "chatErrors": 0 },
     "tokens": { "prompt": 1840, "completion": 512, "total": 2352 },
-    "latency": { "chatSamples": 3, "avgMs": 1420.5, "lastMs": 980, "maxMs": 2100 }
+    "latency": { "chatSamples": 3, "avgMs": 1420.5, "lastMs": 980, "maxMs": 2100 },
+    "startedAt": "2026-11-15T18:37:01.062Z",
+    "rssMB": 55
   }
 }
 ```
+
+`metrics` 字段说明（全部为进程内累计值，仅驻留内存，重启即清零，从不落盘）：
+
+- `metrics.requests.total` — 进程启动以来收到的请求总数
+- `metrics.requests.chat` — `/api/chat*` 请求数
+- `metrics.requests.chatErrors` — chat 请求出错次数
+- `metrics.tokens.prompt` — LLM prompt token 累计数
+- `metrics.tokens.completion` — LLM completion token 累计数
+- `metrics.tokens.total` — prompt + completion 合计
+- `metrics.latency.chatSamples` — 计入延迟统计的 chat 请求数
+- `metrics.latency.avgMs` — chat 平均延迟（毫秒）
+- `metrics.latency.lastMs` — 最近一次 chat 延迟（毫秒）
+- `metrics.latency.maxMs` — chat 最大延迟（毫秒）
+- `metrics.startedAt` — 进程启动时间（ISO 8601 时间戳）
+- `metrics.rssMB` — 进程当前 RSS 内存（MB，取整）
 
 若前端未构建，`status` 为 `degraded` 且 HTTP 503。
 
@@ -80,9 +100,9 @@ bash scripts/deploy.sh
 
 | Method | Path | 说明 |
 |--------|------|------|
-| GET | `/api/health` | 状态、uptime、内存、LLM 配置、前端构建、`metrics` 用量；`degraded` → 503 |
+| GET | `/api/health` | 状态、uptime、内存、LLM 配置与 `llmModel`、前端构建、`metrics` 用量；`degraded` → 503 |
 | GET | `/api/version` | `{version, gitSha, buildTime, node}`，构建期注入 |
-| GET | `/api/tools` | 工具列表 `{name, label, icon}` |
+| GET | `/api/tools` | 工具列表 `{name, label, icon, inputs}`（`inputs` 为各工具参数 schema） |
 | GET | `/api/sessions` | `{count, oldestAgeSec}`，不含内容与 PII |
 | POST | `/api/session` | body `{profile?}` → `{sessionId}` |
 | POST | `/api/session/restore` | body `{sessionId, messages?, profile?}` → `{sessionId, restored, messageCount}` |
