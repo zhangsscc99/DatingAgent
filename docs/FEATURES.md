@@ -39,7 +39,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **P48 · Focus input after send** — after a reply completes, refocus the composer so keyboard users can type immediately; one `focus()` call, no layout change.
 - **P22 · Message copy button** — hover a bubble to reveal a one-click "复制" that copies its text via navigator.clipboard, with brief 已复制 feedback; no layout shift.
 - **P23 · Empty-state suggestions** — when a conversation has no messages, show 3 tappable starter prompts (e.g. 自我介绍/找话题/化解尴尬) that fill the composer.
-- **P24 · Scroll-to-bottom button** — floating ↑ button appears when scrolled away from latest message in chat view; smooth-scrolls back.
+- [x] **P24 · Scroll-to-bottom button** — floating ↑ button appears when scrolled away from latest message in chat view; smooth-scrolls back.
 - **P25 · Character counter** — live char count near the composer that turns amber as the 4000-char 413 limit approaches; resets on send.
 - **P103 · Copy-reply accessible feedback** — announce "已复制" via a visually-hidden `aria-live="polite"` region instead of a transient toast, so screen readers get the confirmation; pure frontend.
 - **P104 · Health uptime field** — add `uptimeSec: process.uptime()` to `/api/health` payload; one line in `lib/health.ts`, no schema break.

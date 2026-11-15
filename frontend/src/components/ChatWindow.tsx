@@ -1,9 +1,20 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage, UserProfile } from '../types';
 import MessageBubble from './MessageBubble';
 import InputBar, { type InputBarHandle } from './InputBar';
 import SessionSkeleton from './SessionSkeleton';
 import './ChatWindow.css';
+
+/** F15: smooth scrolling is motion; honour the OS preference. */
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
+/** P24: how far from the latest message before the jump button appears. */
+const SCROLL_BOTTOM_THRESHOLD = 150;
 
 /** F20: empty-state starter prompts; clicking one prefills the composer. */
 const STARTER_PROMPTS = [
@@ -34,17 +45,33 @@ export default function ChatWindow({
   onSetupProfile,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<InputBarHandle>(null);
   const wasRestoring = useRef(false);
   const wasLoading = useRef(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   useEffect(() => {
-    // F15: smooth scrolling is motion; honour the OS preference.
-    const reduced =
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    bottomRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
+    bottomRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
   }, [messages, loading]);
+
+  // P24: reveal the jump button once the user scrolls well above the latest
+  // message; hide it again near the bottom.
+  const handleMessagesScroll = () => {
+    const el = listRef.current;
+    if (!el) return;
+    setShowScrollToBottom(
+      el.scrollHeight - el.scrollTop - el.clientHeight > SCROLL_BOTTOM_THRESHOLD,
+    );
+  };
+
+  const scrollToLatest = () => {
+    bottomRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    });
+  };
 
   useEffect(() => {
     if (wasRestoring.current && !restoring) {
@@ -70,7 +97,14 @@ export default function ChatWindow({
 
   return (
     <div className="chat-window">
-      <div className="messages" role="log" aria-busy={restoring || loading}>
+      <div className="messages-wrap">
+        <div
+          ref={listRef}
+          className="messages"
+          role="log"
+          aria-busy={restoring || loading}
+          onScroll={handleMessagesScroll}
+        >
         {restoring && <SessionSkeleton />}
 
         {!restoring && messages.length === 0 && (
@@ -150,7 +184,19 @@ export default function ChatWindow({
             />
           ))}
 
-        <div ref={bottomRef} />
+          <div ref={bottomRef} />
+        </div>
+
+        {showScrollToBottom && (
+          <button
+            type="button"
+            className="scroll-to-bottom"
+            aria-label="滚动到底部"
+            onClick={scrollToLatest}
+          >
+            ↑
+          </button>
+        )}
       </div>
 
       <InputBar

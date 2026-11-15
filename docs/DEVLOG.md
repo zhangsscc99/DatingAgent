@@ -46,3 +46,4 @@
 2026-11-15 10:03 | P46 | /api/health sets Cache-Control: no-store
 2026-11-15 10:17 | P47 | session dropdown titles: first user message sliced to 20 chars + ellipsis, 新会话 fallback for empty/ID titles
 2026-11-15 10:29 | P48 | ChatWindow: new effect refocuses the composer (inputRef.focus()) when loading flips true->false after a reply; guard skips when focus is in another input/textarea/contenteditable or inside an [aria-modal] dialog
+2026-11-15 10:43 | P24 | ChatWindow: floating ↑ button (aria-label 滚动到底部) anchored bottom-right of a new .messages-wrap; onScroll shows it >150px from latest, click scrollIntoView smooth/auto via shared prefersReducedMotion helper

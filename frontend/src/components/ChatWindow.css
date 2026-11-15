@@ -5,6 +5,15 @@
   min-height: 0;
 }
 
+/* P24: positioning context for the floating scroll-to-bottom button. */
+.messages-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
 .messages {
   flex: 1;
   overflow-y: auto;
@@ -155,4 +164,44 @@
 .starter-chip:focus-visible {
   outline: 2px solid var(--accent, #ff4081);
   outline-offset: 2px;
+}
+
+/* P24: floating jump-to-latest button, bottom-right above the composer. */
+.scroll-to-bottom {
+  position: absolute;
+  right: 24px;
+  bottom: 16px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
+  z-index: 10;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.scroll-to-bottom:hover {
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.scroll-to-bottom:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-to-bottom {
+    transition: none;
+  }
+
+  .scroll-to-bottom:hover {
+    transform: none;
+  }
 }
