@@ -127,3 +127,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P85 · Health uptime line** — include `uptimeSec` (process.uptime()) in the existing /api/health metrics object; one field, no new endpoint, lets the P27 footer show "up for X".
 - **P86 · Composer placeholder hint** — rotate the composer's `placeholder` to a short contextual hint (e.g. "输入消息… Ctrl+Enter 发送") so F10's shortcuts are discoverable without opening the tooltip; pure attribute.
 - **P87 · Error message i18n** — map the few user-facing error strings (413/429/network) to zh text via a tiny const map so the UI never shows raw English error bodies; no framework, one file.
+- **P88 · Session delete confirm** — P33 history dropdown's per-item delete gets a `confirm()` guard so a stray click can't drop a session; one line, no layout change.
+- **P89 · Health JSON pretty toggle** — `GET /api/health?pretty=1` returns the same payload with 2-space indentation for humans reading it in a browser; pure response formatting.
+- **P90 · Export copies tool lines** — F07 Markdown export marks messages that used a tool with a `(tool: name)` suffix, reusing F21's meta data; pure string addition.
