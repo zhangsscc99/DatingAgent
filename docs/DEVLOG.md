@@ -62,3 +62,4 @@
 2026-11-15 16:06 | P149 | renameChatSession() trims/40-char-caps/ignores empty and sets customTitle so saveChatSession keeps user names; sidebar rows gain a sibling pencil button + inline input (Enter/blur commits, Esc cancels, busy-disabled, no layout shift); App wires onRenameChat refresh-only; rename-session.test.ts guards + behaviour (74 tests total)
 2026-11-15 18:12 | F24 | added favicon.svg asset + link tag; /favicon.ico now returns 204 instead of SPA HTML
 2026-11-15 18:25 | F25 | Terminal /api/* 404 handler returns JSON {error,requestId} ahead of the SPA catch-all
+2026-11-15 18:37 | P115 | audit: favicon already served (204 / svg 200), no code change
