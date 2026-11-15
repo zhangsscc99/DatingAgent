@@ -47,6 +47,10 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P26 · Regenerate reply** — "换一个" action on the last assistant bubble that re-issues the same user message, replacing that single reply in place.
 - **P27 · System-status footer** — tiny footer dot on /api/health status (green ok / yellow degraded), polled every 60 s; no keys or PII shown.
 
+- **P109 · SSE heartbeat comment** — send a `: keepalive` SSE comment on `/api/chat/stream` every 15s while the model thinks, so proxies don't cut idle connections; pure backend, no payload change.
+- **P110 · HTML-escape exported text** — F07 Markdown export escapes `<`, `>`, `&` in user/LLM text so a pasted `<script>` can't execute if the .md is rendered as HTML; pure string map.
+- **P111 · Disable title edit while sending** — the session title input is read-only while a reply is streaming, avoiding mid-flight rename races; one `disabled` binding.
+
 <!-- Human review needed — these are candidates, not scheduled work. -->
 - **P04 · Request id + error correlation** — attach a short `x-request-id` per request, echo it in error JSON and the structured log line, so a client-reported failure can be matched to its log entry. No persistence.
 - **P05 · Health probe detail** — `GET /api/health?verbose=1` (localhost-only) adds disk-free, RSS, uptime and last-error to the metrics payload, keeping the public health payload unchanged.
