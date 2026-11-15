@@ -21,6 +21,8 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 
 ## Sprint 2 (seeded 2026-11-14)
 
+- [x] **P149 · Rename a history session in the sidebar** — session titles are auto-derived from the first user message and truncated to 20 chars, and the only per-row action is delete, so a session titled "你好" is stuck forever. Add `renameChatSession(sessionId, title)` to `frontend/src/lib/chatStorage.ts` (trim, 40-char cap, ignore empty, set `customTitle: true` and keep it so `saveChatSession` stops overwriting the user's name), an inline rename button + edit input on each `最近对话` row in `Sidebar.tsx` (siblings of the switch button, Enter/blur commits, Escape cancels, `disabled={busy}`, no layout shift), an `onRenameChat` handler in `App.tsx`, CSS from existing variables, and `frontend/test/rename-session.test.ts`. No new deps, no backend change.
+
 - [x] **F16 · Fix stale /api/version sha** — `gitSha` currently reports the *previous* commit because `ci-deploy.sh` builds before the loop commits. Generate build-info after commit, or have ci-deploy re-run `node scripts/gen-build-info` + rebuild only the backend after commit. Acceptance: `/api/version` gitSha == `git rev-parse --short HEAD` on a clean tree.
 - [x] **F17 · Tool input schemas in /api/tools** — expose each tool's parameter names/types (derive from the zod schemas in `tools/registry.ts`) so the UI can show what each tool needs. Acceptance: `/api/tools` returns `inputs` per tool; no schema duplication.
 - [x] **F18 · Control-character sanitisation** — strip NUL/ESC and other control chars from `message` before it reaches the LLM; keep newlines/tabs. Acceptance: `\u0000`-laden message returns 200 and the log line stays single-line valid JSON.

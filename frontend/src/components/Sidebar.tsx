@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { StoredChatSession } from '../lib/chatStorage';
 import type { ToolInfo, UserProfile } from '../types';
 import './Sidebar.css';
@@ -15,6 +15,7 @@ interface Props {
   onNewChat: () => void;
   onSelectChat?: (sessionId: string) => void;
   onDeleteChat?: (sessionId: string) => void;
+  onRenameChat?: (sessionId: string, title: string) => void;
   onEditProfile?: () => void;
   busy?: boolean;
 }
@@ -49,11 +50,24 @@ export default function Sidebar({
   onNewChat,
   onSelectChat,
   onDeleteChat,
+  onRenameChat,
   onEditProfile,
   busy = false,
 }: Props) {
   const sidebarRef = useRef<HTMLElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+
+  useEffect(() => {
+    if (!editingId) return;
+    const el = editInputRef.current;
+    if (el) {
+      el.focus();
+      el.select();
+    }
+  }, [editingId]);
 
   useEffect(() => {
     if (isMobile && open) {
@@ -120,33 +134,76 @@ export default function Sidebar({
         <section className="sidebar-section recent-chats" aria-label="最近对话">
           <h3>最近对话</h3>
           <ul className="recent-chat-list">
-            {recentSessions.map((s) => (
-              <li key={s.id} className="recent-chat-row">
-                <button
-                  type="button"
-                  className={`recent-chat-item${s.id === activeSessionId ? ' active' : ''}`}
-                  onClick={() => onSelectChat?.(s.id)}
-                  disabled={busy}
-                  aria-disabled={busy || undefined}
-                  title={s.title}
-                  aria-current={s.id === activeSessionId ? 'true' : undefined}
-                >
-                  <span className="recent-chat-title">{s.title}</span>
-                  <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
-                </button>
-                <button
-                  type="button"
-                  className="recent-chat-delete"
-                  onClick={() => onDeleteChat?.(s.id)}
-                  disabled={busy}
-                  aria-disabled={busy || undefined}
-                  aria-label={`删除对话：${s.title}`}
-                  title={`删除对话：${s.title}`}
-                >
-                  <span aria-hidden="true">×</span>
-                </button>
-              </li>
-            ))}
+            {recentSessions.map((s) => {
+              const commitRename = () => {
+                // Enter already exits edit mode; ignore the blur that follows.
+                if (editingId !== s.id) return;
+                const next = editingValue.trim();
+                if (next && next !== s.title) onRenameChat?.(s.id, next);
+                setEditingId(null);
+              };
+              return (
+                <li key={s.id} className="recent-chat-row">
+                  {editingId === s.id ? (
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      className="recent-chat-rename-input"
+                      value={editingValue}
+                      maxLength={40}
+                      disabled={busy}
+                      aria-label={`重命名对话：${s.title}`}
+                      onChange={(e) => setEditingValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') commitRename();
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                      onBlur={commitRename}
+                    />
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className={`recent-chat-item${s.id === activeSessionId ? ' active' : ''}`}
+                        onClick={() => onSelectChat?.(s.id)}
+                        disabled={busy}
+                        aria-disabled={busy || undefined}
+                        title={s.title}
+                        aria-current={s.id === activeSessionId ? 'true' : undefined}
+                      >
+                        <span className="recent-chat-title">{s.title}</span>
+                        <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="recent-chat-rename"
+                        onClick={() => {
+                          setEditingId(s.id);
+                          setEditingValue(s.title);
+                        }}
+                        disabled={busy}
+                        aria-disabled={busy || undefined}
+                        aria-label={`重命名对话：${s.title}`}
+                        title={`重命名对话：${s.title}`}
+                      >
+                        <span aria-hidden="true">✎</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="recent-chat-delete"
+                        onClick={() => onDeleteChat?.(s.id)}
+                        disabled={busy}
+                        aria-disabled={busy || undefined}
+                        aria-label={`删除对话：${s.title}`}
+                        title={`删除对话：${s.title}`}
+                      >
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    </>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

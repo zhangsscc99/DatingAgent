@@ -19,6 +19,7 @@ import {
   deleteChatSession,
   getRecentSessions,
   loadChatState,
+  renameChatSession,
   saveChatSession,
   setActiveSessionId,
   syncSessionWithBackend,
@@ -603,6 +604,13 @@ export default function App() {
     }
   };
 
+  /** P149: rename a stored session. Purely local — never touches the active
+   * chat, and the next saveChatSession keeps the custom title. */
+  const handleRenameChat = (id: string, title: string) => {
+    renameChatSession(id, title);
+    setRecentSessions(getRecentSessions());
+  };
+
   return (
     <div className="app">
       <span className="sr-only" role="status" aria-live="polite">
@@ -623,6 +631,7 @@ export default function App() {
         onNewChat={handleNewChat}
         onSelectChat={handleSelectChat}
         onDeleteChat={handleDeleteChat}
+        onRenameChat={handleRenameChat}
         busy={loading}
         onEditProfile={() => {
           setEditingProfile(true);

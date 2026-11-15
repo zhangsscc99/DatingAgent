@@ -216,6 +216,65 @@
   cursor: not-allowed;
 }
 
+.recent-chat-rename {
+  flex-shrink: 0;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  opacity: 0.55;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.recent-chat-rename:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border);
+  color: var(--accent);
+  opacity: 1;
+}
+
+.recent-chat-rename:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  opacity: 1;
+}
+
+.recent-chat-rename:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.recent-chat-rename-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.recent-chat-rename-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.recent-chat-rename-input:disabled {
+  opacity: 0.45;
+}
+
 .quick-prompts {
   display: flex;
   flex-direction: column;

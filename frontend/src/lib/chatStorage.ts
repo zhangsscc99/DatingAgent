@@ -8,6 +8,9 @@ export interface StoredChatSession {
   title: string;
   updatedAt: number;
   messages: ChatMessage[];
+  /** Set when the user renamed the session — saveChatSession must not
+   * overwrite a custom title with the auto-derived one. */
+  customTitle?: boolean;
 }
 
 export interface ChatStorageState {
@@ -69,16 +72,18 @@ export function saveChatSession(sessionId: string, messages: ChatMessage[]): voi
   if (serialized.length === 0) return;
 
   const state = loadChatState();
-  const existing = state.sessions.findIndex((s) => s.id === sessionId);
+  const existingIndex = state.sessions.findIndex((s) => s.id === sessionId);
+  const existing = existingIndex >= 0 ? state.sessions[existingIndex] : undefined;
   const entry: StoredChatSession = {
     id: sessionId,
-    title: sessionTitle(serialized),
+    title: existing?.customTitle ? existing.title : sessionTitle(serialized),
     updatedAt: Date.now(),
     messages: serialized,
+    ...(existing?.customTitle ? { customTitle: true } : {}),
   };
 
-  if (existing >= 0) {
-    state.sessions[existing] = entry;
+  if (existingIndex >= 0) {
+    state.sessions[existingIndex] = entry;
   } else {
     state.sessions.unshift(entry);
   }
@@ -101,6 +106,24 @@ export function getRecentSessions(): StoredChatSession[] {
     .map((s) =>
       s.title && s.title !== s.id ? s : { ...s, title: sessionTitle(s.messages) },
     );
+}
+
+const CUSTOM_TITLE_MAX = 40;
+
+/** Rename a stored session. Marks the title as custom so saveChatSession
+ * keeps it. Not chat activity: activeSessionId and updatedAt are untouched. */
+export function renameChatSession(sessionId: string, title: string): void {
+  const trimmed = title.trim();
+  if (!trimmed) return;
+  const state = loadChatState();
+  const session = state.sessions.find((s) => s.id === sessionId);
+  if (!session) return;
+  session.title =
+    trimmed.length > CUSTOM_TITLE_MAX
+      ? `${trimmed.slice(0, CUSTOM_TITLE_MAX).trimEnd()}…`
+      : trimmed;
+  session.customTitle = true;
+  persistState(state);
 }
 
 export function deleteChatSession(sessionId: string): void {
