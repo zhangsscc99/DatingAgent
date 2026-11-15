@@ -16,6 +16,7 @@ import { useMediaQuery } from './hooks/useMediaQuery';
 import { useTheme } from './hooks/useTheme';
 import {
   clearActiveSession,
+  deleteChatSession,
   getRecentSessions,
   loadChatState,
   saveChatSession,
@@ -576,6 +577,32 @@ export default function App() {
     closeSidebar();
   };
 
+  /**
+   * P148: delete one stored session. The backend DELETE is fire-and-forget —
+   * the local copy is the source of truth for the list, and a dropped request
+   * only leaves an idle backend session that the F01 TTL reaps anyway.
+   */
+  const handleDeleteChat = (id: string) => {
+    const title = recentSessions.find((s) => s.id === id)?.title ?? id;
+    if (!window.confirm(`删除对话「${title}」？`)) return;
+
+    deleteChatSession(id);
+    setRecentSessions(getRecentSessions());
+
+    try {
+      void fetch(`/api/session/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+    } catch {
+      /* fire-and-forget */
+    }
+
+    if (id === sessionId) {
+      abortRef.current?.abort();
+      setMessages([]);
+      setSessionId(null);
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="app">
       <span className="sr-only" role="status" aria-live="polite">
@@ -595,6 +622,7 @@ export default function App() {
         }}
         onNewChat={handleNewChat}
         onSelectChat={handleSelectChat}
+        onDeleteChat={handleDeleteChat}
         busy={loading}
         onEditProfile={() => {
           setEditingProfile(true);

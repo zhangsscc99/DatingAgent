@@ -103,6 +103,13 @@ export function getRecentSessions(): StoredChatSession[] {
     );
 }
 
+export function deleteChatSession(sessionId: string): void {
+  const state = loadChatState();
+  state.sessions = state.sessions.filter((s) => s.id !== sessionId);
+  if (state.activeSessionId === sessionId) state.activeSessionId = null;
+  persistState(state);
+}
+
 export function getSession(sessionId: string): StoredChatSession | undefined {
   return loadChatState().sessions.find((s) => s.id === sessionId);
 }

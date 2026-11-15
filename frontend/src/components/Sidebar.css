@@ -118,6 +118,17 @@
   overflow-y: auto;
 }
 
+.recent-chat-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.recent-chat-row .recent-chat-item {
+  flex: 1;
+  min-width: 0;
+}
+
 .recent-chat-item {
   display: flex;
   flex-direction: column;
@@ -167,6 +178,42 @@
 .recent-chat-time {
   font-size: 10px;
   color: var(--text-muted);
+}
+
+.recent-chat-delete {
+  flex-shrink: 0;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  opacity: 0.55;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+}
+
+.recent-chat-delete:hover:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+  color: var(--danger);
+  opacity: 1;
+}
+
+.recent-chat-delete:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  opacity: 1;
+}
+
+.recent-chat-delete:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
 }
 
 .quick-prompts {

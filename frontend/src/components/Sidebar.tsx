@@ -14,6 +14,7 @@ interface Props {
   onQuickPrompt: (prompt: string) => void;
   onNewChat: () => void;
   onSelectChat?: (sessionId: string) => void;
+  onDeleteChat?: (sessionId: string) => void;
   onEditProfile?: () => void;
   busy?: boolean;
 }
@@ -47,6 +48,7 @@ export default function Sidebar({
   onQuickPrompt,
   onNewChat,
   onSelectChat,
+  onDeleteChat,
   onEditProfile,
   busy = false,
 }: Props) {
@@ -119,7 +121,7 @@ export default function Sidebar({
           <h3>最近对话</h3>
           <ul className="recent-chat-list">
             {recentSessions.map((s) => (
-              <li key={s.id}>
+              <li key={s.id} className="recent-chat-row">
                 <button
                   type="button"
                   className={`recent-chat-item${s.id === activeSessionId ? ' active' : ''}`}
@@ -131,6 +133,17 @@ export default function Sidebar({
                 >
                   <span className="recent-chat-title">{s.title}</span>
                   <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
+                </button>
+                <button
+                  type="button"
+                  className="recent-chat-delete"
+                  onClick={() => onDeleteChat?.(s.id)}
+                  disabled={busy}
+                  aria-disabled={busy || undefined}
+                  aria-label={`删除对话：${s.title}`}
+                  title={`删除对话：${s.title}`}
+                >
+                  <span aria-hidden="true">×</span>
                 </button>
               </li>
             ))}
