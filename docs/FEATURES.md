@@ -118,3 +118,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P76 · Version footer in chat header** — header shows the /api/version gitSha (short) as a dim, non-interactive span so testers can verify deploys at a glance; one fetch + one span.
 - **P77 · Health chip ARIA live region** — P27 latency chip gets `aria-live="polite"` so screen readers hear status changes; one attribute, no visual change.
 - **P78 · Composer placeholder rotation** — composer cycles 3 example questions as placeholder text when idle; pure frontend setInterval, cleared on focus.
+- **P79 · Chat header status dot** — small green/amber dot next to the header title fed by the existing P27 health poll (green <2000ms, amber otherwise); pure UI, no new requests.
+- **P80 · Export session metadata header** — F07 Markdown export gains a one-line metadata header (session title + message count) above the existing content; pure string formatting.
+- **P81 · Health chip click copies status JSON** — clicking the P27 chip copies the latest health JSON to clipboard reusing P31's copy pattern with its tick feedback; no backend change.
