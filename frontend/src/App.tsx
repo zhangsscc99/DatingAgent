@@ -205,6 +205,7 @@ export default function App() {
   const streamReply = useCallback(
     async (prompt: string, assistantId: string): Promise<StreamOutcome> => {
       const toolEvents: ToolEvent[] = [];
+      let finalContent = '';
 
       abortRef.current?.abort();
       abortRef.current = new AbortController();
@@ -230,7 +231,6 @@ export default function App() {
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        let finalContent = '';
         let streamPhase: StreamPhase = 'thinking';
         let streamError: string | null = null;
 
@@ -343,7 +343,23 @@ export default function App() {
         });
         return { status: 'ok' };
       } catch (err) {
-        if ((err as Error).name === 'AbortError') return { status: 'aborted' };
+        if ((err as Error).name === 'AbortError') {
+          // P12: user-initiated stop — keep whatever partial text arrived and
+          // mark the bubble instead of raising an error. Skip the patch when
+          // the bubble is gone (session switched / new chat while in flight).
+          setMessages((prev) =>
+            prev.some((m) => m.id === assistantId)
+              ? upsertAssistant(prev, assistantId, {
+                  content: finalContent,
+                  streaming: false,
+                  streamPhase: undefined,
+                  stopped: true,
+                  toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+                })
+              : prev,
+          );
+          return { status: 'aborted' };
+        }
         const errorText = `请求失败：${(err as Error).message}`;
         patchAssistant({
           content: errorText,
@@ -499,6 +515,14 @@ export default function App() {
   };
 
   const handleQuickPrompt = (prompt: string) => sendMessage(prompt);
+
+  /** P12: abort the in-flight stream; the catch in streamReply finishes the turn. */
+  const stopStreaming = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  // Never leave a fetch running past unmount.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const canExport = exportableMessages(messages).length > 0;
 
@@ -693,6 +717,7 @@ export default function App() {
           profile={profile}
           sessionId={sessionId}
           onSend={sendMessage}
+          onStop={stopStreaming}
           onRetry={handleRetry}
           onRegenerate={handleRegenerate}
           onSetupProfile={() => setEditingProfile(true)}

@@ -29,6 +29,8 @@ export interface ChatMessage {
   retryPrompt?: string;
   /** True while this reply is being regenerated in place (P26) */
   regenerating?: boolean;
+  /** Generation was stopped by the user — keep the partial text (P12) */
+  stopped?: boolean;
   /** Per-reply metadata badge (F21); hidden when tokens are unknown */
   meta?: ReplyMeta;
 }

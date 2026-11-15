@@ -30,6 +30,8 @@ interface Props {
   profile?: UserProfile | null;
   sessionId?: string | null;
   onSend: (text: string) => void;
+  /** P12: abort the in-flight streamed reply. */
+  onStop?: () => void;
   onRetry?: (messageId: string, prompt: string) => void;
   /** P26: regenerate the newest assistant reply in place. */
   onRegenerate?: (messageId: string) => void;
@@ -43,6 +45,7 @@ export default function ChatWindow({
   profile,
   sessionId,
   onSend,
+  onStop,
   onRetry,
   onRegenerate,
   onSetupProfile,
@@ -222,6 +225,8 @@ export default function ChatWindow({
       <InputBar
         ref={inputRef}
         onSend={onSend}
+        streaming={loading}
+        onStop={onStop}
         disabled={loading || restoring}
         draftKey={sessionId ?? 'default'}
       />

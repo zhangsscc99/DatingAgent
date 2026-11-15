@@ -17,6 +17,10 @@ export interface InputBarHandle {
 interface Props {
   onSend: (text: string) => void;
   disabled?: boolean;
+  /** True while a reply is streaming — the send button becomes a stop button. */
+  streaming?: boolean;
+  /** P12: abort the in-flight generation. */
+  onStop?: () => void;
   /** Per-session key so each conversation keeps its own unsent draft. */
   draftKey?: string;
 }
@@ -47,7 +51,7 @@ const MOD_KEY =
     : 'Ctrl';
 
 const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
-  { onSend, disabled, draftKey },
+  { onSend, disabled, streaming = false, onStop, draftKey },
   ref,
 ) {
   const draftId = draftKey ?? 'default';
@@ -164,15 +168,27 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           </span>
         </div>
       </div>
-      <button
-        type="button"
-        className="input-send"
-        onClick={submit}
-        disabled={disabled || !text.trim()}
-        aria-label="发送消息"
-      >
-        ↑
-      </button>
+      {streaming && onStop ? (
+        <button
+          type="button"
+          className="input-send input-stop"
+          onClick={onStop}
+          aria-label="停止生成"
+          title="停止生成回复"
+        >
+          停止
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="input-send"
+          onClick={submit}
+          disabled={disabled || !text.trim()}
+          aria-label="发送消息"
+        >
+          ↑
+        </button>
+      )}
     </div>
   );
 });

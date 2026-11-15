@@ -62,8 +62,8 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P05 · Health probe detail** — `GET /api/health?verbose=1` (localhost-only) adds disk-free, RSS, uptime and last-error to the metrics payload, keeping the public health payload unchanged.
 - **P06 · Input history recall** — composer remembers the last 5 sent messages in localStorage with ↑ recall (terminal-style), capped at ~10 KB, purely client-side.
 - **P01 · Conversation history persistence** — optional localStorage-backed reload of the last session (opt-out toggle), so refresh doesn't lose context. Low risk; needs a size cap (~50 KB) and a "清除历史" action.
-- **P02 · Streaming tokens count** — `/api/chat/stream` currently lacks the `meta` badge data F21 added to the non-streaming path; emit a final SSE `meta` event with tool/latencyMs/tokens.
-- **P03 · Rate-limit headers** — expose `X-RateLimit-Remaining` and `Retry-After` on all `/api/*` responses so clients can back off gracefully instead of discovering the 429 by surprise.
+- [x] **P02 · Streaming tokens count** — `/api/chat/stream` currently lacks the `meta` badge data F21 added to the non-streaming path; emit a final SSE `meta` event with tool/latencyMs/tokens. Already satisfied: the stream's `done` event carries `tokens` + `tool` (harness.ts) and the route adds `latencyMs`; App.tsx patches the badge from it.
+- [x] **P03 · Rate-limit headers** — expose `X-RateLimit-Remaining` and `Retry-After` on all `/api/*` responses so clients can back off gracefully instead of discovering the 429 by surprise. Already satisfied by `lib/guardrails.ts` (X-RateLimit-Limit/Remaining on every chat request, Retry-After + X-RateLimit-Reset on 429).
 - **P61 · Composer send-disabled during streaming** — while a `/api/chat/stream` reply is in flight, disable the send button (visual dim) to avoid double-submit queuing; pure UI state already tracked by the streaming flag.
 - **P62 · Session title tooltip** — full (untruncated) session title on hover via native `title` attribute in the P08 history dropdown; one attribute, no layout change.
 - **P63 · Relative-time Intl helper** — extract P40's relative-time formatting into a shared util used by both session dropdown and meta badge, removing duplicated logic; no behavior change.
@@ -73,7 +73,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P09 · Reply language quick toggle** — a 🌐 button beside the composer cycling zh/en/auto, mapping to F11's `language` param; state persisted per session in localStorage.
 - **P10 · Message length meter** — live character count (e.g. `1234/4000`) under the composer turning amber past 3500, so users see the 413 limit before hitting it. Purely UI.
 - **P11 · Offline / LLM-down banner** — when `/api/chat` returns 5xx or network fails, show a dismissible top banner "服务暂时不可用" with retry affordance instead of only inline error text. Purely UI.
-- **P12 · Stop generation button** — for `/api/chat/stream` calls, show a "停止" button that aborts via `AbortController` while streaming; backend already closes the SSE on client disconnect. Small frontend + no backend change.
+- [x] **P12 · Stop generation button** — for `/api/chat/stream` calls, show a "停止" button that aborts via `AbortController` while streaming; backend already closes the SSE on client disconnect. Small frontend + no backend change.
 - **P16 · Copy export as Markdown** — beside F07's download, a "复制 Markdown" action putting the same formatted transcript on the clipboard; pure frontend reuse of the export builder.
 - **P17 · Unread error toast timing** — auto-dismiss chat error toasts after 8 s with a close button, instead of persistent banners that accumulate. Purely UI, no state deps.
 - **P18 · Health self-check chip** — tiny dot in the header polling `/api/health` every 60 s, green/red on llmConfigured status; purely decorative, no alerting.

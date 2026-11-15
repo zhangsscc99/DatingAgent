@@ -82,6 +82,12 @@
   cursor: not-allowed;
 }
 
+/* P12: stop button swaps in for send while streaming — same box, no jump. */
+.input-bar .input-stop {
+  background: var(--danger);
+  font-size: 13px;
+}
+
 .input-bar textarea:focus-visible {
   outline: none;
   border-color: var(--accent);

@@ -96,6 +96,11 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false }: Props) 
             </>
           )}
         </div>
+        {message.stopped && (
+          <div className="stopped-note" role="status">
+            已停止生成
+          </div>
+        )}
         {message.regenerating && (
           <div className="regen-status" role="status" aria-live="polite">
             正在重新生成…

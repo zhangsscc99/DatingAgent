@@ -251,6 +251,13 @@
   color: var(--text-muted);
 }
 
+/* P12: quiet note kept under a reply whose generation the user stopped. */
+.stopped-note {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* P26: failure detail kept next to the restored reply after a failed regen. */
 .bubble-error-detail {
   margin-top: 8px;
