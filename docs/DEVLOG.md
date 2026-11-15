@@ -34,3 +34,4 @@
 2026-11-15 02:26 | PROPOSED | added P109-P111 candidate ideas (SSE heartbeat / export HTML-escape / title edit lock)
 2026-11-15 02:58 | PROPOSED | added P118-P120 candidate ideas (health degraded reason / copy-all transcript / version title attr)
 2026-11-15 03:57 | PROPOSED | added P133-P135 candidate ideas (skip-link / print stylesheet / visibility-paused health poll)
+2026-11-15 04:09 | PROPOSED | added P136-P138 candidate ideas (escape-close modal / reduced-motion scroll / health node version)
