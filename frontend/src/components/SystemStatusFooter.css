@@ -1,0 +1,30 @@
+/* P27 — pinned under the chat column inside .main (flex column). */
+.system-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.system-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.system-status.level-ok .system-status-dot {
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success-glow);
+}
+
+.system-status.level-warn .system-status-dot {
+  background: var(--warning);
+}

@@ -11,6 +11,7 @@ import type {
 import ChatWindow from './components/ChatWindow';
 import Sidebar from './components/Sidebar';
 import ProfileOnboarding from './components/ProfileOnboarding';
+import SystemStatusFooter from './components/SystemStatusFooter';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useTheme } from './hooks/useTheme';
 import {
@@ -681,6 +682,7 @@ export default function App() {
           onRegenerate={handleRegenerate}
           onSetupProfile={() => setEditingProfile(true)}
         />
+        <SystemStatusFooter />
       </main>
     </div>
   );

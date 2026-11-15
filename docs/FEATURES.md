@@ -45,7 +45,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **P104 · Health uptime field** — add `uptimeSec: process.uptime()` to `/api/health` payload; one line in `lib/health.ts`, no schema break.
 - [x] **P105 · Composer autofocus on load** — focus the message input once on first page load (respecting `prefers-reduced-motion` users who may use screen readers; skip if any modal is open); one `useEffect` + `focus()`.
 - [x] **P26 · Regenerate reply** — "换一个" action on the last assistant bubble that re-issues the same user message, replacing that single reply in place.
-- **P27 · System-status footer** — tiny footer dot on /api/health status (green ok / yellow degraded), polled every 60 s; no keys or PII shown.
+- [x] **P27 · System-status footer** — tiny footer dot on /api/health status (green ok / yellow degraded), polled every 60 s; no keys or PII shown.
 
 - **P109 · SSE heartbeat comment** — send a `: keepalive` SSE comment on `/api/chat/stream` every 15s while the model thinks, so proxies don't cut idle connections; pure backend, no payload change.
 - **P110 · HTML-escape exported text** — F07 Markdown export escapes `<`, `>`, `&` in user/LLM text so a pasted `<script>` can't execute if the .md is rendered as HTML; pure string map.
