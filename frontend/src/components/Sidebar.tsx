@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { StoredChatSession } from '../lib/chatStorage';
+import { formatRelativeTime } from '../lib/relativeTime';
 import type { ToolInfo, UserProfile } from '../types';
 import './Sidebar.css';
 
@@ -18,17 +19,6 @@ interface Props {
   onRenameChat?: (sessionId: string, title: string) => void;
   onEditProfile?: () => void;
   busy?: boolean;
-}
-
-function formatRelativeTime(ts: number): string {
-  const diff = Date.now() - ts;
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return '刚刚';
-  if (mins < 60) return `${mins} 分钟前`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} 小时前`;
-  const days = Math.floor(hours / 24);
-  return days === 1 ? '昨天' : `${days} 天前`;
 }
 
 const QUICK_PROMPTS = [

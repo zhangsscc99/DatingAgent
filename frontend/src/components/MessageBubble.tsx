@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import type { ChatMessage } from '../types';
 import { copyText } from '../lib/clipboard';
 import { highlightSegments } from '../lib/messageSearch';
+import { formatLatencySeconds } from '../lib/relativeTime';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
 import './MessageBubble.css';
@@ -184,7 +185,7 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
             )}
             <span>{message.meta.tokens} tokens</span>
             {typeof message.meta.latencyMs === 'number' && (
-              <span>{(message.meta.latencyMs / 1000).toFixed(1)}s</span>
+              <span>{formatLatencySeconds(message.meta.latencyMs)}</span>
             )}
           </div>
         )}
