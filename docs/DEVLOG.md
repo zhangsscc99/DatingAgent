@@ -69,3 +69,4 @@
 2026-11-15 19:36 | F26 | /api-scoped middleware after request logger sets X-Content-Type-Options:nosniff, X-Frame-Options:DENY, Referrer-Policy:no-referrer; static/SPA untouched
 2026-11-15 19:49 | F27 | composer textarea gains spellCheck=false, autoComplete/autoCorrect=off, autoCapitalize=none, enterKeyHint=send
 2026-11-15 20:01 | F28 | /api/health payload gains node: process.version (type + value in lib/health.ts); README endpoint table + example document the field
+2026-11-15 20:36 | docs | dedupe stale Proposed candidates: P01, P08, P09, P10, P18, P20, P21, P61, P62 verified already implemented in code, ticked with evidence notes; real remaining pool = P05/P07/P11/P16/P17 (+P63 refactor)
