@@ -218,9 +218,25 @@
   font-weight: 500;
 }
 
+.recent-chat-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
 .recent-chat-time {
   font-size: 10px;
   color: var(--text-muted);
+}
+
+.recent-chat-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .recent-chat-delete {
@@ -446,7 +462,8 @@
     max-height: 200px;
   }
 
-  .recent-chat-time {
+  .recent-chat-time,
+  .recent-chat-count {
     color: var(--text-secondary);
   }
 

@@ -30,6 +30,13 @@ export function filterRecentSessions(
   return sessions.filter((s) => s.title.toLowerCase().includes(q));
 }
 
+/** Label the persisted message count on a session row. Pure: treats
+ * undefined/null/non-array input as 0, never throws, never mutates. */
+export function formatMessageCount(messages: unknown): string {
+  const n = Array.isArray(messages) ? messages.length : 0;
+  return `${n} 条`;
+}
+
 export type SessionDayGroupLabel = '今天' | '昨天' | '更早';
 
 export interface SessionDayGroup {
@@ -249,7 +256,15 @@ export default function Sidebar({
                             aria-current={s.id === activeSessionId ? 'true' : undefined}
                           >
                             <span className="recent-chat-title">{s.title}</span>
-                            <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
+                            <span className="recent-chat-meta">
+                              <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
+                              <span
+                                className="recent-chat-count"
+                                title={`共 ${Array.isArray(s.messages) ? s.messages.length : 0} 条消息`}
+                              >
+                                {formatMessageCount(s.messages)}
+                              </span>
+                            </span>
                           </button>
                           <button
                             type="button"
