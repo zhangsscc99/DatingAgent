@@ -9,6 +9,7 @@ import type {
   UserProfile,
 } from './types';
 import ChatWindow from './components/ChatWindow';
+import ServiceBanner from './components/ServiceBanner';
 import Sidebar from './components/Sidebar';
 import ProfileOnboarding from './components/ProfileOnboarding';
 import SystemStatusFooter from './components/SystemStatusFooter';
@@ -40,6 +41,7 @@ import { copyText } from './lib/clipboard';
 import { pushInputHistory } from './lib/inputHistory';
 import { regeneratePromptFor } from './lib/regenerate';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
+import { isServiceDown } from './lib/serviceStatus';
 import './App.css';
 
 const STREAM_PHASE_LABELS: Record<StreamPhase, string> = {
@@ -89,7 +91,7 @@ async function describeChatError(res: Response): Promise<string> {
 /** Result of one streamed reply; P26 uses it to restore a failed regeneration. */
 type StreamOutcome =
   | { status: 'ok' }
-  | { status: 'error'; errorText: string }
+  | { status: 'error'; errorText: string; serviceDown?: boolean }
   | { status: 'aborted' };
 
 function upsertAssistant(
@@ -143,6 +145,8 @@ export default function App() {
   const [rateLimit, setRateLimit] = useState<RateLimitBudget | null>(null);
   const exportTimer = useRef<number | null>(null);
   const copyExportTimer = useRef<number | null>(null);
+  // P11: top banner for outage-class failures (network error or HTTP 5xx).
+  const [serviceDownBanner, setServiceDownBanner] = useState(false);
   const [restoringSession, setRestoringSession] = useState(() => {
     const { activeSessionId, sessions } = loadChatState();
     const session = sessions.find((s) => s.id === activeSessionId);
@@ -217,6 +221,9 @@ export default function App() {
     async (prompt: string, assistantId: string): Promise<StreamOutcome> => {
       const toolEvents: ToolEvent[] = [];
       let finalContent = '';
+      // P11: the response status feeds the outage classifier when the turn
+      // fails — stays undefined when the request never got a response.
+      let httpStatus: number | undefined;
 
       abortRef.current?.abort();
       abortRef.current = new AbortController();
@@ -237,6 +244,7 @@ export default function App() {
           }),
           signal: abortRef.current.signal,
         });
+        httpStatus = res.status;
 
         // P07: headers arrive before the stream body, and error replies (e.g.
         // 429) carry the same budget — update whenever they are present.
@@ -377,17 +385,32 @@ export default function App() {
           return { status: 'aborted' };
         }
         const errorText = `请求失败：${(err as Error).message}`;
+        // P11: fetch rejects with TypeError on a transport failure; the thrown
+        // describeChatError above is a plain Error carrying the HTTP status.
+        const serviceDown = isServiceDown({
+          networkError: err instanceof TypeError,
+          status: httpStatus,
+        });
         patchAssistant({
           content: errorText,
           streaming: false,
           error: true,
           retryPrompt: prompt,
         });
-        return { status: 'error', errorText };
+        return { status: 'error', errorText, serviceDown };
       }
     },
     [profile, sessionId, language],
   );
+
+  /**
+   * P11: reconcile the outage banner with a finished turn — a success or a
+   * non-outage error hides it, a qualifying failure shows (or re-shows) it.
+   */
+  const noteStreamOutcome = useCallback((outcome: StreamOutcome) => {
+    if (outcome.status === 'aborted') return;
+    setServiceDownBanner(outcome.status === 'error' && Boolean(outcome.serviceDown));
+  }, []);
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -415,12 +438,13 @@ export default function App() {
       setLoading(true);
 
       try {
-        await streamReply(prompt, assistantId);
+        const outcome = await streamReply(prompt, assistantId);
+        noteStreamOutcome(outcome);
       } finally {
         setLoading(false);
       }
     },
-    [loading, streamReply],
+    [loading, streamReply, noteStreamOutcome],
   );
 
   /**
@@ -459,10 +483,27 @@ export default function App() {
         retryAssistant,
       ]);
       setLoading(true);
-      void streamReply(prompt, assistantId).finally(() => setLoading(false));
+      void streamReply(prompt, assistantId)
+        .then(noteStreamOutcome)
+        .finally(() => setLoading(false));
     },
-    [loading, messages, streamReply],
+    [loading, messages, streamReply, noteStreamOutcome],
   );
+
+  /**
+   * P11: banner retry funnels through the same F09 path as the bubble button —
+   * the newest retryable error bubble is re-issued without duplicating history.
+   */
+  const handleServiceRetry = useCallback(() => {
+    if (loading) return;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const m = messages[i];
+      if (m.role === 'assistant' && m.error && m.retryPrompt) {
+        handleRetry(m.id, m.retryPrompt);
+        return;
+      }
+    }
+  }, [loading, messages, handleRetry]);
 
   /**
    * P26: re-issue the prompt that produced the last assistant reply, replacing
@@ -501,6 +542,7 @@ export default function App() {
       setLoading(true);
       void streamReply(prompt, messageId)
         .then((outcome) => {
+          noteStreamOutcome(outcome);
           if (outcome.status === 'error') {
             patchIfPresent({
               content: original.content,
@@ -517,7 +559,7 @@ export default function App() {
         })
         .finally(() => setLoading(false));
     },
-    [loading, messages, streamReply],
+    [loading, messages, streamReply, noteStreamOutcome],
   );
 
   const handleProfileSave = (next: UserProfile) => {
@@ -820,6 +862,12 @@ export default function App() {
             </div>
           </div>
         </header>
+        <ServiceBanner
+          visible={serviceDownBanner}
+          retrying={loading}
+          onRetry={handleServiceRetry}
+          onDismiss={() => setServiceDownBanner(false)}
+        />
         <ChatWindow
           messages={messages}
           loading={loading}
