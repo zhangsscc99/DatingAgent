@@ -136,3 +136,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P94 · Scroll-to-bottom button a11y label** — the F24 button gets `aria-label="滚动到底部"` and focus styling; one attribute, no layout change.
 - **P95 · Session dropdown empty-state text** — when no sessions exist the P33 dropdown shows a dim "暂无历史会话" line instead of blank space; pure static text.
 - **P96 · Version endpoint uptime field** — add `uptimeSec` to /api/version payload alongside gitSha so one request confirms both build freshness and restart; one field.
+- **P97 · Session dropdown current selection check** — the active session in the P33 dropdown shows a `✓` prefix instead of relying on highlight alone; one conditional class/icon, no new state.
+- **P98 · Footer year auto-update** — replace any hard-coded footer year with `new Date().getFullYear()` so it never goes stale; one expression.
+- **P99 · Chat message max-width guard** — ensure reply bubbles cap at a readable max-width (audit existing CSS, set one `max-width` if missing) so long LLM replies stay legible on wide screens; one CSS line.
