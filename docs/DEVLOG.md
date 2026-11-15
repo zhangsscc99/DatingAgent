@@ -82,3 +82,4 @@
 2026-11-15 23:05 | P128 | exported pure documentLangFor (en→en, zh/auto/unknown→zh-CN) beside readStoredLanguage; one useEffect writes document.documentElement.lang on language change; frontend/test/document-lang.test.ts
 2026-11-15 23:19 | P135 | useHealthPoll skips ticks while document.hidden, polls on visibilitychange; extracted startHealthPoll + vitest
 2026-11-15 23:40 | P136 | Escape closes the profile overlay in onboarding+edit modes via the existing skip/close path, opener regains focus, Tab contained; modal-escape.test.ts
+2026-11-15 23:55 | P153 | persistWithQuotaFallback guards every persistState write: drops oldest non-active sessions on quota errors, falls back to empty list keeping activeSessionId, never rethrows; getLastPersistWarning + storage-quota.test.ts

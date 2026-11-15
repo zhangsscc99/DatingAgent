@@ -36,8 +36,68 @@ export function loadChatState(): ChatStorageState {
   }
 }
 
+export interface PersistResult {
+  ok: boolean;
+  droppedSessions: number;
+}
+
+const PERSIST_WARNING_MESSAGE = '本地存储空间不足，已清理最早的对话';
+
+let lastPersistWarning: string | null = null;
+
+/** Warning left by the most recent persist attempt, or null after a clean write. */
+export function getLastPersistWarning(): string | null {
+  return lastPersistWarning;
+}
+
+/** Persist chat state without ever throwing on quota/private-mode failures.
+ * On a write error, drops the oldest sessions one at a time (never the active
+ * one while others remain) and retries; if a single session still fails, retries
+ * once with an empty session list keeping activeSessionId. Never rethrows. */
+export function persistWithQuotaFallback(
+  state: ChatStorageState,
+  write: (json: string) => void,
+  maxSessions: number = MAX_SESSIONS,
+): PersistResult {
+  let dropped = Math.max(0, state.sessions.length - maxSessions);
+  let working: ChatStorageState = {
+    activeSessionId: state.activeSessionId,
+    sessions: state.sessions.slice(0, maxSessions),
+  };
+  let retriedEmpty = false;
+
+  for (;;) {
+    try {
+      write(JSON.stringify(working));
+      lastPersistWarning = dropped > 0 ? PERSIST_WARNING_MESSAGE : null;
+      return { ok: true, droppedSessions: dropped };
+    } catch {
+      const removable = working.sessions.filter((s) => s.id !== working.activeSessionId);
+      if (removable.length > 0) {
+        const oldest = removable.reduce((a, b) => (a.updatedAt <= b.updatedAt ? a : b));
+        working = {
+          ...working,
+          sessions: working.sessions.filter((s) => s.id !== oldest.id),
+        };
+        dropped += 1;
+      } else if (!retriedEmpty) {
+        retriedEmpty = true;
+        dropped += working.sessions.length;
+        working = { activeSessionId: working.activeSessionId, sessions: [] };
+      } else {
+        lastPersistWarning = PERSIST_WARNING_MESSAGE;
+        return { ok: false, droppedSessions: dropped };
+      }
+    }
+  }
+}
+
 function persistState(state: ChatStorageState): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  persistWithQuotaFallback(
+    state,
+    (json) => localStorage.setItem(STORAGE_KEY, json),
+    MAX_SESSIONS,
+  );
 }
 
 const SESSION_TITLE_MAX = 20;
