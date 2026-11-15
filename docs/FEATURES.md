@@ -112,3 +112,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P70 · Meta badge title attribute** — F21 badge gets a native `title` with full latency/tokens detail on hover; one attribute, no layout change.
 - **P71 · Export includes language tag** — F07 Markdown export notes the active P09 reply-language setting in the header line; pure string addition.
 - **P72 · Empty-state chips honour theme** — F20 starter chips use existing CSS variables only (audit + fix any hard-coded colours); no behavior change.
+- **P73 · Composer auto-grow** — composer textarea grows with content up to ~6 lines, then scrolls internally; pure client-side height logic, no layout regression at rest.
+- **P74 · Stick-to-bottom while streaming** — chat container auto-scrolls to the newest token only when the user is already within ~100px of the bottom, so reading history isn't hijacked; small scroll handler.
+- **P75 · Reduced-motion scroll guard** — programmatic auto-scrolls (P74, F24's scroll-to-bottom) respect the F15 `prefers-reduced-motion` guard by jumping instantly instead of animating; one media-query check.
