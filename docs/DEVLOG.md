@@ -51,3 +51,4 @@
 2026-11-15 11:12 | P26 | last assistant bubble gains a "换一个" button that re-streams the preceding user prompt into the same message id via streamReply; failure restores original content+meta with errorDetail + retry; aria-live 正在重新生成 status, busy-disabled; helper regeneratePromptFor + vitest
 2026-11-15 11:26 | P27 | SystemStatusFooter pinned under ChatWindow: useHealthPoll fetches /api/health now + every 60s (last known status kept on failure, reachable flag warns); lib/healthStatus coarse helpers render green/amber/muted dot + aria-live label (运行正常/服务降级/无法连接/检测中) via CSS vars only; vitest covers helpers
 2026-11-15 11:39 | P109 | verified existing F19 SSE keepalive on /api/chat/stream (: ping every 15s, interval cleared on close/finish/end); no code change, docs tick only
+2026-11-15 11:51 | P110 | exportConversation: escapeHtml helper (&& first, then < and >) applied to message body text in buildConversationMarkdown; Markdown scaffold stays raw; no deps

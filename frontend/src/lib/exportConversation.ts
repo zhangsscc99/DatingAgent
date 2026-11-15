@@ -37,6 +37,18 @@ function messageTime(message: ChatMessage): number | null {
   return null;
 }
 
+/**
+ * Escape HTML-significant characters in untrusted message text (P110).
+ * `&` must be replaced first so existing entities aren't double-escaped.
+ * Only applied to user/LLM content — the Markdown scaffold we generate stays raw.
+ */
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export function roleHeading(message: ChatMessage): string {
   return message.role === 'user' ? '你' : 'DatingAgent';
 }
@@ -77,7 +89,7 @@ export function buildConversationMarkdown(
       lines.push(`> 工具：${labels}`, '');
     }
 
-    lines.push(message.content.trimEnd(), '');
+    lines.push(escapeHtml(message.content.trimEnd()), '');
     if (index < rows.length - 1) lines.push('---', '');
   });
 
