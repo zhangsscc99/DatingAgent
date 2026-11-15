@@ -36,6 +36,7 @@ export default function ChatWindow({
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<InputBarHandle>(null);
   const wasRestoring = useRef(false);
+  const wasLoading = useRef(false);
 
   useEffect(() => {
     // F15: smooth scrolling is motion; honour the OS preference.
@@ -51,6 +52,21 @@ export default function ChatWindow({
     }
     wasRestoring.current = restoring;
   }, [restoring]);
+
+  // P48: when a reply finishes, hand focus back to the composer — unless the
+  // user has moved into another field or a modal is open.
+  useEffect(() => {
+    const was = wasLoading.current;
+    wasLoading.current = loading;
+    if (!was || loading || restoring) return;
+    const el = document.activeElement as HTMLElement | null;
+    if (el && el.id !== 'chat-input') {
+      if (el.closest('[aria-modal="true"]')) return;
+      const tag = el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable) return;
+    }
+    inputRef.current?.focus();
+  }, [loading, restoring]);
 
   return (
     <div className="chat-window">

@@ -45,3 +45,4 @@
 2026-11-15 06:30 | PROPOSED | added P145-P147 candidate ideas (Referrer-Policy, X-Accel-Buffering off on stream, X-Frame-Options DENY)
 2026-11-15 10:03 | P46 | /api/health sets Cache-Control: no-store
 2026-11-15 10:17 | P47 | session dropdown titles: first user message sliced to 20 chars + ellipsis, 新会话 fallback for empty/ID titles
+2026-11-15 10:29 | P48 | ChatWindow: new effect refocuses the composer (inputRef.focus()) when loading flips true->false after a reply; guard skips when focus is in another input/textarea/contenteditable or inside an [aria-modal] dialog
