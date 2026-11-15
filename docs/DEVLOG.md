@@ -68,3 +68,4 @@
 2026-11-15 19:21 | P06 | lib/inputHistory.ts persists last 5 sent messages (newest-last, consecutive-dup drop, ~10KB serialized cap, try/catch->memory fallback); InputBar ArrowUp/Down recall guarded by empty-box/caret-0 (modifiers bypassed), Esc/past-newest restores pre-browse draft, sr-only aria-live 已恢复历史消息 n/N; App sendMessage records via pushInputHistory; P114 ticked (already satisfied); input-history.test.ts guards + behaviour (85 tests total)
 2026-11-15 19:36 | F26 | /api-scoped middleware after request logger sets X-Content-Type-Options:nosniff, X-Frame-Options:DENY, Referrer-Policy:no-referrer; static/SPA untouched
 2026-11-15 19:49 | F27 | composer textarea gains spellCheck=false, autoComplete/autoCorrect=off, autoCapitalize=none, enterKeyHint=send
+2026-11-15 20:01 | F28 | /api/health payload gains node: process.version (type + value in lib/health.ts); README endpoint table + example document the field

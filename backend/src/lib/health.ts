@@ -9,6 +9,8 @@ export interface HealthReport {
   service: string;
   version: string;
   uptimeSeconds: number;
+  /** Node runtime version (process.version), for deploy verification. */
+  node: string;
   memory: {
     rssMb: number;
     heapUsedMb: number;
@@ -40,6 +42,7 @@ export function buildHealthReport(
     service: 'DatingAgent',
     version: BUILD_INFO.version,
     uptimeSeconds: Math.floor((Date.now() - serverStartedAt) / 1000),
+    node: process.version,
     memory: {
       rssMb: roundMb(mem.rss),
       heapUsedMb: roundMb(mem.heapUsed),

@@ -63,6 +63,7 @@ bash scripts/deploy.sh
   "service": "DatingAgent",
   "version": "1.0.0",
   "uptimeSeconds": 42,
+  "node": "v24.5.0",
   "memory": { "rssMb": 55.2, "heapUsedMb": 12.1, "heapTotalMb": 18.0 },
   "llmConfigured": false,
   "llmModel": "gpt-4o-mini",
@@ -100,7 +101,8 @@ bash scripts/deploy.sh
 
 | Method | Path | 说明 |
 |--------|------|------|
-| GET | `/api/health` | 状态、uptime、内存、LLM 配置与 `llmModel`、前端构建、`metrics` 用量；`degraded` → 503 |
+| GET | `/api/health` | 状态、uptime、`node` 运行时版本、内存、LLM 配置与 `llmModel`、前端构建、`metrics` 用量；`degraded` → 503 |
+| — | `/api/health` 字段 `node` | Node 运行时版本（`process.version`，如 `v24.5.0`），用于免 SSH 确认运行时 |
 | GET | `/api/version` | `{version, gitSha, buildTime, node}`，构建期注入 |
 | GET | `/api/tools` | 工具列表 `{name, label, icon, inputs}`（`inputs` 为各工具参数 schema） |
 | GET | `/api/sessions` | `{count, oldestAgeSec}`，不含内容与 PII |
