@@ -95,6 +95,17 @@ export default function ChatWindow({
     inputRef.current?.focus();
   }, [loading, restoring]);
 
+  // P105: autofocus the composer once on first mount — skip for reduced-motion
+  // users, open modals, small viewports, or when focus is already in a field.
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    if (document.querySelector('[aria-modal="true"]')) return;
+    if (window.matchMedia('(max-width: 640px)').matches) return;
+    const el = document.activeElement as HTMLElement | null;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    inputRef.current?.focus();
+  }, []);
+
   return (
     <div className="chat-window">
       <div className="messages-wrap">
