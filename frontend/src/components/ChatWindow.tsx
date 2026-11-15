@@ -31,6 +31,8 @@ interface Props {
   sessionId?: string | null;
   onSend: (text: string) => void;
   onRetry?: (messageId: string, prompt: string) => void;
+  /** P26: regenerate the newest assistant reply in place. */
+  onRegenerate?: (messageId: string) => void;
   onSetupProfile?: () => void;
 }
 
@@ -42,6 +44,7 @@ export default function ChatWindow({
   sessionId,
   onSend,
   onRetry,
+  onRegenerate,
   onSetupProfile,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -189,9 +192,15 @@ export default function ChatWindow({
             <MessageBubble
               key={msg.id}
               message={msg}
-              // Only the newest bubble can be retried; retrying an older turn
-              // would append the reply out of order.
+              busy={loading}
+              // Only the newest bubble can be retried or regenerated; acting
+              // on an older turn would append the reply out of order.
               onRetry={index === messages.length - 1 ? onRetry : undefined}
+              onRegenerate={
+                index === messages.length - 1 && msg.role === 'assistant'
+                  ? onRegenerate
+                  : undefined
+              }
             />
           ))}
 

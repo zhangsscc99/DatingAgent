@@ -9,13 +9,17 @@ import './MessageBubble.css';
 interface Props {
   message: ChatMessage;
   onRetry?: (messageId: string, prompt: string) => void;
+  /** P26: offered only on the newest assistant bubble; regenerates in place. */
+  onRegenerate?: (messageId: string) => void;
+  /** True while a request is in flight — disables the regenerate action. */
+  busy?: boolean;
 }
 
 type CopyState = 'idle' | 'copied' | 'failed';
 
 const COPY_FEEDBACK_MS = 1500;
 
-function MessageBubble({ message, onRetry }: Props) {
+function MessageBubble({ message, onRetry, onRegenerate, busy = false }: Props) {
   const isUser = message.role === 'user';
   const showStreamingIndicator =
     !isUser && message.streaming && !message.content && message.streamPhase;
@@ -45,6 +49,17 @@ function MessageBubble({ message, onRetry }: Props) {
 
   const canCopy =
     !isUser && !message.streaming && !message.error && message.content.trim().length > 0;
+
+  const canRegen =
+    !isUser &&
+    !message.streaming &&
+    !message.regenerating &&
+    !message.error &&
+    typeof onRegenerate === 'function';
+
+  const handleRegenerate = useCallback(() => {
+    onRegenerate?.(message.id);
+  }, [onRegenerate, message.id]);
 
   return (
     <div
@@ -81,6 +96,14 @@ function MessageBubble({ message, onRetry }: Props) {
             </>
           )}
         </div>
+        {message.regenerating && (
+          <div className="regen-status" role="status" aria-live="polite">
+            正在重新生成…
+          </div>
+        )}
+        {message.error && message.errorDetail && (
+          <div className="bubble-error-detail">{message.errorDetail}</div>
+        )}
         {message.error && message.retryPrompt && onRetry && (
           <button
             type="button"
@@ -92,19 +115,33 @@ function MessageBubble({ message, onRetry }: Props) {
             ↻ 重试
           </button>
         )}
-        {canCopy && (
+        {(canCopy || canRegen) && (
           <div className="bubble-actions">
-            <button
-              type="button"
-              className={`copy-btn${copyState === 'copied' ? ' copied' : ''}${
-                copyState === 'failed' ? ' failed' : ''
-              }`}
-              onClick={handleCopy}
-              aria-label={copyState === 'copied' ? '已复制' : '复制回复'}
-              title={copyState === 'failed' ? '复制失败，请手动选择文本' : '复制回复'}
-            >
-              {copyState === 'copied' ? '✓ 已复制' : copyState === 'failed' ? '复制失败' : '⧉ 复制'}
-            </button>
+            {canCopy && (
+              <button
+                type="button"
+                className={`copy-btn${copyState === 'copied' ? ' copied' : ''}${
+                  copyState === 'failed' ? ' failed' : ''
+                }`}
+                onClick={handleCopy}
+                aria-label={copyState === 'copied' ? '已复制' : '复制回复'}
+                title={copyState === 'failed' ? '复制失败，请手动选择文本' : '复制回复'}
+              >
+                {copyState === 'copied' ? '✓ 已复制' : copyState === 'failed' ? '复制失败' : '⧉ 复制'}
+              </button>
+            )}
+            {canRegen && (
+              <button
+                type="button"
+                className="regen-btn"
+                onClick={handleRegenerate}
+                disabled={busy}
+                aria-label="重新生成回复"
+                title="换一个回复"
+              >
+                ↻ 换一个
+              </button>
+            )}
             <span className="copy-status" role="status" aria-live="polite">
               {copyState === 'copied' ? '已复制到剪贴板' : copyState === 'failed' ? '复制失败' : ''}
             </span>

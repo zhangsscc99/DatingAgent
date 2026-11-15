@@ -33,6 +33,7 @@ import {
   downloadMarkdown,
   exportableMessages,
 } from './lib/exportConversation';
+import { regeneratePromptFor } from './lib/regenerate';
 import './App.css';
 
 const TOOL_LABELS: Record<string, string> = {
@@ -72,6 +73,12 @@ async function describeChatError(res: Response): Promise<string> {
   }
   return `HTTP ${res.status}`;
 }
+
+/** Result of one streamed reply; P26 uses it to restore a failed regeneration. */
+type StreamOutcome =
+  | { status: 'ok' }
+  | { status: 'error'; errorText: string }
+  | { status: 'aborted' };
 
 function upsertAssistant(
   prev: ChatMessage[],
@@ -189,7 +196,7 @@ export default function App() {
    * appending a second copy of the same user message.
    */
   const streamReply = useCallback(
-    async (prompt: string, assistantId: string) => {
+    async (prompt: string, assistantId: string): Promise<StreamOutcome> => {
       const toolEvents: ToolEvent[] = [];
 
       abortRef.current?.abort();
@@ -300,37 +307,44 @@ export default function App() {
         }
 
         if (streamError) {
+          const errorText = `出错了：${streamError}`;
           patchAssistant({
-            content: `出错了：${streamError}`,
+            content: errorText,
             streaming: false,
             error: true,
             retryPrompt: prompt,
             toolEvents: toolEvents.length ? [...toolEvents] : undefined,
           });
-        } else if (!finalContent) {
-          patchAssistant({
-            content: '暂无回复，请重试。',
-            streaming: false,
-            error: true,
-            retryPrompt: prompt,
-            toolEvents: toolEvents.length ? [...toolEvents] : undefined,
-          });
-        } else {
-          patchAssistant({
-            content: finalContent,
-            streaming: false,
-            streamPhase: undefined,
-            toolEvents: toolEvents.length ? [...toolEvents] : undefined,
-          });
+          return { status: 'error', errorText };
         }
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return;
+        if (!finalContent) {
+          const errorText = '暂无回复，请重试。';
+          patchAssistant({
+            content: errorText,
+            streaming: false,
+            error: true,
+            retryPrompt: prompt,
+            toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+          });
+          return { status: 'error', errorText };
+        }
         patchAssistant({
-          content: `请求失败：${(err as Error).message}`,
+          content: finalContent,
+          streaming: false,
+          streamPhase: undefined,
+          toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+        });
+        return { status: 'ok' };
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return { status: 'aborted' };
+        const errorText = `请求失败：${(err as Error).message}`;
+        patchAssistant({
+          content: errorText,
           streaming: false,
           error: true,
           retryPrompt: prompt,
         });
+        return { status: 'error', errorText };
       }
     },
     [profile, sessionId, language],
@@ -404,6 +418,62 @@ export default function App() {
       ]);
       setLoading(true);
       void streamReply(prompt, assistantId).finally(() => setLoading(false));
+    },
+    [loading, messages, streamReply],
+  );
+
+  /**
+   * P26: re-issue the prompt that produced the last assistant reply, replacing
+   * that bubble in place — no new user bubble, no orphaned old reply. On
+   * failure the original content/meta is restored and the error is shown
+   * alongside it, so the previous reply is never lost.
+   */
+  const handleRegenerate = useCallback(
+    (messageId: string) => {
+      if (loading) return;
+      const prompt = regeneratePromptFor(messages, messageId);
+      if (!prompt) return;
+
+      const target = messages[messages.length - 1];
+      const original = {
+        content: target.content,
+        toolEvents: target.toolEvents,
+        meta: target.meta,
+      };
+
+      // The session can be cleared while a request is in flight; never let a
+      // late patch resurrect a bubble that no longer exists.
+      const patchIfPresent = (patch: Partial<ChatMessage>) => {
+        setMessages((prev) =>
+          prev.some((m) => m.id === messageId) ? upsertAssistant(prev, messageId, patch) : prev,
+        );
+      };
+
+      patchIfPresent({
+        streaming: true,
+        regenerating: true,
+        streamPhase: 'thinking',
+        toolEvents: undefined,
+        meta: undefined,
+      });
+      setLoading(true);
+      void streamReply(prompt, messageId)
+        .then((outcome) => {
+          if (outcome.status === 'error') {
+            patchIfPresent({
+              content: original.content,
+              toolEvents: original.toolEvents,
+              meta: original.meta,
+              streaming: false,
+              streamPhase: undefined,
+              error: true,
+              errorDetail: outcome.errorText,
+              retryPrompt: prompt,
+            });
+          }
+          patchIfPresent({ regenerating: undefined });
+        })
+        .finally(() => setLoading(false));
     },
     [loading, messages, streamReply],
   );
@@ -608,6 +678,7 @@ export default function App() {
           sessionId={sessionId}
           onSend={sendMessage}
           onRetry={handleRetry}
+          onRegenerate={handleRegenerate}
           onSetupProfile={() => setEditingProfile(true)}
         />
       </main>

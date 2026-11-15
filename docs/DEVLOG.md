@@ -48,3 +48,4 @@
 2026-11-15 10:29 | P48 | ChatWindow: new effect refocuses the composer (inputRef.focus()) when loading flips true->false after a reply; guard skips when focus is in another input/textarea/contenteditable or inside an [aria-modal] dialog
 2026-11-15 10:43 | P24 | ChatWindow: floating ↑ button (aria-label 滚动到底部) anchored bottom-right of a new .messages-wrap; onScroll shows it >150px from latest, click scrollIntoView smooth/auto via shared prefersReducedMotion helper
 2026-11-15 10:56 | P105 | ChatWindow: mount-only useEffect focuses composer via inputRef; skips on reduced-motion, open modal, <=640px viewport, or active input
+2026-11-15 11:12 | P26 | last assistant bubble gains a "换一个" button that re-streams the preceding user prompt into the same message id via streamReply; failure restores original content+meta with errorDetail + retry; aria-live 正在重新生成 status, busy-disabled; helper regeneratePromptFor + vitest

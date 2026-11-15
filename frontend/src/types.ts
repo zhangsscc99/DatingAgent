@@ -23,8 +23,12 @@ export interface ChatMessage {
   streamPhase?: StreamPhase;
   /** Stream or request failed — show retry UI */
   error?: boolean;
+  /** Failure detail shown under a restored reply after a failed regen (P26) */
+  errorDetail?: string;
   /** Original user prompt to resend on retry */
   retryPrompt?: string;
+  /** True while this reply is being regenerated in place (P26) */
+  regenerating?: boolean;
   /** Per-reply metadata badge (F21); hidden when tokens are unknown */
   meta?: ReplyMeta;
 }

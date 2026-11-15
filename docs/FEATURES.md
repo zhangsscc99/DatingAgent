@@ -37,14 +37,14 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - [x] **P46 · Health endpoint cache headers** — add `Cache-Control: no-store` to `/api/health` so proxies never serve a stale status; one middleware line, no payload change.
 - [x] **P47 · Session title from first message** — derive a truncated (≤20 char) title from the first user message and show it in the session dropdown instead of raw IDs; pure frontend string slice.
 - [x] **P48 · Focus input after send** — after a reply completes, refocus the composer so keyboard users can type immediately; one `focus()` call, no layout change.
-- **P22 · Message copy button** — hover a bubble to reveal a one-click "复制" that copies its text via navigator.clipboard, with brief 已复制 feedback; no layout shift.
-- **P23 · Empty-state suggestions** — when a conversation has no messages, show 3 tappable starter prompts (e.g. 自我介绍/找话题/化解尴尬) that fill the composer.
+- [x] **P22 · Message copy button** — hover a bubble to reveal a one-click "复制" that copies its text via navigator.clipboard, with brief 已复制 feedback; no layout shift.
+- [x] **P23 · Empty-state suggestions** — when a conversation has no messages, show 3 tappable starter prompts (e.g. 自我介绍/找话题/化解尴尬) that fill the composer.
 - [x] **P24 · Scroll-to-bottom button** — floating ↑ button appears when scrolled away from latest message in chat view; smooth-scrolls back.
-- **P25 · Character counter** — live char count near the composer that turns amber as the 4000-char 413 limit approaches; resets on send.
-- **P103 · Copy-reply accessible feedback** — announce "已复制" via a visually-hidden `aria-live="polite"` region instead of a transient toast, so screen readers get the confirmation; pure frontend.
-- **P104 · Health uptime field** — add `uptimeSec: process.uptime()` to `/api/health` payload; one line in `lib/health.ts`, no schema break.
+- [x] **P25 · Character counter** — live char count near the composer that turns amber as the 4000-char 413 limit approaches; resets on send.
+- [x] **P103 · Copy-reply accessible feedback** — announce "已复制" via a visually-hidden `aria-live="polite"` region instead of a transient toast, so screen readers get the confirmation; pure frontend.
+- [x] **P104 · Health uptime field** — add `uptimeSec: process.uptime()` to `/api/health` payload; one line in `lib/health.ts`, no schema break.
 - [x] **P105 · Composer autofocus on load** — focus the message input once on first page load (respecting `prefers-reduced-motion` users who may use screen readers; skip if any modal is open); one `useEffect` + `focus()`.
-- **P26 · Regenerate reply** — "换一个" action on the last assistant bubble that re-issues the same user message, replacing that single reply in place.
+- [x] **P26 · Regenerate reply** — "换一个" action on the last assistant bubble that re-issues the same user message, replacing that single reply in place.
 - **P27 · System-status footer** — tiny footer dot on /api/health status (green ok / yellow degraded), polled every 60 s; no keys or PII shown.
 
 - **P109 · SSE heartbeat comment** — send a `: keepalive` SSE comment on `/api/chat/stream` every 15s while the model thinks, so proxies don't cut idle connections; pure backend, no payload change.
