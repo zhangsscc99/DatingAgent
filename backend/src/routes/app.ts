@@ -333,6 +333,7 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.use(express.static(frontendDist));
+  app.get('/favicon.ico', (_req, res) => res.status(204).end());
   app.get('*', (_req, res) => {
     res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
       if (err) res.status(404).json(errorBody(res, 'Frontend not built'));
