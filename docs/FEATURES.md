@@ -164,3 +164,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 - **P121 · Composer textarea spellcheck off** — set `spellcheck={false}` on the composer so dating-advice slang/pinyin isn't red-underlined; one attribute, pure frontend.
 - **P122 · Error toast role="alert"** — chat error toasts get `role="alert"` so screen readers announce failures without focus theft; one attribute, reuses existing toast.
 - **P123 · Health poll backoff on failure** — the P27 health poll skips its next tick after a failed fetch (doubling interval once, capped at 5 min) so a down backend isn't hammered; small timer tweak.
+- **P124 · Composer autocomplete off** — set `autocomplete="off"` on the composer textarea so browsers don't suggest previously-sent personal messages; one attribute, pure frontend.
+- **P125 · Export button title tooltip** — F07 export action gets a native `title` explaining the .md download format and filename pattern; one attribute, no layout change.
+- **P126 · Session dropdown focus return** — when the P33 history dropdown closes, focus returns to its trigger button so keyboard users don't lose their place; one `focus()` call, pure a11y.
