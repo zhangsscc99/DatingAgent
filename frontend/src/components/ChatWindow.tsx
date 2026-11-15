@@ -90,6 +90,7 @@ export default function ChatWindow({
                   key={p.label}
                   type="button"
                   className="starter-chip"
+                  aria-label={p.label}
                   onClick={() => inputRef.current?.prefill(p.prompt)}
                 >
                   {p.label}

@@ -37,11 +37,16 @@ function persistState(state: ChatStorageState): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+const SESSION_TITLE_MAX = 20;
+const SESSION_TITLE_FALLBACK = '新会话';
+
 function sessionTitle(messages: ChatMessage[]): string {
   const firstUser = messages.find((m) => m.role === 'user' && m.content.trim());
-  if (!firstUser) return '新对话';
+  if (!firstUser) return SESSION_TITLE_FALLBACK;
   const text = firstUser.content.trim();
-  return text.length > 28 ? `${text.slice(0, 28)}…` : text;
+  if (text.length <= SESSION_TITLE_MAX) return text;
+  const sliced = text.slice(0, SESSION_TITLE_MAX).trimEnd();
+  return sliced ? `${sliced}…` : SESSION_TITLE_FALLBACK;
 }
 
 /** Strip transient streaming fields before persisting, but keep the retry
@@ -91,7 +96,11 @@ export function setActiveSessionId(sessionId: string | null): void {
 }
 
 export function getRecentSessions(): StoredChatSession[] {
-  return [...loadChatState().sessions].sort((a, b) => b.updatedAt - a.updatedAt);
+  return [...loadChatState().sessions]
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .map((s) =>
+      s.title && s.title !== s.id ? s : { ...s, title: sessionTitle(s.messages) },
+    );
 }
 
 export function getSession(sessionId: string): StoredChatSession | undefined {
