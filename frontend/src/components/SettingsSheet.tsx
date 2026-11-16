@@ -12,6 +12,7 @@ const REPLY_LENGTH_OPTIONS: { value: ReplyLengthPreference; label: string }[] = 
 ];
 
 const LANGUAGE_OPTIONS: { value: ReplyLanguage; label: string }[] = [
+  { value: 'auto', label: '自动' },
   { value: 'zh', label: '中文' },
   { value: 'en', label: 'English' },
 ];
