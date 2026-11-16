@@ -226,6 +226,17 @@
   outline-offset: 2px;
 }
 
+/* P154: single dim line directly above the composer while offline; it only
+ * exists while offline so reconnecting restores the layout exactly. */
+.offline-note {
+  flex-shrink: 0;
+  padding: 4px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+}
+
 /* P19: dim line inside the list while an active search finds nothing. */
 .search-empty {
   margin: auto;

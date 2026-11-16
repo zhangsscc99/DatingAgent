@@ -14,6 +14,7 @@ import Sidebar from './components/Sidebar';
 import ProfileOnboarding from './components/ProfileOnboarding';
 import SystemStatusFooter from './components/SystemStatusFooter';
 import { useMediaQuery } from './hooks/useMediaQuery';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { useTheme } from './hooks/useTheme';
 import {
   clearActiveSession,
@@ -166,6 +167,9 @@ export default function App() {
   const restoredRef = useRef(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { theme, toggle: toggleTheme } = useTheme();
+  // P154: browser connectivity — a dropped network surfaces a dim line above
+  // the composer instead of only the generic P11 service banner.
+  const online = useOnlineStatus();
 
   useEffect(() => {
     fetch('/api/tools')
@@ -910,6 +914,7 @@ export default function App() {
           onRegenerate={handleRegenerate}
           onSetupProfile={() => setEditingProfile(true)}
           rateLimit={rateLimit}
+          offline={!online}
           errorToast={errorToast}
           onToastRetry={handleToastRetry}
           onToastDismiss={toastCtl.dismiss}

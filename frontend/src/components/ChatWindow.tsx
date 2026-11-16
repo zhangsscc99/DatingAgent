@@ -43,6 +43,8 @@ interface Props {
   onSetupProfile?: () => void;
   /** P07: last known request budget from chat response headers (null until the first response). */
   rateLimit?: RateLimitBudget | null;
+  /** P154: true while the browser reports no network — shows a dim line above the composer. */
+  offline?: boolean;
   /** P17: transient error toast over the message list (null = hidden). */
   errorToast?: ErrorToastState | null;
   onToastRetry?: () => void;
@@ -61,6 +63,7 @@ export default function ChatWindow({
   onRegenerate,
   onSetupProfile,
   rateLimit = null,
+  offline = false,
   errorToast = null,
   onToastRetry,
   onToastDismiss,
@@ -324,6 +327,11 @@ export default function ChatWindow({
         )}
       </div>
 
+      {offline && (
+        <p className="offline-note" role="status">
+          网络已断开，恢复后会自动重连
+        </p>
+      )}
       <InputBar
         ref={inputRef}
         onSend={onSend}
