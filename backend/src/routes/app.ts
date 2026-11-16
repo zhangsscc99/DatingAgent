@@ -335,12 +335,18 @@ export function createApp(options: AppOptions = {}) {
       res.write(': ping\n\n');
     }, KEEPALIVE_MS);
     const stopKeepalive = () => clearInterval(keepalive);
+    // P165: a client disconnect aborts the upstream LLM call so we stop
+    // generating (and paying for) a reply nobody will receive.
+    const controller = new AbortController();
+    res.on('close', () => controller.abort());
     res.on('close', stopKeepalive);
     res.on('finish', stopKeepalive);
 
     let failed = false;
     try {
-      for await (const ev of harness.run(sanitized, session)) {
+      for await (const ev of harness.run(sanitized, session, controller.signal)) {
+        // Socket already closed: stop before writing to it again.
+        if (controller.signal.aborted) break;
         let event = ev;
         if (event.type === 'done') {
           // F21: attach the request latency so the UI can show the meta badge.
@@ -358,14 +364,22 @@ export function createApp(options: AppOptions = {}) {
         if (event.type === 'done') break;
       }
     } catch (err) {
-      failed = true;
-      const msg = err instanceof Error ? err.message : String(err);
-      res.write(`data: ${JSON.stringify({ type: 'error', data: { message: msg, requestId: requestId(res) } })}\n\n`);
+      // AbortError from a dead socket is not a server failure — skip the
+      // error event since there is nobody left to read it.
+      if (!controller.signal.aborted) {
+        failed = true;
+        const msg = err instanceof Error ? err.message : String(err);
+        res.write(`data: ${JSON.stringify({ type: 'error', data: { message: msg, requestId: requestId(res) } })}\n\n`);
+      }
     }
     stopKeepalive();
 
-    usageMetrics.recordChat(Date.now() - startedAt, !failed);
-    res.end();
+    // Aborted turns are not success samples: skip them and leave the dead
+    // socket alone (no res.end on a closed connection).
+    if (!controller.signal.aborted) {
+      usageMetrics.recordChat(Date.now() - startedAt, !failed);
+      res.end();
+    }
   });
 
   // Terminal /api 404: anything unmatched above is a missing endpoint, not a

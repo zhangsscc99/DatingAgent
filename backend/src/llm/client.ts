@@ -35,6 +35,7 @@ export class LLMClient {
   async chat(
     messages: Message[],
     tools: ToolDefinition[],
+    signal?: AbortSignal,
   ): Promise<LLMResponse> {
     if (!this.isConfigured) {
       return this.mockResponse(messages, tools);
@@ -65,6 +66,7 @@ export class LLMClient {
         Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(body),
+      signal: signal ?? null,
     });
 
     if (!res.ok) {

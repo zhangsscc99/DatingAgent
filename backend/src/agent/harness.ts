@@ -52,7 +52,11 @@ export class AgentHarness {
   private llm = new LLMClient();
   private maxTurns = 8;
 
-  async *run(userMessage: string, context: AgentContext): AsyncGenerator<AgentEvent> {
+  async *run(
+    userMessage: string,
+    context: AgentContext,
+    signal?: AbortSignal,
+  ): AsyncGenerator<AgentEvent> {
     const messages: Message[] = [
       {
         role: 'system',
@@ -69,7 +73,9 @@ export class AgentHarness {
     yield { type: 'thinking', data: { message: '正在思考…' } };
 
     for (let turn = 0; turn < this.maxTurns; turn++) {
-      const response = await this.llm.chat(messages, toolRegistry);
+      // Client already gone: stop before starting (and paying for) another turn.
+      if (signal?.aborted) return;
+      const response = await this.llm.chat(messages, toolRegistry, signal);
       if (response.usage) {
         usageMetrics.recordTokens(response.usage.promptTokens, response.usage.completionTokens);
         tokens = (tokens ?? 0) + response.usage.promptTokens + response.usage.completionTokens;

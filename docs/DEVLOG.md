@@ -97,3 +97,4 @@
 2026-11-16 03:09 | P133 | skip-to-content link jumping focus to #main-content
 2026-11-16 03:17 | P133 | gate P105 mount autofocus behind first interaction so the skip link is the first Tab stop on a cold load
 2026-11-16 03:37 | P131 | /api/version degrades to unknown instead of 500 when build info is missing
+2026-11-16 04:07 | P165 | stream client-disconnect abort: per-request AbortController on /api/chat/stream (res close -> abort), optional signal threaded harness.run -> LLMClient.chat -> fetch init, loop breaks before writing to dead socket, aborted turns skipped in recordChat (no res.end on closed connection); backend/test/stream-abort.test.ts + llm-client-signal.test.ts
