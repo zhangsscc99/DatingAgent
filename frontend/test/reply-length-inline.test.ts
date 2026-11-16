@@ -182,6 +182,75 @@ describe('P205 · composer reply-length toggle', () => {
     });
   });
 
+  describe('P215 · narrow-width label keeps the unit word', () => {
+    it('renders a narrow-only short prefix that names the unit', () => {
+      const html = renderBar({ replyLength: 'default' });
+      // Both prefixes render in markup; CSS picks which one is visible.
+      expect(html).toContain('reply-length-prefix-narrow');
+      const narrow = html.slice(
+        html.indexOf('reply-length-prefix-narrow'),
+        html.indexOf('input-hint'),
+      );
+      expect(narrow).toContain('长度·');
+      expect(narrow).toContain('默认');
+      // The long prefix is still present for ≥431 px.
+      expect(html).toContain('回复长度·');
+    });
+
+    it('the narrow label changes with the tier', () => {
+      for (const [pref, label] of [
+        ['default', '默认'],
+        ['concise', '精简'],
+        ['detailed', '详细'],
+      ] as const) {
+        const html = renderBar({ replyLength: pref });
+        const narrow = html.slice(
+          html.indexOf('reply-length-prefix-narrow'),
+          html.indexOf('input-hint'),
+        );
+        expect(narrow).toContain(`长度·`);
+        expect(narrow).toContain(label);
+      }
+    });
+
+    it('keeps the full aria-label at every width', () => {
+      const html = renderBar({ replyLength: 'default' });
+      expect(html).toContain('aria-label="回复长度：默认，点击切换为精简"');
+      // The narrow span must not leak into the accessible name.
+      const narrow = html.slice(
+        html.indexOf('reply-length-prefix-narrow'),
+        html.indexOf('input-hint'),
+      );
+      expect(narrow).toContain('aria-hidden="true"');
+    });
+
+    it('CSS shows the short prefix only at ≤430 px', () => {
+      const css = read('components/InputBar.css');
+      expect(css).toMatch(
+        /\.reply-length-prefix-narrow\s*\{\s*display:\s*none/,
+      );
+      const media = css.match(
+        /@media \(max-width: 430px\) \{[\s\S]*?\n\}/,
+      )?.[0];
+      expect(media).toBeTruthy();
+      expect(media).toMatch(/\.reply-length-prefix\s*\{\s*display:\s*none/);
+      expect(media).toMatch(
+        /\.reply-length-prefix-narrow\s*\{\s*display:\s*inline/,
+      );
+    });
+
+    it('默认 still sends no hint under the narrow label', () => {
+      const body = buildChatRequestBody({
+        sessionId: 's-1',
+        message: '你好',
+        profile: undefined,
+        language: 'auto',
+        replyLength: replyLengthRequestField('default'),
+      });
+      expect(JSON.parse(body)).not.toHaveProperty('replyLength');
+    });
+  });
+
   describe('single source of truth', () => {
     it('the settings sheet shows the 档位 the toggle last wrote', () => {
       stubStorage();
