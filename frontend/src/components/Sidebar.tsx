@@ -313,8 +313,8 @@ export default function Sidebar({
               <li
                 className="recent-chat-empty filter-empty-hint"
                 aria-live="polite"
+                aria-label="无匹配对话"
               >
-                <span className="sr-only">无匹配对话：</span>
                 <span className="filter-empty-hint-text">
                   没有匹配「{filterQuery.trim()}」的对话
                 </span>

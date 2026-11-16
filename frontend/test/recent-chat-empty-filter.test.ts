@@ -88,6 +88,16 @@ describe('P187 · sidebar filter empty-state hint', () => {
       expect(listBlock).toContain('aria-live="polite"');
     });
 
+    it('says 无匹配 exactly once — the heading is merged into the hint, not repeated', () => {
+      const hintBlock = listBlock.slice(
+        listBlock.indexOf('filter-empty-hint'),
+        listBlock.indexOf('</li>'),
+      );
+      expect(hintBlock.match(/无匹配/g)).toHaveLength(1);
+      expect(listBlock).not.toContain('无匹配对话：');
+      expect(listBlock).not.toContain('sr-only');
+    });
+
     it('renders a labelled 清除筛选 secondary button next to the hint', () => {
       expect(listBlock).toContain('className="filter-empty-clear"');
       expect(listBlock).toContain('aria-label="清除筛选"');
