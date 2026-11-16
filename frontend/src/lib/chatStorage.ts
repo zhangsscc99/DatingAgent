@@ -22,14 +22,59 @@ function defaultState(): ChatStorageState {
   return { activeSessionId: null, sessions: [] };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+const NORMALIZED_TITLE_FALLBACK = '未命名对话';
+
+/**
+ * P158 — self-heal stored session entries. One corrupted record (written by
+ * an older version or hand-edited) used to white-screen the app at
+ * `session.messages.map`. Drops invalid sessions and individual invalid
+ * messages, repairs recoverable fields, and never throws or mutates input.
+ */
+export function normalizeStoredSessions(raw: unknown): StoredChatSession[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const sessions: StoredChatSession[] = [];
+  for (const entry of raw) {
+    if (!isRecord(entry)) continue;
+    const { id } = entry;
+    if (typeof id !== 'string' || id.length === 0 || seen.has(id)) continue;
+    seen.add(id);
+    const title =
+      typeof entry.title === 'string' && entry.title.trim().length > 0
+        ? entry.title
+        : NORMALIZED_TITLE_FALLBACK;
+    const messages = Array.isArray(entry.messages)
+      ? entry.messages.filter(isRecord)
+      : [];
+    const updatedAt =
+      typeof entry.updatedAt === 'number' && Number.isFinite(entry.updatedAt)
+        ? entry.updatedAt
+        : 0;
+    sessions.push({
+      id,
+      title,
+      updatedAt,
+      messages: messages as ChatMessage[],
+      ...(entry.customTitle === true ? { customTitle: true } : {}),
+    });
+  }
+  return sessions;
+}
+
 export function loadChatState(): ChatStorageState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
-    const parsed = JSON.parse(raw) as ChatStorageState;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) return defaultState();
     return {
-      activeSessionId: parsed.activeSessionId ?? null,
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+      activeSessionId:
+        typeof parsed.activeSessionId === 'string' ? parsed.activeSessionId : null,
+      sessions: normalizeStoredSessions(parsed.sessions),
     };
   } catch {
     return defaultState();
