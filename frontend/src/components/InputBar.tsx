@@ -13,7 +13,7 @@ import {
   NARROW_COMPOSER_QUERY,
   isNarrowComposerViewport,
 } from '../lib/composerPlaceholder';
-import { shouldSubmitOnEnter } from '../lib/ime';
+import { shouldSubmitOnEnter, type KeyEventLike } from '../lib/ime';
 import { loadInputHistory } from '../lib/inputHistory';
 import {
   formatRateLimit,
@@ -63,6 +63,78 @@ const MOD_KEY =
     ? '⌘'
     : 'Ctrl';
 
+/** P203: hint shown briefly when Enter is pressed while a reply streams. */
+export const BUSY_ENTER_HINT_TEXT = '回复生成中，完成后可发送';
+export const BUSY_ENTER_HINT_MS = 2000;
+
+export interface BusyEnterHint {
+  /** Show the hint and (re)start the auto-hide timer. */
+  flash: () => void;
+  /** Hide now and cancel the timer (streaming end, unmount). */
+  clear: () => void;
+  /** Current visibility — for tests. */
+  visible: () => boolean;
+}
+
+/**
+ * P203 — visibility + auto-hide timer for the Enter-while-busy hint.
+ * React-free so the timing contract is testable in the node env.
+ */
+export function createBusyEnterHint(
+  onChange: (visible: boolean) => void,
+  timeoutMs = BUSY_ENTER_HINT_MS,
+): BusyEnterHint {
+  let isVisible = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const set = (next: boolean) => {
+    if (isVisible === next) return;
+    isVisible = next;
+    onChange(next);
+  };
+  const cancel = () => {
+    if (timer === null) return;
+    clearTimeout(timer);
+    timer = null;
+  };
+  return {
+    flash() {
+      cancel();
+      set(true);
+      timer = setTimeout(() => {
+        timer = null;
+        set(false);
+      }, timeoutMs);
+    },
+    clear() {
+      cancel();
+      set(false);
+    },
+    visible: () => isVisible,
+  };
+}
+
+/**
+ * P203 — one composer Enter keystroke's outcome. A real Enter (the same
+ * condition `shouldSubmitOnEnter` uses — Shift+Enter and IME composition
+ * untouched) is always consumed; while a reply is streaming it flashes the
+ * busy hint instead of submitting, so the key is no longer swallowed
+ * silently. Keys the textarea should keep (Shift+Enter newline, IME
+ * candidate select) return untouched — no preventDefault, no action.
+ */
+export function runComposerEnter(
+  e: KeyEventLike & { preventDefault: () => void },
+  streaming: boolean,
+  actions: { submit: () => void; flashBusyHint: () => void },
+): void {
+  if (!shouldSubmitOnEnter(e)) return;
+  e.preventDefault();
+  if (streaming) {
+    actions.flashBusyHint();
+  } else {
+    actions.submit();
+  }
+}
+
 const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   { onSend, disabled, streaming = false, onStop, draftKey, rateLimit = null },
   ref,
@@ -96,16 +168,40 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   const browseDraftRef = useRef('');
   const [historyAnnouncement, setHistoryAnnouncement] = useState('');
 
+  // P203: while streaming the composer stays editable so the next message
+  // can be drafted; Enter only flashes this hint instead of sending.
+  const [busyHintVisible, setBusyHintVisible] = useState(false);
+  const busyHintRef = useRef<ReturnType<typeof createBusyEnterHint> | null>(null);
+  busyHintRef.current ??= createBusyEnterHint(setBusyHintVisible);
+  const busyHint = busyHintRef.current;
+
+  // Cancel the pending auto-hide on unmount, and drop the hint as soon as
+  // the stream ends — a finished reply makes the notice stale.
+  useEffect(() => () => busyHint.clear(), [busyHint]);
+  useEffect(() => {
+    if (!streaming) busyHint.clear();
+  }, [streaming, busyHint]);
+
   // Session switch: load that session's draft (the old one is already
   // persisted) and drop the previous conversation's recall state — ArrowUp
   // must never surface another session's messages (P168).
   useEffect(() => {
     if (draftIdRef.current === draftId) return;
+    const prevDraftId = draftIdRef.current;
     draftIdRef.current = draftId;
     historyRef.current = [];
     historyPosRef.current = null;
-    setText(loadDraft(draftId));
-  }, [draftId]);
+    const incoming = loadDraft(draftId);
+    // P203: 'default' → <assigned session id> fires when the backend names a
+    // fresh chat at stream end — the conversation never changed, so text
+    // the user drafted mid-stream survives the key swap (the persist effect
+    // then re-homes it under the new id). A real session switch — where the
+    // target session has its own draft — still swaps the composer contents.
+    if (prevDraftId === DEFAULT_DRAFT_ID && incoming === '' && text !== '') {
+      return;
+    }
+    setText(incoming);
+  }, [draftId, text]);
 
   // Persist the in-progress draft; cleared on send when `text` empties.
   useEffect(() => {
@@ -213,16 +309,20 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
       return;
     }
 
-    // P167: only a real Enter sends. Shift+Enter keeps the default newline
-    // behaviour, and a composing Enter is left for the IME (candidate
-    // select) — no preventDefault, no submit.
-    if (!shouldSubmitOnEnter(e)) return;
-
-    // Enter or Ctrl/Cmd+Enter both send.
-    e.preventDefault();
-    submit();
+    // P167: only a real Enter is handled. Shift+Enter keeps the default
+    // newline behaviour, and a composing Enter is left for the IME — no
+    // preventDefault, no action (all inside runComposerEnter).
+    // P203: while a reply streams, the same keystroke flashes the busy
+    // hint instead of silently dropping the send.
+    runComposerEnter(e, streaming, {
+      submit,
+      flashBusyHint: busyHint.flash,
+    });
   };
 
+  // P203: keep the composer editable while a reply streams — the send path
+  // is already replaced by the stop button, and Enter shows the busy hint.
+  const composerDisabled = Boolean(disabled) && !streaming;
   const showCounter = text.length >= COUNTER_THRESHOLD;
   // P07: the rate-limit readout sits beside the counter inside the field, so
   // reserve the same bottom padding whenever either is visible.
@@ -259,9 +359,9 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           }
           rows={1}
           maxLength={MAX_MESSAGE_CHARS}
-          disabled={disabled}
+          disabled={composerDisabled}
           aria-label={COMPOSER_PLACEHOLDER_FULL}
-          aria-disabled={disabled}
+          aria-disabled={composerDisabled}
           aria-describedby={showCounter ? 'chat-input-counter' : undefined}
           title={`Enter 发送 · Shift+Enter 换行 · ${MOD_KEY}+Enter 发送 · ↑ 历史消息 · Esc 收起输入`}
         />
@@ -338,6 +438,11 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           ↑
         </button>
       )}
+      {/* P203: fixed-height row under the composer — empty while idle so
+          the hint never shifts the textarea, send button, or message list. */}
+      <div className="busy-enter-hint" role="status" aria-live="polite">
+        {busyHintVisible ? BUSY_ENTER_HINT_TEXT : ''}
+      </div>
     </div>
   );
 });
