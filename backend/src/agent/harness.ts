@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { AgentContext, AgentEvent, ChatResult, Message, ReplyLanguage } from './types.js';
+import type { AgentContext, AgentEvent, ChatResult, Message, ReplyLanguage, ReplyLength } from './types.js';
 import { LLMClient } from '../llm/client.js';
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { usageMetrics } from '../lib/metrics.js';
@@ -38,14 +38,32 @@ export function parseReplyLanguage(value: unknown): ReplyLanguage | undefined {
     : undefined;
 }
 
-/** System prompt for one turn: profile injected, plus the optional language directive. */
+/** Appended to the system prompt only when the user picks a non-default reply length (P196). */
+const REPLY_LENGTH_DIRECTIVES: Record<ReplyLength, string> = {
+  concise: '\n\n请把回复写得更精简，控制在三点以内。',
+  detailed: '\n\n请把回复写得更详细一些，给出更完整的步骤和例子。',
+};
+
+/** Accepted `replyLength` values on the chat endpoints. */
+export const REPLY_LENGTHS: readonly ReplyLength[] = ['concise', 'detailed'];
+
+/** Returns the length when it is one of REPLY_LENGTHS, otherwise undefined. */
+export function parseReplyLength(value: unknown): ReplyLength | undefined {
+  return typeof value === 'string' && (REPLY_LENGTHS as readonly string[]).includes(value)
+    ? (value as ReplyLength)
+    : undefined;
+}
+
+/** System prompt for one turn: profile injected, plus the optional language and length directives. */
 export function buildSystemPrompt(
   profile: AgentContext['profile'],
   language: ReplyLanguage = 'auto',
+  replyLength?: ReplyLength,
 ): string {
   return (
     SYSTEM_PROMPT.replace('{{profile}}', JSON.stringify(profile, null, 2)) +
-    LANGUAGE_DIRECTIVES[language]
+    LANGUAGE_DIRECTIVES[language] +
+    (replyLength ? REPLY_LENGTH_DIRECTIVES[replyLength] : '')
   );
 }
 
@@ -57,11 +75,12 @@ export class AgentHarness {
     userMessage: string,
     context: AgentContext,
     signal?: AbortSignal,
+    replyLength?: ReplyLength,
   ): AsyncGenerator<AgentEvent> {
     const messages: Message[] = [
       {
         role: 'system',
-        content: buildSystemPrompt(context.profile, context.language ?? 'auto'),
+        content: buildSystemPrompt(context.profile, context.language ?? 'auto', replyLength),
       },
       // P177: bound the prompt — keep the newest turns within the
       // HISTORY_MAX_MESSAGES / HISTORY_MAX_CHARS budget.
@@ -192,11 +211,15 @@ export class AgentHarness {
   }
 
   /** Non-streaming chat that also returns the reply metadata (F21). */
-  async chatWithMeta(userMessage: string, context: AgentContext): Promise<ChatResult> {
+  async chatWithMeta(
+    userMessage: string,
+    context: AgentContext,
+    replyLength?: ReplyLength,
+  ): Promise<ChatResult> {
     let content = '';
     let tool: string | undefined;
     let tokens: number | undefined;
-    for await (const event of this.run(userMessage, context)) {
+    for await (const event of this.run(userMessage, context, undefined, replyLength)) {
       if (event.type === 'message') {
         content = (event.data as { content: string }).content;
       }

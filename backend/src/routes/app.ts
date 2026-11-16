@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AgentHarness, createSession, parseReplyLanguage } from '../agent/harness.js';
+import { AgentHarness, createSession, parseReplyLanguage, parseReplyLength } from '../agent/harness.js';
 import type { AgentContext, ChatResult, ReplyLanguage, UserProfile } from '../agent/types.js';
 import { buildHealthReport, buildVerboseHealth } from '../lib/health.js';
 import { apiErrors } from '../lib/last-error.js';
@@ -318,11 +318,12 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.post('/api/chat', ...chatGuards, async (req, res) => {
-    const { sessionId, message, profile, language } = req.body as {
+    const { sessionId, message, profile, language, replyLength } = req.body as {
       sessionId?: string;
       message: string;
       profile?: UserProfile;
       language?: unknown;
+      replyLength?: unknown;
     };
 
     const sanitized = sanitizeMessage(message ?? '');
@@ -334,11 +335,18 @@ export function createApp(options: AppOptions = {}) {
       return res.status(400).json(errorBody(res, 'language must be one of "zh", "en", "auto"'));
     }
 
+    // P196: a non-default reply-length preference arrives as a per-request
+    // hint — it is never pinned to the session, so omitting the field always
+    // restores the default prompt.
+    if (replyLength !== undefined && parseReplyLength(replyLength) === undefined) {
+      return res.status(400).json(errorBody(res, 'replyLength must be one of "concise", "detailed"'));
+    }
+
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
     const startedAt = Date.now();
 
     try {
-      const { content, meta } = await harness.chatWithMeta(sanitized, session);
+      const { content, meta } = await harness.chatWithMeta(sanitized, session, parseReplyLength(replyLength));
       usageMetrics.recordChat(Date.now() - startedAt, true);
       // F21: meta omitted entirely when tokens are unknown (badge stays hidden).
       const replyMeta =
@@ -355,11 +363,12 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.post('/api/chat/stream', ...chatGuards, async (req, res) => {
-    const { sessionId, message, profile, language } = req.body as {
+    const { sessionId, message, profile, language, replyLength } = req.body as {
       sessionId?: string;
       message: string;
       profile?: UserProfile;
       language?: unknown;
+      replyLength?: unknown;
     };
 
     const sanitized = sanitizeMessage(message ?? '');
@@ -369,6 +378,10 @@ export function createApp(options: AppOptions = {}) {
 
     if (language !== undefined && parseReplyLanguage(language) === undefined) {
       return res.status(400).json(errorBody(res, 'language must be one of "zh", "en", "auto"'));
+    }
+
+    if (replyLength !== undefined && parseReplyLength(replyLength) === undefined) {
+      return res.status(400).json(errorBody(res, 'replyLength must be one of "concise", "detailed"'));
     }
 
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
@@ -397,7 +410,7 @@ export function createApp(options: AppOptions = {}) {
 
     let failed = false;
     try {
-      for await (const ev of harness.run(sanitized, session, controller.signal)) {
+      for await (const ev of harness.run(sanitized, session, controller.signal, parseReplyLength(replyLength))) {
         // Socket already closed: stop before writing to it again.
         if (controller.signal.aborted) break;
         let event = ev;

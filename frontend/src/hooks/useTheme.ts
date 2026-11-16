@@ -31,7 +31,7 @@ function applyTheme(theme: Theme) {
     ?.setAttribute('content', THEME_COLORS[theme]);
 }
 
-export function useTheme(): { theme: Theme; toggle: () => void } {
+export function useTheme(): { theme: Theme; toggle: () => void; set: (theme: Theme) => void } {
   const [state, setState] = useState<Theme>(() => readThemePreference().theme);
 
   useEffect(() => {
@@ -62,5 +62,16 @@ export function useTheme(): { theme: Theme; toggle: () => void } {
     });
   }, []);
 
-  return { theme: state, toggle };
+  // P196: the settings sheet needs an explicit light/dark pick, not a flip.
+  const set = useCallback((next: Theme) => {
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, next);
+    } catch {
+      // Persisting is best-effort; the choice still applies to this session.
+    }
+    applyTheme(next);
+    setState(next);
+  }, []);
+
+  return { theme: state, toggle, set };
 }

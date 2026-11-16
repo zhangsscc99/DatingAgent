@@ -9,8 +9,9 @@ import type {
 } from './types';
 import ChatWindow from './components/ChatWindow';
 import ServiceBanner from './components/ServiceBanner';
-import Sidebar from './components/Sidebar';
+import Sidebar, { confirmClearAllChats } from './components/Sidebar';
 import ProfileOnboarding from './components/ProfileOnboarding';
+import SettingsSheet from './components/SettingsSheet';
 import SystemStatusFooter from './components/SystemStatusFooter';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
@@ -46,6 +47,7 @@ import {
   exportableMessages,
 } from './lib/exportConversation';
 import { copyText } from './lib/clipboard';
+import { buildChatRequestBody } from './lib/chatRequest';
 import { createErrorToast, type ErrorToastState } from './lib/errorToast';
 import { pushInputHistory } from './lib/inputHistory';
 import { regeneratePromptFor } from './lib/regenerate';
@@ -55,6 +57,12 @@ import { isServiceDown } from './lib/serviceStatus';
 import { parseSseDataLine } from './lib/sse';
 import { foldReplyDraft } from './lib/streamDraft';
 import { canRunQuickPrompt } from './lib/quickPromptGate';
+import {
+  readReplyLengthPreference,
+  replyLengthRequestField,
+  writeReplyLengthPreference,
+  type ReplyLengthPreference,
+} from './lib/replyLength';
 import { formatWaitingLabel, startWaitingTicker, tickIntervalMs } from './lib/thinkingTimer';
 import './App.css';
 
@@ -147,7 +155,7 @@ export default function App() {
   const [recentSessions, setRecentSessions] = useState(() => getRecentSessions());
   const [loading, setLoading] = useState(false);
   const [tools, setTools] = useState<ToolInfo[]>([]);
-  const [health, setHealth] = useState<{ llmConfigured: boolean } | null>(null);
+  const [health, setHealth] = useState<{ llmConfigured: boolean; llmModel?: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(() => loadProfile());
   const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingComplete());
   const [editingProfile, setEditingProfile] = useState(false);
@@ -156,6 +164,11 @@ export default function App() {
   const [copyExportState, setCopyExportState] = useState<'idle' | 'done' | 'failed'>('idle');
   const [jsonExportState, setJsonExportState] = useState<'idle' | 'done' | 'failed'>('idle');
   const [language, setLanguage] = useState<ReplyLanguage>(() => readStoredLanguage());
+  // P196: reply-length preference and the settings sheet it lives in.
+  const [replyLength, setReplyLength] = useState<ReplyLengthPreference>(() =>
+    readReplyLengthPreference(),
+  );
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // P07: last known per-IP request budget, from chat response headers; stays
   // null until the first response so nothing is fabricated at startup.
   const [rateLimit, setRateLimit] = useState<RateLimitBudget | null>(null);
@@ -179,7 +192,7 @@ export default function App() {
   const replyInFlightRef = useRef(false);
   const restoredRef = useRef(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const { theme, toggle: toggleTheme } = useTheme();
+  const { theme, toggle: toggleTheme, set: setTheme } = useTheme();
   // P154: browser connectivity — a dropped network surfaces a dim line above
   // the composer instead of only the generic P11 service banner.
   const online = useOnlineStatus();
@@ -229,11 +242,14 @@ export default function App() {
   useEffect(() => {
     if (!sidebarOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSidebarOpen(false);
+      // P196: while the settings sheet is open its own Escape handling wins —
+      // closing the drawer too would inert the gear button the sheet returns
+      // focus to.
+      if (e.key === 'Escape' && !settingsOpen) setSidebarOpen(false);
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [sidebarOpen]);
+  }, [sidebarOpen, settingsOpen]);
 
   useEffect(
     () => () => {
@@ -300,11 +316,14 @@ export default function App() {
         const res = await fetch('/api/chat/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          // P196: replyLength is omitted entirely at 默认 so an untouched
+          // install sends byte-identical bodies.
+          body: buildChatRequestBody({
             sessionId,
             message: prompt,
             profile: profile ?? undefined,
             language,
+            replyLength: replyLengthRequestField(replyLength),
           }),
           signal: abortRef.current.signal,
         });
@@ -485,7 +504,7 @@ export default function App() {
         return { status: 'error', errorText, serviceDown };
       }
     },
-    [profile, sessionId, language],
+    [profile, sessionId, language, replyLength],
   );
 
   /**
@@ -711,6 +730,22 @@ export default function App() {
 
   const handleQuickPrompt = (prompt: string) => sendMessage(prompt);
 
+  // P196: one setter shared by the header select and the settings sheet so
+  // the i18n logic (state + persistence) stays in exactly one place.
+  const applyLanguage = useCallback((next: ReplyLanguage) => {
+    setLanguage(next);
+    try {
+      localStorage.setItem(LANGUAGE_KEY, next);
+    } catch {
+      // Storage unavailable — the choice still applies to this session.
+    }
+  }, []);
+
+  const handleReplyLengthChange = useCallback((next: ReplyLengthPreference) => {
+    setReplyLength(next);
+    writeReplyLengthPreference(next);
+  }, []);
+
   /** P12: abort the in-flight stream; the catch in streamReply finishes the turn. */
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort();
@@ -920,6 +955,7 @@ export default function App() {
           setEditingProfile(true);
           closeSidebar();
         }}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
       {isMobile && sidebarOpen && (
         <button
@@ -936,6 +972,23 @@ export default function App() {
         onSave={handleProfileSave}
         onSkip={showOnboarding && !editingProfile ? handleProfileSkip : undefined}
         onClose={editingProfile ? () => setEditingProfile(false) : undefined}
+      />
+      <SettingsSheet
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        replyLength={replyLength}
+        onReplyLengthChange={handleReplyLengthChange}
+        language={language}
+        onLanguageChange={applyLanguage}
+        theme={theme}
+        onThemeChange={setTheme}
+        canExport={canExport}
+        hasSessions={recentSessions.length > 0}
+        busy={loading}
+        onExportMarkdown={handleExport}
+        onExportJson={handleExportJson}
+        onClearAll={() => confirmClearAllChats(handleClearAllChats)}
+        llmModel={health?.llmModel}
       />
       <main className="main" id="main-content" tabIndex={-1}>
         <header className="header">
@@ -968,15 +1021,7 @@ export default function App() {
               <select
                 className="lang-select-input"
                 value={language}
-                onChange={(e) => {
-                  const next = e.target.value as ReplyLanguage;
-                  setLanguage(next);
-                  try {
-                    localStorage.setItem(LANGUAGE_KEY, next);
-                  } catch {
-                    // Storage unavailable — the choice still applies to this session.
-                  }
-                }}
+                onChange={(e) => applyLanguage(e.target.value as ReplyLanguage)}
                 aria-label="回复语言"
               >
                 <option value="auto">自动</option>

@@ -37,6 +37,7 @@ interface Props {
   onRenameChat?: (sessionId: string, title: string) => void;
   onClearAllChats?: () => void;
   onEditProfile?: () => void;
+  onOpenSettings?: () => void;
   busy?: boolean;
 }
 
@@ -132,6 +133,7 @@ export default function Sidebar({
   onRenameChat,
   onClearAllChats,
   onEditProfile,
+  onOpenSettings,
   busy = false,
 }: Props) {
   const sidebarRef = useRef<HTMLElement>(null);
@@ -499,6 +501,16 @@ export default function Sidebar({
       </section>
 
       <footer className="sidebar-footer">
+        <button
+          type="button"
+          className="settings-open-btn"
+          aria-label="设置"
+          title="设置"
+          onClick={onOpenSettings}
+        >
+          <span aria-hidden="true">⚙</span>
+          设置
+        </button>
         <p>基于 Agent Harness 架构</p>
         <p className="muted">Tool-calling · SSE · TypeScript</p>
       </footer>

@@ -33,6 +33,9 @@ export interface AgentContext {
 /** Languages the assistant can be pinned to. `auto` keeps the model's default behaviour. */
 export type ReplyLanguage = 'zh' | 'en' | 'auto';
 
+/** Reply-length hint. Absent keeps the model's default verbosity (P196). */
+export type ReplyLength = 'concise' | 'detailed';
+
 export interface ToolCall {
   id: string;
   name: string;
