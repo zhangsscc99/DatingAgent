@@ -525,7 +525,12 @@ export default function App() {
 
   const sendMessage = useCallback(
     async (text: string) => {
-      if (!text.trim() || loading) return;
+      // P224: `loading` only flips after React commits, so a second send
+      // landing in the same tick used to slip past this check, enter
+      // streamReply and abort() the in-flight stream (wiping both bubbles).
+      // The synchronous ref closes that window — a turn in flight can only
+      // be ended by the explicit 停止 button, never by another send.
+      if (!text.trim() || loading || replyInFlightRef.current) return;
 
       const prompt = text.trim();
       const now = Date.now();
@@ -547,12 +552,14 @@ export default function App() {
           streamPhase: 'thinking',
         },
       ]);
+      replyInFlightRef.current = true;
       setLoading(true);
 
       try {
         const outcome = await streamReply(prompt, assistantId);
         noteStreamOutcome(outcome);
       } finally {
+        replyInFlightRef.current = false;
         setLoading(false);
       }
     },
@@ -566,7 +573,7 @@ export default function App() {
    */
   const handleRetry = useCallback(
     (messageId: string, prompt: string) => {
-      if (loading) return;
+      if (loading || replyInFlightRef.current) return;
 
       const failedIndex = messages.findIndex((m) => m.id === messageId);
       // Only the newest turn can be retried; anything else would append an
@@ -594,10 +601,14 @@ export default function App() {
         ...retryUser,
         retryAssistant,
       ]);
+      replyInFlightRef.current = true;
       setLoading(true);
       void streamReply(prompt, assistantId)
         .then(noteStreamOutcome)
-        .finally(() => setLoading(false));
+        .finally(() => {
+          replyInFlightRef.current = false;
+          setLoading(false);
+        });
     },
     [loading, messages, streamReply, noteStreamOutcome],
   );
@@ -631,7 +642,7 @@ export default function App() {
    */
   const handleRegenerate = useCallback(
     (messageId: string) => {
-      if (loading) return;
+      if (loading || replyInFlightRef.current) return;
       const prompt = regeneratePromptFor(messages, messageId);
       if (!prompt) return;
 
@@ -657,6 +668,7 @@ export default function App() {
         toolEvents: undefined,
         meta: undefined,
       });
+      replyInFlightRef.current = true;
       setLoading(true);
       void streamReply(prompt, messageId)
         .then((outcome) => {
@@ -675,7 +687,10 @@ export default function App() {
           }
           patchIfPresent({ regenerating: undefined });
         })
-        .finally(() => setLoading(false));
+        .finally(() => {
+          replyInFlightRef.current = false;
+          setLoading(false);
+        });
     },
     [loading, messages, streamReply, noteStreamOutcome],
   );

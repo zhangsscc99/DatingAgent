@@ -140,9 +140,36 @@ describe('P203 · Enter while a reply is streaming', () => {
       expect(taTag).not.toContain(' disabled');
       expect(taTag).toContain('aria-disabled="false"');
       expect(markup).toContain('aria-label="停止生成"');
-      // Reserved hint row exists, empty while idle.
+      // Reserved hint row exists; P224 keeps the hint visible while a reply
+      // streams so the blocked send is never a mystery.
+      expect(markup).toContain('class="busy-enter-hint"');
+      expect(markup).toContain(BUSY_ENTER_HINT_TEXT);
+    });
+
+    it('leaves the hint row empty when idle (not streaming)', () => {
+      const markup = renderToStaticMarkup(
+        createElement(InputBar, { onSend: noop }),
+      );
       expect(markup).toContain('class="busy-enter-hint"');
       expect(markup).not.toContain(BUSY_ENTER_HINT_TEXT);
+    });
+
+    it('renders the send button disabled during streaming, beside the stop button', () => {
+      const markup = renderToStaticMarkup(
+        createElement(InputBar, { onSend: noop, streaming: true, onStop: noop }),
+      );
+      // Both controls are present: the disabled send first, then 停止.
+      // ('class="input-send"' is exact — the stop button is 'input-send
+      // input-stop', and aria-label="发送消息" also marks the .input-bar div.)
+      const sendIdx = markup.indexOf('class="input-send"');
+      const stopIdx = markup.indexOf('class="input-send input-stop"');
+      expect(sendIdx).toBeGreaterThan(-1);
+      expect(stopIdx).toBeGreaterThan(sendIdx);
+      const sendTag = markup.slice(
+        markup.lastIndexOf('<button', sendIdx),
+        markup.indexOf('>', sendIdx),
+      );
+      expect(sendTag).toContain('disabled=""');
     });
 
     it('still disables the textarea when disabled and not streaming', () => {

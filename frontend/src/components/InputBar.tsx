@@ -245,7 +245,12 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   }));
 
   const submit = () => {
-    if (!text.trim() || disabled) return;
+    // P224: a second turn must never start while one is in flight — the
+    // stream could otherwise be aborted mid-write and the typed message
+    // lost. The button is rendered disabled during streaming, and this
+    // guard is the behaviour-level backstop for any click/Enter path that
+    // still reaches submit.
+    if (!text.trim() || disabled || streaming) return;
     historyPosRef.current = null;
     onSend(text);
     setText('');
@@ -340,7 +345,12 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   };
 
   // P203: keep the composer editable while a reply streams — the send path
-  // is already replaced by the stop button, and Enter shows the busy hint.
+  // is blocked (disabled send button + Enter hint), and Enter shows the
+  // busy hint.
+  // P224: the send button stays visible but disabled during streaming so a
+  // second message can't be sent — the button reads as "send is blocked",
+  // while 停止 remains a separate explicit stop.
+  const sendBlocked = Boolean(disabled) || streaming;
   const composerDisabled = Boolean(disabled) && !streaming;
   const showCounter = text.length >= COUNTER_THRESHOLD;
   // P07: the rate-limit readout sits beside the counter inside the field, so
@@ -461,7 +471,21 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
             </span>
           </div>
         </div>
-        {streaming && onStop ? (
+        {/* P224: the send button never leaves the DOM — during streaming it
+            renders disabled (first in DOM order, so `.input-send` queries hit
+            the disabled send) and the stop button sits beside it. A second
+            send attempt is therefore blocked at the control, at submit(),
+            and again at App's sendMessage — never reaching streamReply. */}
+        <button
+          type="button"
+          className="input-send"
+          onClick={submit}
+          disabled={sendBlocked || !text.trim()}
+          aria-label="发送消息"
+        >
+          ↑
+        </button>
+        {streaming && onStop && (
           <button
             type="button"
             className="input-send input-stop"
@@ -471,22 +495,14 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           >
             停止
           </button>
-        ) : (
-          <button
-            type="button"
-            className="input-send"
-            onClick={submit}
-            disabled={disabled || !text.trim()}
-            aria-label="发送消息"
-          >
-            ↑
-          </button>
         )}
       </div>
-      {/* P203: fixed-height row under the composer — empty while idle so
-          the hint never shifts the textarea, send button, or message list. */}
+      {/* P203/P224: fixed-height row under the composer — empty while idle
+          so the hint never shifts the textarea, send button, or message
+          list. While a reply streams it stays visible to explain why send
+          is blocked; an Enter attempt also flashes it on top of that. */}
       <div className="busy-enter-hint" role="status" aria-live="polite">
-        {busyHintVisible ? BUSY_ENTER_HINT_TEXT : ''}
+        {streaming || busyHintVisible ? BUSY_ENTER_HINT_TEXT : ''}
       </div>
     </div>
   );
