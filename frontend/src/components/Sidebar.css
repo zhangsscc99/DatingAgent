@@ -616,6 +616,17 @@
     outline-offset: 2px;
   }
 
+  /* P201 — the drawer is the scroll container; pin the footer (which holds
+     the 设置 entry) to its bottom edge so the button stays inside the
+     viewport instead of sitting past the scroll end with no hint. Opaque
+     --surface + the existing border-top keep scrolled content legible. */
+  .sidebar.sidebar-drawer .sidebar-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    background: var(--surface);
+  }
+
   .recent-chat-list {
     max-height: 200px;
   }
