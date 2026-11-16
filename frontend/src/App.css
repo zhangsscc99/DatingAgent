@@ -374,6 +374,20 @@
   .export-json-btn {
     font-size: 11px;
     padding: 5px 8px;
+    min-width: 30px;
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-label {
+    display: none;
+  }
+
+  .btn-icon {
+    font-size: 14px;
+    line-height: 1;
   }
 
   .lang-select {

@@ -978,11 +978,16 @@ export default function App() {
                     : '暂无内容可导出'
               }
             >
-              {exportState === 'done'
-                ? '✓ 已导出'
-                : exportState === 'failed'
-                  ? '导出失败'
-                  : '⬇ 导出 Markdown'}
+              <span className="btn-icon" aria-hidden="true">
+                {exportState === 'done' ? '✓' : '⬇'}
+              </span>
+              <span className="btn-label">
+                {exportState === 'done'
+                  ? '已导出'
+                  : exportState === 'failed'
+                    ? '导出失败'
+                    : '导出 Markdown'}
+              </span>
             </button>
             <button
               type="button"
@@ -1006,11 +1011,16 @@ export default function App() {
                     : '暂无内容可导出'
               }
             >
-              {jsonExportState === 'done'
-                ? '✓ 已导出'
-                : jsonExportState === 'failed'
-                  ? '导出失败'
-                  : '⬇ 导出 JSON'}
+              <span className="btn-icon" aria-hidden="true">
+                {jsonExportState === 'done' ? '✓' : '⬇'}
+              </span>
+              <span className="btn-label">
+                {jsonExportState === 'done'
+                  ? '已导出'
+                  : jsonExportState === 'failed'
+                    ? '导出失败'
+                    : '导出 JSON'}
+              </span>
             </button>
             <button
               type="button"
@@ -1037,11 +1047,16 @@ export default function App() {
                     : '暂无内容可复制'
               }
             >
-              {copyExportState === 'done'
-                ? '✓ 已复制'
-                : copyExportState === 'failed'
-                  ? '复制失败'
-                  : '⧉ 复制 Markdown'}
+              <span className="btn-icon" aria-hidden="true">
+                {copyExportState === 'done' ? '✓' : '⧉'}
+              </span>
+              <span className="btn-label">
+                {copyExportState === 'done'
+                  ? '已复制'
+                  : copyExportState === 'failed'
+                    ? '复制失败'
+                    : '复制 Markdown'}
+              </span>
             </button>
             <span className="export-status" role="status" aria-live="polite">
               {copyExportState === 'done'
