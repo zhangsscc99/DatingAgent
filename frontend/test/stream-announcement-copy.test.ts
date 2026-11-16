@@ -47,6 +47,19 @@ describe('P198 · streamAnnouncement copy', () => {
     expect(streamAnnouncement('generating', 0)).toBe('正在生成…');
   });
 
+  it('generating follows the staged waiting copy past 10 s', () => {
+    expect(streamAnnouncement('generating', 12_000)).toBe(
+      '正在组织回复…（已等待 12 秒）',
+    );
+    expect(streamAnnouncement('generating', 31_000)).toContain('仍在生成');
+    expect(streamAnnouncement('generating', 31_000)).toContain('已等待 31 秒');
+    // The tool phase keeps its own copy and is never swallowed by the
+    // staged buckets.
+    expect(streamAnnouncement('tool', 31_000, '关系建议')).toBe(
+      '正在调用:关系建议…（已等待 31 秒）',
+    );
+  });
+
   it('App.tsx wires the helper with the existing waiting ticker state', () => {
     const app = read('App.tsx');
     expect(app).toContain("from './lib/streamAnnouncement'");

@@ -41,13 +41,13 @@ describe('P210 · tool-phase progress copy', () => {
     // The bubble's visible label keeps the P192 ticking copy instead.
     expect(toolPhaseLabel(undefined, 12_000)).toBeUndefined();
     expect(toolPhaseLabel('', 12_000)).toBeUndefined();
-    expect(formatWaitingLabel(12_000)).toBe('正在生成…（已等待 12 秒）');
+    expect(formatWaitingLabel(12_000)).toBe('正在组织回复…（已等待 12 秒）');
   });
 
-  it('leaves thinking and generating copy untouched', () => {
+  it('leaves thinking fixed and generating on the staged waiting label', () => {
     expect(streamAnnouncement('thinking', 12_000, '关系建议')).toBe('正在思考…');
     expect(streamAnnouncement('generating', 12_000, '关系建议')).toBe(
-      '正在生成…（已等待 12 秒）',
+      '正在组织回复…（已等待 12 秒）',
     );
     expect(streamAnnouncement('generating', 0)).toBe('正在生成…');
     expect(streamAnnouncement(undefined, 12_000, '关系建议')).toBe('');

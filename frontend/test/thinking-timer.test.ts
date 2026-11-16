@@ -32,14 +32,40 @@ describe('P192 · formatWaitingLabel buckets', () => {
     expect(formatWaitingLabel(999)).toBe('正在思考…');
   });
 
-  it('from 1 s to just under a minute counts whole seconds', () => {
+  it('1–10 s counts whole seconds under 正在生成', () => {
     expect(formatWaitingLabel(1000)).toBe('正在生成…（已等待 1 秒）');
-    expect(formatWaitingLabel(59_999)).toBe('正在生成…（已等待 59 秒）');
+    expect(formatWaitingLabel(9999)).toBe('正在生成…（已等待 9 秒）');
   });
 
-  it('a minute and beyond reads 分 + 秒', () => {
-    expect(formatWaitingLabel(60_000)).toBe('正在生成…（已等待 1 分 0 秒）');
-    expect(formatWaitingLabel(3_600_000)).toBe('正在生成…（已等待 60 分 0 秒）');
+  it('10–30 s switches to the organising stage and still counts seconds', () => {
+    expect(formatWaitingLabel(10_000)).toBe('正在组织回复…（已等待 10 秒）');
+    expect(formatWaitingLabel(29_999)).toBe('正在组织回复…（已等待 29 秒）');
+    // The stage word must differ from the 1–10 s bucket.
+    expect(formatWaitingLabel(10_000)).not.toBe(formatWaitingLabel(9_999));
+    expect(formatWaitingLabel(10_000)).not.toContain('正在生成…');
+  });
+
+  it('30 s and beyond admits the wait is long, still ticking', () => {
+    expect(formatWaitingLabel(30_000)).toBe('这条想得比较久,仍在生成…（已等待 30 秒）');
+    expect(formatWaitingLabel(31_000)).toBe('这条想得比较久,仍在生成…（已等待 31 秒）');
+    expect(formatWaitingLabel(59_999)).toBe('这条想得比较久,仍在生成…（已等待 59 秒）');
+  });
+
+  it('a minute and beyond keeps the 分 + 秒 shape inside the long-wait copy', () => {
+    expect(formatWaitingLabel(60_000)).toBe('这条想得比较久,仍在生成…（已等待 1 分 0 秒）');
+    expect(formatWaitingLabel(3_600_000)).toBe('这条想得比较久,仍在生成…（已等待 60 分 0 秒）');
+  });
+
+  it('every bucket boundary carries the elapsed time or a stage word', () => {
+    for (const ms of [0, 999, 1000, 9999, 10_000, 29_999, 30_000, 31_000, 60_000]) {
+      const label = formatWaitingLabel(ms);
+      expect(label).toMatch(/正在|秒/);
+    }
+    // Past 1 s the elapsed counter is always present.
+    for (const ms of [1000, 9999, 10_000, 29_999, 30_000, 31_000, 60_000]) {
+      expect(formatWaitingLabel(ms)).toContain('已等待');
+      expect(formatWaitingLabel(ms)).toContain('秒');
+    }
   });
 });
 

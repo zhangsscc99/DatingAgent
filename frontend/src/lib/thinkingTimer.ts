@@ -14,14 +14,26 @@
  * unmount, and a stopped ticker must never fire again.
  */
 
-/** Placeholder copy for the wait before the first token arrives. */
+/**
+ * Placeholder copy for the wait before the first token arrives.
+ *
+ * P216 — a bare stopwatch for a 20–45 s model-thinking window still reads
+ * like a hang, so the label now moves through stages: thinking (<1 s),
+ * generating (1–10 s), organising the reply (10–30 s), and an explicit
+ * "this one is taking a while" note past 30 s — always with the elapsed
+ * time still ticking. The tool phase keeps its own P210 tool-name copy
+ * in streamAnnouncement.ts and never reaches these buckets.
+ */
 export function formatWaitingLabel(elapsedMs: number): string {
   if (elapsedMs < 1000) return '正在思考…';
   const totalSeconds = Math.floor(elapsedMs / 1000);
-  if (elapsedMs < 60_000) return `正在生成…（已等待 ${totalSeconds} 秒）`;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `正在生成…（已等待 ${minutes} 分 ${seconds} 秒）`;
+  const waited =
+    elapsedMs < 60_000
+      ? `${totalSeconds} 秒`
+      : `${Math.floor(totalSeconds / 60)} 分 ${totalSeconds % 60} 秒`;
+  if (elapsedMs < 10_000) return `正在生成…（已等待 ${waited}）`;
+  if (elapsedMs < 30_000) return `正在组织回复…（已等待 ${waited}）`;
+  return `这条想得比较久,仍在生成…（已等待 ${waited}）`;
 }
 
 /** Cadence of the waiting-label ticker — one update per second. */
