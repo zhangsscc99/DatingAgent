@@ -193,9 +193,32 @@ export function deleteChatSession(sessionId: string): void {
   persistState(state);
 }
 
+/** P157: fire-and-forget backend DELETEs for sessions being wiped locally.
+ * Never throws, never blocks, never awaits — a rejected or synchronous-throw
+ * fetch only leaves an idle backend session that the F01 TTL reaps anyway.
+ * fetchImpl is injectable so tests can run without network. */
+export function deleteBackendSessions(
+  ids: string[],
+  fetchImpl: typeof fetch = fetch,
+): void {
+  for (const id of ids) {
+    try {
+      void fetchImpl(`/api/session/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
+    } catch {
+      /* fire-and-forget */
+    }
+  }
+}
+
 /** P155: bulk counterpart of deleteChatSession — wipes every stored session
- * and the active pointer with one persist call, keeping the storage shape. */
+ * and the active pointer with one persist call, keeping the storage shape.
+ * P157: the backend copies go first — ids are collected before the local
+ * list is cleared, then deleted server-side best-effort. */
 export function clearAllChatSessions(): void {
+  const ids = loadChatState().sessions.map((s) => s.id);
+  deleteBackendSessions(ids);
   persistState({ activeSessionId: null, sessions: [] });
 }
 
