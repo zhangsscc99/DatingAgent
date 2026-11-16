@@ -37,8 +37,11 @@ import {
   saveProfile,
 } from './lib/profileStorage';
 import {
+  buildConversationJson,
   buildConversationMarkdown,
   conversationFilename,
+  conversationJsonFilename,
+  downloadJson,
   downloadMarkdown,
   exportableMessages,
 } from './lib/exportConversation';
@@ -149,12 +152,14 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [exportState, setExportState] = useState<'idle' | 'done' | 'failed'>('idle');
   const [copyExportState, setCopyExportState] = useState<'idle' | 'done' | 'failed'>('idle');
+  const [jsonExportState, setJsonExportState] = useState<'idle' | 'done' | 'failed'>('idle');
   const [language, setLanguage] = useState<ReplyLanguage>(() => readStoredLanguage());
   // P07: last known per-IP request budget, from chat response headers; stays
   // null until the first response so nothing is fabricated at startup.
   const [rateLimit, setRateLimit] = useState<RateLimitBudget | null>(null);
   const exportTimer = useRef<number | null>(null);
   const copyExportTimer = useRef<number | null>(null);
+  const jsonExportTimer = useRef<number | null>(null);
   // P11: top banner for outage-class failures (network error or HTTP 5xx).
   const [serviceDownBanner, setServiceDownBanner] = useState(false);
   // P17: single-slot error toast — a fresh failure replaces it and restarts
@@ -232,6 +237,7 @@ export default function App() {
     () => () => {
       if (exportTimer.current !== null) window.clearTimeout(exportTimer.current);
       if (copyExportTimer.current !== null) window.clearTimeout(copyExportTimer.current);
+      if (jsonExportTimer.current !== null) window.clearTimeout(jsonExportTimer.current);
       toastCtl.destroy();
     },
     [toastCtl],
@@ -727,6 +733,21 @@ export default function App() {
     }, 1500);
   }, [messages, exportTitle]);
 
+  /** P181: same export as Markdown but machine-readable — same bubbles,
+   * same title/filename logic, same download plumbing. */
+  const handleExportJson = useCallback(() => {
+    const title = exportTitle();
+    const now = Date.now();
+    const json = buildConversationJson(messages, { title, exportedAt: now });
+    const ok = downloadJson(json, conversationJsonFilename(now, title));
+    setJsonExportState(ok ? 'done' : 'failed');
+    if (jsonExportTimer.current !== null) window.clearTimeout(jsonExportTimer.current);
+    jsonExportTimer.current = window.setTimeout(() => {
+      setJsonExportState('idle');
+      jsonExportTimer.current = null;
+    }, 1500);
+  }, [messages, exportTitle]);
+
   const handleCopyMarkdown = useCallback(async () => {
     const title = exportTitle();
     const markdown = buildConversationMarkdown(messages, { title });
@@ -965,6 +986,34 @@ export default function App() {
             </button>
             <button
               type="button"
+              className={`export-json-btn${jsonExportState === 'done' ? ' done' : ''}${
+                jsonExportState === 'failed' ? ' failed' : ''
+              }`}
+              onClick={handleExportJson}
+              disabled={!canExport}
+              aria-label={
+                jsonExportState === 'done'
+                  ? '已导出'
+                  : jsonExportState === 'failed'
+                    ? '导出失败'
+                    : '导出 JSON'
+              }
+              title={
+                canExport
+                  ? '把当前对话导出为 JSON 文件'
+                  : jsonExportState === 'failed'
+                    ? '导出失败，请稍后重试'
+                    : '暂无内容可导出'
+              }
+            >
+              {jsonExportState === 'done'
+                ? '✓ 已导出'
+                : jsonExportState === 'failed'
+                  ? '导出失败'
+                  : '⬇ 导出 JSON'}
+            </button>
+            <button
+              type="button"
               data-testid="copy-markdown"
               className={`copy-export-btn${copyExportState === 'done' ? ' done' : ''}${
                 copyExportState === 'failed' ? ' failed' : ''
@@ -1003,7 +1052,11 @@ export default function App() {
                     ? '已下载 Markdown 文件'
                     : exportState === 'failed'
                       ? '导出失败'
-                      : ''}
+                      : jsonExportState === 'done'
+                        ? '已下载 JSON 文件'
+                        : jsonExportState === 'failed'
+                          ? '导出失败'
+                          : ''}
             </span>
             <div className="header-status" role="status" aria-live="polite">
               <span

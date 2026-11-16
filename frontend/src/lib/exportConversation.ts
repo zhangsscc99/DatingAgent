@@ -1,4 +1,4 @@
-import type { ChatMessage } from '../types';
+import type { ChatMessage, ToolEvent } from '../types';
 
 /**
  * Conversation export (F07): render the on-screen conversation as Markdown and
@@ -22,6 +22,20 @@ export function formatTimestamp(ms: number): string {
   return (
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
     ` ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  );
+}
+
+/** `2026-11-16T08:58:00+08:00` — ISO-8601 local time with the UTC offset
+ * attached, so a JSON export stays unambiguous across devices (P181). */
+export function formatIsoOffset(ms: number): string {
+  const d = new Date(ms);
+  const offset = -d.getTimezoneOffset();
+  const sign = offset < 0 ? '-' : '+';
+  const abs = Math.abs(offset);
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` +
+    `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
   );
 }
 
@@ -66,13 +80,20 @@ const EDGE_DOTS_AND_SPACES_START = /^[.\s]+/;
 const EDGE_DOTS_AND_SPACES_END = /[.\s]+$/;
 const FILENAME_TITLE_MAX = 40;
 
+/** Plain-text normalised title shared by the Markdown heading and the
+ * JSON `title` field (P181): control characters flattened, trimmed,
+ * falling back to the generic name. */
+function exportTitleText(rawTitle: string | undefined): string {
+  const title = (rawTitle ?? '').replace(CONTROL_CHAR_RUN, ' ').trim();
+  return title || 'DatingAgent 对话记录';
+}
+
 /** P179 — heading for a supplied session title. Titles come from the user's
  * own first message or a rename, so control characters are flattened to
  * single spaces and HTML-significant chars escaped like message content.
  * Blank titles keep the generic heading byte-identical to before. */
 function exportHeading(rawTitle: string | undefined): string {
-  const title = (rawTitle ?? '').replace(CONTROL_CHAR_RUN, ' ').trim();
-  return escapeHtml(title || 'DatingAgent 对话记录');
+  return escapeHtml(exportTitleText(rawTitle));
 }
 
 /** P179 — make a session title usable as a filename component: characters
@@ -101,23 +122,35 @@ export function exportableMessages(messages: ChatMessage[]): ChatMessage[] {
   );
 }
 
+/** P180 — whether a finished bubble carries no usable reply text. */
+function unusableAssistant(message: ChatMessage): boolean {
+  return (
+    message.role === 'assistant' &&
+    (Boolean(message.error) || message.content.trim().length === 0)
+  );
+}
+
+/** P180 — plain-text placeholder for a failed/stopped/empty assistant
+ * bubble; the Markdown renderer wraps it in a blockquote, the JSON export
+ * carries it verbatim as `content` (P181). */
+function unusablePlaceholder(message: ChatMessage): string {
+  const detail =
+    (message.errorDetail ?? '').trim() ||
+    (message.error ? message.content.trim() : '');
+  return detail
+    ? `（此条回复生成失败或已停止：${detail}）`
+    : '（此条回复生成失败或已停止）';
+}
+
 /** P180 — the body line for one exported bubble. A non-streaming assistant
  * bubble with nothing usable (error flag, or empty/whitespace content)
  * becomes a single blockquote placeholder instead of being dropped; every
  * other bubble renders exactly as before. */
 function exportBodyLine(message: ChatMessage): string {
-  const unusable =
-    message.role === 'assistant' &&
-    (message.error || message.content.trim().length === 0);
-  if (!unusable) {
+  if (!unusableAssistant(message)) {
     return escapeHtml(message.content.trimEnd());
   }
-  const detail =
-    (message.errorDetail ?? '').trim() ||
-    (message.error ? message.content.trim() : '');
-  return detail
-    ? `> （此条回复生成失败或已停止：${escapeHtml(detail)}）`
-    : '> （此条回复生成失败或已停止）';
+  return `> ${escapeHtml(unusablePlaceholder(message))}`;
 }
 
 export function buildConversationMarkdown(
@@ -151,26 +184,92 @@ export function buildConversationMarkdown(
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
+/** P181 — machine-readable export shape: one entry per exported bubble. */
+export interface ConversationJsonMessage {
+  role: 'user' | 'assistant';
+  /** ISO-8601 with UTC offset; null when the bubble has no usable time. */
+  createdAt: string | null;
+  content: string;
+  toolEvents: ToolEvent[];
+}
+
+export interface ConversationJsonExport {
+  title: string;
+  /** ISO-8601 with UTC offset. */
+  exportedAt: string;
+  messages: ConversationJsonMessage[];
+}
+
+/** P181 — the `content` for one JSON row: the same text the Markdown body
+ * carries, minus markup — normal bubbles keep their trimmed text verbatim
+ * (JSON is data, not HTML, so no escaping) and failed/empty assistant
+ * bubbles carry the same placeholder text instead of being dropped. */
+function exportMessageContent(message: ChatMessage): string {
+  return unusableAssistant(message)
+    ? unusablePlaceholder(message)
+    : message.content.trimEnd();
+}
+
+/** P181 — machine-readable export of the same bubbles the Markdown export
+ * covers (`exportableMessages`), as `{ title, exportedAt, messages }` JSON. */
+export function buildConversationJson(
+  messages: ChatMessage[],
+  options: ExportOptions = {},
+): string {
+  const { exportedAt = Date.now() } = options;
+  const payload: ConversationJsonExport = {
+    title: exportTitleText(options.title),
+    exportedAt: formatIsoOffset(exportedAt),
+    messages: exportableMessages(messages).map((message) => {
+      const time = messageTime(message);
+      return {
+        role: message.role,
+        createdAt: time === null ? null : formatIsoOffset(time),
+        content: exportMessageContent(message),
+        toolEvents: message.toolEvents ?? [],
+      };
+    }),
+  };
+  return `${JSON.stringify(payload, null, 2)}\n`;
+}
+
+function filenameStamp(now: number): string {
+  const d = new Date(now);
+  return (
+    `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
+    `-${pad(d.getHours())}${pad(d.getMinutes())}`
+  );
+}
+
 /** `datingagent-chat-20261114-1305.md`, or
  * `datingagent-chat-<title>-20261114-1305.md` when a usable title is given. */
 export function conversationFilename(now: number = Date.now(), title?: string): string {
-  const d = new Date(now);
-  const stamp =
-    `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
-    `-${pad(d.getHours())}${pad(d.getMinutes())}`;
+  const stamp = filenameStamp(now);
   const part = title ? sanitizeFilenamePart(title) : '';
   return part
     ? `datingagent-chat-${part}-${stamp}.md`
     : `datingagent-chat-${stamp}.md`;
 }
 
+/** P181 — same naming as `conversationFilename` with a `.json` extension. */
+export function conversationJsonFilename(
+  now: number = Date.now(),
+  title?: string,
+): string {
+  const stamp = filenameStamp(now);
+  const part = title ? sanitizeFilenamePart(title) : '';
+  return part
+    ? `datingagent-chat-${part}-${stamp}.json`
+    : `datingagent-chat-${stamp}.json`;
+}
+
 /** Trigger a client-side download. Returns false if the Blob/anchor path fails. */
-export function downloadMarkdown(markdown: string, filename: string): boolean {
+function downloadTextFile(content: string, filename: string, mimeType: string): boolean {
   if (typeof document === 'undefined' || typeof URL === 'undefined') return false;
 
   let url: string | null = null;
   try {
-    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const blob = new Blob([content], { type: mimeType });
     url = URL.createObjectURL(blob);
 
     const anchor = document.createElement('a');
@@ -191,4 +290,14 @@ export function downloadMarkdown(markdown: string, filename: string): boolean {
       window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     }
   }
+}
+
+/** Download a Markdown export. Returns false if the Blob/anchor path fails. */
+export function downloadMarkdown(markdown: string, filename: string): boolean {
+  return downloadTextFile(markdown, filename, 'text/markdown;charset=utf-8');
+}
+
+/** P181 — download a JSON export through the same Blob/anchor path. */
+export function downloadJson(json: string, filename: string): boolean {
+  return downloadTextFile(json, filename, 'application/json;charset=utf-8');
 }

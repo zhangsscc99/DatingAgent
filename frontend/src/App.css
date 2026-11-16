@@ -107,7 +107,8 @@
 }
 
 .export-btn,
-.copy-export-btn {
+.copy-export-btn,
+.export-json-btn {
   font-size: 12px;
   font-family: inherit;
   color: var(--text-muted);
@@ -202,32 +203,37 @@
 }
 
 .export-btn:hover:not(:disabled),
-.copy-export-btn:hover:not(:disabled) {
+.copy-export-btn:hover:not(:disabled),
+.export-json-btn:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--accent);
   color: var(--text);
 }
 
 .export-btn:focus-visible,
-.copy-export-btn:focus-visible {
+.copy-export-btn:focus-visible,
+.export-json-btn:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .export-btn:disabled,
-.copy-export-btn:disabled {
+.copy-export-btn:disabled,
+.export-json-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
 .export-btn.done,
-.copy-export-btn.done {
+.copy-export-btn.done,
+.export-json-btn.done {
   color: var(--success);
   border-color: var(--success-border);
 }
 
 .export-btn.failed,
-.copy-export-btn.failed {
+.copy-export-btn.failed,
+.export-json-btn.failed {
   color: var(--danger);
   border-color: var(--danger-border);
 }
@@ -364,7 +370,8 @@
   }
 
   .export-btn,
-  .copy-export-btn {
+  .copy-export-btn,
+  .export-json-btn {
     font-size: 11px;
     padding: 5px 8px;
   }
