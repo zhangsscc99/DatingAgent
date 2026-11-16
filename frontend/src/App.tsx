@@ -64,13 +64,8 @@ import {
   type ReplyLengthPreference,
 } from './lib/replyLength';
 import { formatWaitingLabel, startWaitingTicker, tickIntervalMs } from './lib/thinkingTimer';
+import { streamAnnouncement as buildStreamAnnouncement } from './lib/streamAnnouncement';
 import './App.css';
-
-const STREAM_PHASE_LABELS: Record<StreamPhase, string> = {
-  thinking: '正在思考',
-  tool: '正在调用工具',
-  generating: '正在生成回复',
-};
 
 const TOOL_LABELS: Record<string, string> = {
   analyze_profile: '资料优化',
@@ -838,9 +833,7 @@ export default function App() {
   const closeSidebar = () => setSidebarOpen(false);
 
   const streamingPhase = messages.find((m) => m.streaming)?.streamPhase;
-  const streamAnnouncement = streamingPhase
-    ? `正在生成…${STREAM_PHASE_LABELS[streamingPhase]}`
-    : '';
+  const streamAnnouncement = buildStreamAnnouncement(streamingPhase, waitingElapsedMs);
 
   const handleNewChat = () => {
     abortRef.current?.abort();
