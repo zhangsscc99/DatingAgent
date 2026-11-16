@@ -9,12 +9,14 @@ const PHASE_LABELS: Record<StreamPhase, string> = {
 
 interface Props {
   phase: StreamPhase;
+  /** P192: live waiting label; falls back to the phase label when absent. */
+  label?: string;
 }
 
-export default function StreamingIndicator({ phase }: Props) {
+export default function StreamingIndicator({ phase, label }: Props) {
   return (
     <div className="streaming-indicator" aria-hidden="true">
-      <span className="streaming-label">{PHASE_LABELS[phase]}</span>
+      <span className="streaming-label">{label ?? PHASE_LABELS[phase]}</span>
       <span className="streaming-dots" aria-hidden="true">
         <span />
         <span />

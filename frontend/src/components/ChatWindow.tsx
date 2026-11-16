@@ -40,6 +40,8 @@ const STARTER_PROMPTS = [
 interface Props {
   messages: ChatMessage[];
   loading: boolean;
+  /** P192: elapsed-time placeholder text while the reply's first token is in flight. */
+  waitingLabel?: string;
   restoring?: boolean;
   profile?: UserProfile | null;
   sessionId?: string | null;
@@ -65,6 +67,7 @@ interface Props {
 export default function ChatWindow({
   messages,
   loading,
+  waitingLabel,
   restoring = false,
   profile,
   sessionId,
@@ -346,6 +349,13 @@ export default function ChatWindow({
               key={msg.id}
               message={msg}
               busy={loading}
+              // P192: only the streaming placeholder bubble gets the ticking
+              // label — a constant undefined elsewhere keeps memo() intact.
+              waitingLabel={
+                msg.streaming && !msg.content && msg.streamPhase
+                  ? waitingLabel
+                  : undefined
+              }
               highlightQuery={searching ? normalizedQuery : undefined}
               // Only the newest turn of the full conversation can be retried
               // or regenerated; anything older would append out of order.

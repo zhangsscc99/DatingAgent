@@ -55,6 +55,7 @@ import { isServiceDown } from './lib/serviceStatus';
 import { parseSseDataLine } from './lib/sse';
 import { foldReplyDraft } from './lib/streamDraft';
 import { canRunQuickPrompt } from './lib/quickPromptGate';
+import { formatWaitingLabel, startWaitingTicker, tickIntervalMs } from './lib/thinkingTimer';
 import './App.css';
 
 const STREAM_PHASE_LABELS: Record<StreamPhase, string> = {
@@ -718,6 +719,30 @@ export default function App() {
   // Never leave a fetch running past unmount.
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // P192: the first visible token still takes 6–16 s (walkthrough evidence),
+  // during which the bubble used to sit on a frozen placeholder. While a
+  // reply is loading and nothing has streamed into it yet, tick an elapsed
+  // counter once a second so the placeholder reads as progress. The first
+  // delta/message fills content, done/error/abort end the turn, and unmount
+  // runs the cleanup — all flip `waitingForFirstToken` and stop the ticker.
+  const [waitingElapsedMs, setWaitingElapsedMs] = useState(0);
+  const waitingForFirstToken =
+    loading &&
+    !messages.some((m) => m.role === 'assistant' && m.streaming && m.content);
+  useEffect(() => {
+    if (!waitingForFirstToken) {
+      setWaitingElapsedMs(0);
+      return;
+    }
+    const ticker = startWaitingTicker(() => {
+      setWaitingElapsedMs((ms) => ms + tickIntervalMs());
+    });
+    return () => ticker.stop();
+  }, [waitingForFirstToken]);
+  const waitingLabel = waitingForFirstToken
+    ? formatWaitingLabel(waitingElapsedMs)
+    : undefined;
+
   const canExport = exportableMessages(messages).length > 0;
 
   // P179: exports are titled after the open conversation so multiple
@@ -1106,6 +1131,7 @@ export default function App() {
         <ChatWindow
           messages={messages}
           loading={loading}
+          waitingLabel={waitingLabel}
           restoring={restoringSession}
           profile={profile}
           sessionId={sessionId}

@@ -126,3 +126,4 @@
 2026-11-16 11:43 | P189 | SSE 正文改为 delta 增量下发，首字 3 秒内可见
 2026-11-16 12:21 | P190 | rate-limit chip copy self-explanatory: 本分钟还可提问 N 次 (+ retry-after countdown 本分钟额度已用完，N 秒后可再问), title/aria 每分钟重置, warn ≤5 / dim >10, nowrap CSS; frontend/test/rate-limit-copy.test.ts
 2026-11-16 12:44 | P191 | interests parse/format lib accepts spaces, commas, 顿号, semicolons, slashes, newlines (dedupe, 20-char item cap, 12-item list cap); placeholder 逗号、空格都行; frontend/test/interests-parse.test.ts
+2026-11-16 13:07 | P192 | elapsed-time placeholder for the pre-first-token wait: thinkingTimer.ts formatWaitingLabel/tickIntervalMs/startWaitingTicker; App ticks a 1s counter while loading with an empty stream bubble and passes waitingLabel through ChatWindow/MessageBubble to the aria-hidden StreamingIndicator (polite announcement untouched); frontend/test/thinking-timer.test.ts

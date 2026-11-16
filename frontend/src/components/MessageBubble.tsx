@@ -17,13 +17,15 @@ interface Props {
   busy?: boolean;
   /** P19: normalized search keyword — marks hits in user bubbles, flags assistant ones. */
   highlightQuery?: string;
+  /** P192: elapsed-time text for the streaming placeholder (first token still in flight). */
+  waitingLabel?: string;
 }
 
 type CopyState = 'idle' | 'copied' | 'failed';
 
 const COPY_FEEDBACK_MS = 1500;
 
-function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlightQuery }: Props) {
+function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlightQuery, waitingLabel }: Props) {
   const isUser = message.role === 'user';
   // Assistant bubbles render through ReactMarkdown, so the whole bubble is
   // flagged instead of marking inline hits (P19).
@@ -110,7 +112,7 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
               message.content
             )
           ) : showStreamingIndicator ? (
-            <StreamingIndicator phase={message.streamPhase!} />
+            <StreamingIndicator phase={message.streamPhase!} label={waitingLabel} />
           ) : (
             <>
               {message.content && (
