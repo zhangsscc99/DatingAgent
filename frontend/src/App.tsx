@@ -806,6 +806,9 @@ export default function App() {
 
   return (
     <div className="app">
+      <a className="skip-link" href="#main-content">
+        跳到主要内容
+      </a>
       <span className="sr-only" role="status" aria-live="polite">
         {streamAnnouncement}
       </span>
@@ -848,7 +851,7 @@ export default function App() {
         onSkip={showOnboarding && !editingProfile ? handleProfileSkip : undefined}
         onClose={editingProfile ? () => setEditingProfile(false) : undefined}
       />
-      <main className="main">
+      <main className="main" id="main-content" tabIndex={-1}>
         <header className="header">
           <div className="header-left">
             {isMobile && (

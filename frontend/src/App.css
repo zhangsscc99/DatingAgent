@@ -12,6 +12,39 @@
   min-width: 0;
 }
 
+/* P133: skip-to-content link — clipped off-screen at rest so it never
+   intercepts clicks or shifts layout; revealed on keyboard focus only. */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 200;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  width: auto;
+  height: auto;
+  padding: 8px 14px;
+  clip: auto;
+  overflow: visible;
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .header {
   display: flex;
   align-items: center;
