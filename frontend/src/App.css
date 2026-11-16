@@ -72,6 +72,9 @@
 .logo {
   font-size: 28px;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent);
 }
 
 .header h1 {
