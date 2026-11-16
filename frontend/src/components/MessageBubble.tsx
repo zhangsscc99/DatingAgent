@@ -58,7 +58,7 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
   }, [clearResetTimer, message.content]);
 
   const canCopy =
-    !isUser && !message.streaming && !message.error && message.content.trim().length > 0;
+    !message.streaming && !message.error && message.content.trim().length > 0;
 
   const canRegen =
     !isUser &&
