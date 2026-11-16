@@ -1,5 +1,9 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
+import {
+  clearLastEvictionNotice,
+  getLastEvictionNotice,
+} from '../lib/chatStorage';
 import type { StoredChatSession } from '../lib/chatStorage';
 import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
 import { formatRelativeTime } from '../lib/relativeTime';
@@ -131,6 +135,12 @@ export default function Sidebar({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
+  // P185: the eviction notice lives in chatStorage's module state — it is set
+  // inside saveChatSession, which always precedes a recentSessions refresh, so
+  // reading it during render stays in sync. The close button clears the module
+  // state; the tick just forces the re-render that then reads null.
+  const evictionNotice = getLastEvictionNotice();
+  const [, setEvictionTick] = useState(0);
   const visibleSessions = filterRecentSessions(recentSessions, filterQuery);
   const sessionGroups = groupSessionsByDay(visibleSessions);
 
@@ -382,6 +392,23 @@ export default function Sidebar({
               </Fragment>
             ))}
           </ul>
+          {evictionNotice && (
+            <div className="recent-chat-eviction" role="status">
+              <span className="recent-chat-eviction-text">{evictionNotice}</span>
+              <button
+                type="button"
+                className="recent-chat-eviction-close"
+                aria-label="关闭提示"
+                title="关闭提示"
+                onClick={() => {
+                  clearLastEvictionNotice();
+                  setEvictionTick((n) => n + 1);
+                }}
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+          )}
         </section>
       )}
 

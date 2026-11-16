@@ -194,6 +194,35 @@ export function serializeMessages(messages: ChatMessage[]): ChatMessage[] {
     );
 }
 
+/**
+ * P185 — ids of the sessions a `maxSessions` cap would evict: every entry
+ * past the first `maxSessions` of `state.sessions` (saveChatSession keeps the
+ * list sorted newest-first). Pure: never mutates the input, so the same
+ * function drives both the actual trim and the eviction notice and the two
+ * cannot drift apart.
+ */
+export function evictedSessionIds(
+  state: ChatStorageState,
+  maxSessions: number,
+): string[] {
+  return state.sessions.slice(Math.max(0, maxSessions)).map((s) => s.id);
+}
+
+let lastEvictionNotice: string | null = null;
+
+/** Notice left by the most recent session-cap eviction in saveChatSession,
+ * or null when none has happened / after clearLastEvictionNotice. Follows
+ * the getLastPersistWarning module-state pattern. */
+export function getLastEvictionNotice(): string | null {
+  return lastEvictionNotice;
+}
+
+/** Dismiss the eviction notice — the sidebar's close affordance calls this,
+ * after which re-renders must not show the notice again. */
+export function clearLastEvictionNotice(): void {
+  lastEvictionNotice = null;
+}
+
 export function saveChatSession(sessionId: string, messages: ChatMessage[]): void {
   const serialized = serializeMessages(messages);
   if (serialized.length === 0) return;
@@ -218,11 +247,20 @@ export function saveChatSession(sessionId: string, messages: ChatMessage[]): voi
   state.sessions.sort((a, b) => b.updatedAt - a.updatedAt);
   // P159: sessions evicted by the cap lose their drafts too — the unsent
   // text is private conversation content and must not leak past deletion.
-  const evictedIds = state.sessions.slice(MAX_SESSIONS).map((s) => s.id);
+  // P185: evictedSessionIds is the single source for the cap cut — it reports
+  // exactly the ids that the tail slice(MAX_SESSIONS) drops below, so the
+  // trim, the purges and the notice can never drift apart.
+  const evictedIds = evictedSessionIds(state, MAX_SESSIONS);
   state.sessions = state.sessions.slice(0, MAX_SESSIONS);
   purgeDrafts(evictedIds);
   // P168: same for their ArrowUp input history.
   purgeInputHistories(evictedIds);
+  // P185: surface the silent eviction — the ids the cap just dropped feed a
+  // dismissible sidebar notice. No eviction means no notice; a previous one
+  // stays until the user dismisses it.
+  if (evictedIds.length > 0) {
+    lastEvictionNotice = `已自动清理 ${evictedIds.length} 段更早的对话（本机最多保留 ${MAX_SESSIONS} 段）`;
+  }
   state.activeSessionId = sessionId;
   persistState(state);
 }

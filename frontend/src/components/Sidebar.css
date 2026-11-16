@@ -371,6 +371,50 @@
   opacity: 0.45;
 }
 
+.recent-chat-eviction {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.recent-chat-eviction-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.recent-chat-eviction-close {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.recent-chat-eviction-close:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.recent-chat-eviction-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .quick-prompts {
   display: flex;
   flex-direction: column;

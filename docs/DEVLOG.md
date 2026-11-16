@@ -119,3 +119,4 @@
 2026-11-16 09:20 | P182 | export timestamps append local UTC offset (UTC±HH:MM) via formatUtcOffset in formatTimestamp; new export-timezone.test.ts
 2026-11-16 09:41 | P183 | header export buttons split into btn-icon + btn-label; 768px media query hides .btn-label and shrinks buttons to icon-only so all three fit a 360px viewport; desktop rendering unchanged; frontend/test/header-actions-narrow.test.ts
 2026-11-16 09:58 | P184 | MessageBubble canCopy 去掉 !isUser，用户气泡同享复制按钮与1.5s反馈
+2026-11-16 10:18 | P185 | evictedSessionIds 纯函数统一 MAX_SESSIONS 裁剪与上报；新增 getLastEvictionNotice/clearLastEvictionNotice 模块态，Sidebar 最近对话底部渲染可关闭 dim 提示；session-eviction-notice.test.ts
