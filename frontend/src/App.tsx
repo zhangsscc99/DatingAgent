@@ -24,6 +24,7 @@ import {
   loadChatState,
   renameChatSession,
   saveChatSession,
+  sessionTitle,
   setActiveSessionId,
   syncSessionWithBackend,
   watchChatStorage,
@@ -698,9 +699,22 @@ export default function App() {
 
   const canExport = exportableMessages(messages).length > 0;
 
+  // P179: exports are titled after the open conversation so multiple
+  // downloads stay distinguishable — a rename wins, otherwise the title is
+  // derived from the first user message the same way the sidebar does.
+  const exportTitle = useCallback((): string => {
+    const stored = sessionId
+      ? getRecentSessions().find((s) => s.id === sessionId)
+      : undefined;
+    const custom = stored?.customTitle ? stored.title.trim() : '';
+    return custom || sessionTitle(messages);
+  }, [messages, sessionId]);
+
   const handleExport = useCallback(() => {
-    const markdown = buildConversationMarkdown(messages);
-    const ok = downloadMarkdown(markdown, conversationFilename());
+    const title = exportTitle();
+    const now = Date.now();
+    const markdown = buildConversationMarkdown(messages, { title, exportedAt: now });
+    const ok = downloadMarkdown(markdown, conversationFilename(now, title));
     if (!ok) {
       setExportState('failed');
     } else {
@@ -711,10 +725,11 @@ export default function App() {
       setExportState('idle');
       exportTimer.current = null;
     }, 1500);
-  }, [messages]);
+  }, [messages, exportTitle]);
 
   const handleCopyMarkdown = useCallback(async () => {
-    const markdown = buildConversationMarkdown(messages);
+    const title = exportTitle();
+    const markdown = buildConversationMarkdown(messages, { title });
     const ok = await copyText(markdown);
     setCopyExportState(ok ? 'done' : 'failed');
     if (copyExportTimer.current !== null) window.clearTimeout(copyExportTimer.current);
@@ -722,7 +737,7 @@ export default function App() {
       setCopyExportState('idle');
       copyExportTimer.current = null;
     }, 2000);
-  }, [messages]);
+  }, [messages, exportTitle]);
 
   const closeSidebar = () => setSidebarOpen(false);
 

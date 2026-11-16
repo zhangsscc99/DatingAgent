@@ -54,10 +54,41 @@ export function roleHeading(message: ChatMessage): string {
 }
 
 export interface ExportOptions {
-  /** Document title; defaults to a generic export heading. */
+  /** Document title; blank or absent keeps the generic export heading. */
   title?: string;
   /** Timestamp used for the "exported at" line; defaults to now. */
   exportedAt?: number;
+}
+
+const CONTROL_CHAR_RUN = /[\u0000-\u001f\u007f-\u009f]+/g;
+const ILLEGAL_FILENAME_CHARS = /[\\/:*?"<>|\u0000-\u001f\u007f-\u009f]/g;
+const EDGE_DOTS_AND_SPACES_START = /^[.\s]+/;
+const EDGE_DOTS_AND_SPACES_END = /[.\s]+$/;
+const FILENAME_TITLE_MAX = 40;
+
+/** P179 — heading for a supplied session title. Titles come from the user's
+ * own first message or a rename, so control characters are flattened to
+ * single spaces and HTML-significant chars escaped like message content.
+ * Blank titles keep the generic heading byte-identical to before. */
+function exportHeading(rawTitle: string | undefined): string {
+  const title = (rawTitle ?? '').replace(CONTROL_CHAR_RUN, ' ').trim();
+  return escapeHtml(title || 'DatingAgent 对话记录');
+}
+
+/** P179 — make a session title usable as a filename component: characters
+ * illegal on common filesystems (`\ / : * ? " < > |`) and control characters
+ * are removed, edge dots/spaces trimmed (a trailing dot is unwritable on
+ * Windows), CJK kept as-is, capped at 40 characters. Returns "" when nothing
+ * usable remains — callers then keep the plain timestamped name. */
+export function sanitizeFilenamePart(raw: string): string {
+  const cleaned = raw
+    .replace(ILLEGAL_FILENAME_CHARS, '')
+    .replace(EDGE_DOTS_AND_SPACES_START, '')
+    .replace(EDGE_DOTS_AND_SPACES_END, '');
+  return Array.from(cleaned)
+    .slice(0, FILENAME_TITLE_MAX)
+    .join('')
+    .replace(EDGE_DOTS_AND_SPACES_END, '');
 }
 
 /** Messages worth exporting: finished bubbles with actual text. */
@@ -69,10 +100,10 @@ export function buildConversationMarkdown(
   messages: ChatMessage[],
   options: ExportOptions = {},
 ): string {
-  const { title = 'DatingAgent 对话记录', exportedAt = Date.now() } = options;
+  const { exportedAt = Date.now() } = options;
   const rows = exportableMessages(messages);
 
-  const lines: string[] = [`# ${title}`, ''];
+  const lines: string[] = [`# ${exportHeading(options.title)}`, ''];
   lines.push(`- 导出时间：${formatTimestamp(exportedAt)}`);
   lines.push(`- 消息数：${rows.length}`);
   lines.push('');
@@ -96,13 +127,17 @@ export function buildConversationMarkdown(
   return `${lines.join('\n').trimEnd()}\n`;
 }
 
-/** `datingagent-chat-20261114-1305.md` */
-export function conversationFilename(now: number = Date.now()): string {
+/** `datingagent-chat-20261114-1305.md`, or
+ * `datingagent-chat-<title>-20261114-1305.md` when a usable title is given. */
+export function conversationFilename(now: number = Date.now(), title?: string): string {
   const d = new Date(now);
   const stamp =
     `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
     `-${pad(d.getHours())}${pad(d.getMinutes())}`;
-  return `datingagent-chat-${stamp}.md`;
+  const part = title ? sanitizeFilenamePart(title) : '';
+  return part
+    ? `datingagent-chat-${part}-${stamp}.md`
+    : `datingagent-chat-${stamp}.md`;
 }
 
 /** Trigger a client-side download. Returns false if the Blob/anchor path fails. */

@@ -162,7 +162,7 @@ function persistState(state: ChatStorageState): void {
 const SESSION_TITLE_MAX = 20;
 const SESSION_TITLE_FALLBACK = '新会话';
 
-function sessionTitle(messages: ChatMessage[]): string {
+export function sessionTitle(messages: ChatMessage[]): string {
   const firstUser = messages.find((m) => m.role === 'user' && m.content.trim());
   if (!firstUser) return SESSION_TITLE_FALLBACK;
   const text = firstUser.content.trim();
