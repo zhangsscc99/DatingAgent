@@ -298,3 +298,9 @@ the empty-state copy.
 - **P196 (P1)** 没有设置入口 —— 本轮实现。
 - **P198 (P2, 新增)** 首字等待文案重复「正在生成…正在生成回复」。
 - **P195 / P197** 继续挂在池里(窄窗占位、气泡内 Markdown 表格)。
+
+### 2026-11-16 14:35 — P196 复验(独立实测,非 devin 自述)
+
+构建 e077961 上自己验了一遍:390×844 侧栏底部出现 ⚙ 设置,点开后是一张 374 px 宽(左右各 8 px 边距)的面板,五个分区齐全;1440×900 下是居中 480×618 的卡片,`documentElement.scrollWidth` 前后都是 1440,没有布局位移。真实键盘 Escape 关闭面板后焦点回到 ⚙ 设置按钮(先用 Tab/焦点进入面板才有这个回位,直接点开时 opener 是 BODY——可接受)。回复长度选「精简」后 localStorage 写入 `datingagent.replyLength=concise`,刷新仍在;发一条消息抓到的请求体是 `{"sessionId":null,"message":"…","language":"auto","replyLength":"concise"}`,回复果然短成三句选项(1010 tokens / 3.7 s),说明偏好真的下到了模型侧,不是只存不用。
+
+小瑕疵(不记 backlog,留给 P199 时顺手对齐):新键前缀是 `datingagent.` 小写,既有的 `datingAgent.chatHistory` / `datingAgent.userProfile` 是驼峰,localStorage 命名不统一。
