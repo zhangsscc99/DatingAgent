@@ -1,8 +1,17 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { StoredChatSession } from '../lib/chatStorage';
 import { formatRelativeTime } from '../lib/relativeTime';
+import { filterRecentSessions } from '../lib/sessionFilter';
+import {
+  nextEditingIdAfterSessionsChange,
+  nextFilterQueryAfterSessionsChange,
+} from '../lib/sidebarListState';
 import type { ToolInfo, UserProfile } from '../types';
 import './Sidebar.css';
+
+// P164 moved the matcher to lib/sessionFilter.ts; re-exported so existing
+// consumers and tests keep importing it from here.
+export { filterRecentSessions };
 
 interface Props {
   tools: ToolInfo[];
@@ -26,15 +35,6 @@ interface Props {
  * runs nothing at all. */
 export function confirmClearAllChats(onClearAll?: () => void): void {
   if (window.confirm('确定清空全部历史对话？')) onClearAll?.();
-}
-
-export function filterRecentSessions(
-  sessions: StoredChatSession[],
-  query: string,
-): StoredChatSession[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return sessions;
-  return sessions.filter((s) => s.title.toLowerCase().includes(q));
 }
 
 /** Label the persisted message count on a session row. Pure: treats
@@ -129,6 +129,30 @@ export default function Sidebar({
   const [filterQuery, setFilterQuery] = useState('');
   const visibleSessions = filterRecentSessions(recentSessions, filterQuery);
   const sessionGroups = groupSessionsByDay(visibleSessions);
+
+  // P164: reconcile local filter/rename state whenever the stored session
+  // list changes (row delete, 清空全部, or the P156 cross-tab sync swapping the
+  // array). The effect keys on an id:title signature, so an identical
+  // replacement array — or any unrelated render — never refires it, a query
+  // that still matches is kept, and a rename whose row survives is untouched.
+  const sessionsKey = useMemo(
+    () =>
+      `${recentSessions.length}|` +
+      recentSessions.map((s) => `${s.id}:${s.title ?? ''}`).join('|'),
+    [recentSessions],
+  );
+  useEffect(() => {
+    setFilterQuery((q) => nextFilterQueryAfterSessionsChange(q, recentSessions));
+    if (
+      nextEditingIdAfterSessionsChange(editingId, recentSessions) !== editingId
+    ) {
+      setEditingId(null);
+      setEditingValue('');
+    }
+    // recentSessions/editingId are read from the same render that produced
+    // this signature — exactly the state being reconciled.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionsKey]);
 
   useEffect(() => {
     if (!editingId) return;
