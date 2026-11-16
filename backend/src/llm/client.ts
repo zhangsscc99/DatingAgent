@@ -17,6 +17,25 @@ interface ChatCompletionChoice {
   finish_reason: string;
 }
 
+/** Default upstream deadline; `LLM_TIMEOUT_MS` or a per-call arg can shrink it. */
+const DEFAULT_LLM_TIMEOUT_MS = 60_000;
+
+/** Raised when the upstream call exceeds the deadline — distinct from a client abort. */
+export class LLMTimeoutError extends Error {
+  readonly timeoutMs: number;
+  constructor(timeoutMs: number) {
+    super(`LLM request timed out after ${timeoutMs}ms`);
+    this.name = 'LLMTimeoutError';
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+/** Non-positive or non-numeric values fall back to the default. */
+function resolveTimeoutMs(timeoutMs: number | undefined): number {
+  const candidate = timeoutMs ?? Number(process.env.LLM_TIMEOUT_MS);
+  return Number.isFinite(candidate) && candidate > 0 ? candidate : DEFAULT_LLM_TIMEOUT_MS;
+}
+
 export class LLMClient {
   private apiKey: string;
   private baseUrl: string;
@@ -36,6 +55,7 @@ export class LLMClient {
     messages: Message[],
     tools: ToolDefinition[],
     signal?: AbortSignal,
+    timeoutMs?: number,
   ): Promise<LLMResponse> {
     if (!this.isConfigured) {
       return this.mockResponse(messages, tools);
@@ -59,25 +79,46 @@ export class LLMClient {
       tool_choice: 'auto',
     };
 
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal: signal ?? null,
-    });
+    // One combined signal: our deadline plus the caller's disconnect signal
+    // (P165). `AbortSignal.any` registers a single dependent listener on each
+    // source and cleans them up when the fetch settles — no manual listeners
+    // that could leak per request.
+    const timeout = resolveTimeoutMs(timeoutMs);
+    const timeoutSignal = AbortSignal.timeout(timeout);
+    const combinedSignal = signal
+      ? AbortSignal.any([signal, timeoutSignal])
+      : timeoutSignal;
 
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`LLM API error ${res.status}: ${err}`);
+    let data: { choices: ChatCompletionChoice[]; usage?: ChatCompletionUsage };
+    try {
+      const res = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: combinedSignal,
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`LLM API error ${res.status}: ${err}`);
+      }
+
+      data = (await res.json()) as {
+        choices: ChatCompletionChoice[];
+        usage?: ChatCompletionUsage;
+      };
+    } catch (err) {
+      // Deadline fired while the caller signal did not: this is an upstream
+      // timeout, not a client disconnect — report it as such.
+      if (timeoutSignal.aborted && !signal?.aborted) {
+        throw new LLMTimeoutError(timeout);
+      }
+      throw err;
     }
 
-    const data = (await res.json()) as {
-      choices: ChatCompletionChoice[];
-      usage?: ChatCompletionUsage;
-    };
     const choice = data.choices[0];
     const toolCalls: ToolCall[] = (choice.message.tool_calls ?? []).map((tc) => ({
       id: tc.id,

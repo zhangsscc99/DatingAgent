@@ -10,6 +10,7 @@ import { buildVersionReport } from '../lib/version.js';
 import { createRequestLogger, errorBody, requestId } from '../lib/request-log.js';
 import { usageMetrics } from '../lib/metrics.js';
 import { sanitizeMessage } from '../lib/sanitize.js';
+import { LLMTimeoutError } from '../llm/client.js';
 import { getTool } from '../tools/registry.js';
 import {
   createRateLimiter,
@@ -299,7 +300,8 @@ export function createApp(options: AppOptions = {}) {
     } catch (err) {
       usageMetrics.recordChat(Date.now() - startedAt, false);
       const msg = err instanceof Error ? err.message : String(err);
-      res.status(500).json(errorBody(res, msg));
+      // P166: an upstream deadline is a 504 Gateway Timeout, not a server bug.
+      res.status(err instanceof LLMTimeoutError ? 504 : 500).json(errorBody(res, msg));
     }
   });
 

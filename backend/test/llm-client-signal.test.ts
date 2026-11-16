@@ -35,9 +35,14 @@ describe('LLMClient abort signal (P165)', () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const init = fetchMock.mock.calls[0][1] as RequestInit;
-    expect(init.signal).toBe(controller.signal);
+    // P166 composes the caller signal with the timeout signal via
+    // AbortSignal.any, so fetch gets a dependent signal — not the raw one —
+    // that still aborts when the caller aborts.
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init.signal!.aborted).toBe(false);
 
     controller.abort();
+    expect(init.signal!.aborted).toBe(true);
     await expect(settled).resolves.toBe('AbortError');
   });
 

@@ -8,6 +8,12 @@ vi.mock('../src/llm/client.js', () => ({
   LLMClient: class {
     chat = chatMock;
   },
+  LLMTimeoutError: class LLMTimeoutError extends Error {
+    constructor() {
+      super('mock timeout');
+      this.name = 'LLMTimeoutError';
+    }
+  },
 }));
 
 const { createApp } = await import('../src/routes/app.js');
