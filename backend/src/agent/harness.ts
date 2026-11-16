@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { AgentContext, AgentEvent, ChatResult, Message, ReplyLanguage } from './types.js';
 import { LLMClient } from '../llm/client.js';
+import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { usageMetrics } from '../lib/metrics.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
 
@@ -62,7 +63,9 @@ export class AgentHarness {
         role: 'system',
         content: buildSystemPrompt(context.profile, context.language ?? 'auto'),
       },
-      ...context.conversationHistory,
+      // P177: bound the prompt — keep the newest turns within the
+      // HISTORY_MAX_MESSAGES / HISTORY_MAX_CHARS budget.
+      ...capHistory(context.conversationHistory, historyLimitsFromEnv()),
       { role: 'user', content: userMessage },
     ];
 

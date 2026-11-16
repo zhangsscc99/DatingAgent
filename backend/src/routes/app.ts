@@ -14,8 +14,10 @@ import { getTool } from '../tools/registry.js';
 import {
   createRateLimiter,
   handleBodyErrors,
+  MAX_MESSAGE_CHARS,
   rejectOversizedMessage,
 } from '../lib/guardrails.js';
+import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { isCorsAllowed, requestHost } from '../lib/cors.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -272,9 +274,22 @@ export function createApp(options: AppOptions = {}) {
       return res.status(400).json(errorBody(res, 'sessionId is required'));
     }
 
-    const history = (messages ?? [])
-      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
-      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    // P177: cap restored history to the same budget as live turns, and hold
+    // each stored message to the /api/chat per-message ceiling.
+    const history = capHistory(
+      (messages ?? [])
+        .filter(
+          (m) =>
+            (m.role === 'user' || m.role === 'assistant') &&
+            typeof m.content === 'string' &&
+            m.content.trim(),
+        )
+        .map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content.slice(0, MAX_MESSAGE_CHARS),
+        })),
+      historyLimitsFromEnv(),
+    );
 
     const existing = touchSession(sessionId);
     const session = existing ?? createSession(profile ?? {});

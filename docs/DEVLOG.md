@@ -111,3 +111,4 @@
 2026-11-16 07:05 | P147 | global X-Frame-Options: DENY on all responses (static + SPA + API)
 2026-11-16 07:15 | P134 | @media print rules in frontend/src/print.css (imported once in main.tsx) hide sidebar/composer/header actions/footer/toasts/overlays and unclip .messages/.chat-window scroll containers for a clean transcript; frontend/test/print-styles.test.ts
 2026-11-16 07:30 | P132 | ArrowUp/ArrowDown focus navigation across 最近对话 session rows (clamped, filter-aware), ArrowDown from filter input focuses first row
+2026-11-16 07:53 | P177 | cap conversation history to newest 40 msgs / 24k chars via backend/src/lib/history.ts capHistory (no orphan assistant heads, env overrides HISTORY_MAX_*); applied in harness.run prompt build and /api/session/restore (plus per-message 4000-char truncation); backend/test/history-cap.test.ts
