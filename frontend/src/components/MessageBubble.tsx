@@ -4,7 +4,7 @@ import type { ChatMessage } from '../types';
 import { copyText } from '../lib/clipboard';
 import { highlightSegments } from '../lib/messageSearch';
 import { normalizeMarkdownTables } from '../lib/markdownTables';
-import { formatLatencySeconds } from '../lib/relativeTime';
+import { formatLatencySeconds, formatReplyLatency } from '../lib/relativeTime';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
 import './MessageBubble.css';
@@ -198,13 +198,20 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
           </div>
         )}
         {!isUser && !message.streaming && !message.error && typeof message.meta?.tokens === 'number' && (
-          <div className="reply-meta" aria-hidden="true">
+          <div
+            className="reply-meta"
+            aria-hidden="true"
+            title={
+              typeof message.meta.latencyMs === 'number'
+                ? `${message.meta.tokens} tokens · ${formatLatencySeconds(message.meta.latencyMs)}`
+                : `${message.meta.tokens} tokens`
+            }
+          >
             {message.meta.tool && (
               <span className="reply-meta-tool">{message.meta.tool}</span>
             )}
-            <span>{message.meta.tokens} tokens</span>
             {typeof message.meta.latencyMs === 'number' && (
-              <span>{formatLatencySeconds(message.meta.latencyMs)}</span>
+              <span>{formatReplyLatency(message.meta.latencyMs)}</span>
             )}
           </div>
         )}
