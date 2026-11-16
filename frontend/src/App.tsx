@@ -46,6 +46,7 @@ import { copyText } from './lib/clipboard';
 import { createErrorToast, type ErrorToastState } from './lib/errorToast';
 import { pushInputHistory } from './lib/inputHistory';
 import { regeneratePromptFor } from './lib/regenerate';
+import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
 import { isServiceDown } from './lib/serviceStatus';
 import './App.css';
@@ -164,6 +165,9 @@ export default function App() {
     return Boolean(session && session.messages.length > 0);
   });
   const abortRef = useRef<AbortController | null>(null);
+  // P161: covers the frame between a 「生成回复」 click and the loading state
+  // flush — a second click landing there must be a no-op.
+  const replyInFlightRef = useRef(false);
   const restoredRef = useRef(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { theme, toggle: toggleTheme } = useTheme();
@@ -624,6 +628,42 @@ export default function App() {
     [loading, messages, streamReply, noteStreamOutcome],
   );
 
+  /**
+   * P161: answer a restored conversation that ends on a bare user bubble —
+   * its streamed reply was lost while the user message was already
+   * persisted. Reuses the same streamReply path as the composer: only a
+   * streaming assistant placeholder is appended, never a second user
+   * bubble. The busy flag plus the in-flight ref keep rapid clicks to one
+   * reply.
+   */
+  const handleGenerateReply = useCallback(() => {
+    if (replyInFlightRef.current || !canGenerateReply(messages, loading)) return;
+    const prompt = pendingReplyPrompt(messages);
+    if (prompt === null) return;
+
+    replyInFlightRef.current = true;
+    const now = Date.now();
+    const assistantId = `a-${now}`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        createdAt: now,
+        streaming: true,
+        streamPhase: 'thinking',
+      },
+    ]);
+    setLoading(true);
+    void streamReply(prompt, assistantId)
+      .then(noteStreamOutcome)
+      .finally(() => {
+        replyInFlightRef.current = false;
+        setLoading(false);
+      });
+  }, [loading, messages, streamReply, noteStreamOutcome]);
+
   const handleProfileSave = (next: UserProfile) => {
     saveProfile(next);
     setProfile(next);
@@ -962,6 +1002,7 @@ export default function App() {
           onStop={stopStreaming}
           onRetry={handleRetry}
           onRegenerate={handleRegenerate}
+          onGenerateReply={handleGenerateReply}
           onSetupProfile={() => setEditingProfile(true)}
           rateLimit={rateLimit}
           offline={!online}

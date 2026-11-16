@@ -246,9 +246,47 @@
   text-align: center;
 }
 
+/* P161: dim 「生成回复」 action pinned under a trailing user bubble whose
+ * streamed reply was lost; the negative margin tucks it into the bubble's
+ * own row gap so it reads as attached to that message. */
+.pending-reply-row {
+  align-self: flex-end;
+  margin-top: -8px;
+}
+
+.pending-reply-btn {
+  padding: 3px 9px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.pending-reply-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pending-reply-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pending-reply-btn:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scroll-to-bottom,
-  .search-toggle {
+  .search-toggle,
+  .pending-reply-btn {
     transition: none;
   }
 

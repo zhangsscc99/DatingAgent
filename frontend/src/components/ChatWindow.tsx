@@ -7,6 +7,7 @@ import ChatSearchBar from './ChatSearchBar';
 import ErrorToast from './ErrorToast';
 import { DEFAULT_DRAFT_ID } from '../lib/chatDrafts';
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
+import { canGenerateReply, needsReply } from '../lib/pendingReply';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
 import './ChatWindow.css';
@@ -41,6 +42,8 @@ interface Props {
   onRetry?: (messageId: string, prompt: string) => void;
   /** P26: regenerate the newest assistant reply in place. */
   onRegenerate?: (messageId: string) => void;
+  /** P161: resume an interrupted turn — answer a trailing user bubble. */
+  onGenerateReply?: () => void;
   onSetupProfile?: () => void;
   /** P07: last known request budget from chat response headers (null until the first response). */
   rateLimit?: RateLimitBudget | null;
@@ -62,6 +65,7 @@ export default function ChatWindow({
   onStop,
   onRetry,
   onRegenerate,
+  onGenerateReply,
   onSetupProfile,
   rateLimit = null,
   offline = false,
@@ -312,6 +316,25 @@ export default function ChatWindow({
               }
             />
           ))}
+
+        {/* P161: an interrupted stream leaves a persisted user bubble with
+            no reply; offer to finish the turn without retyping. Hidden the
+            moment any assistant row (streaming or error) trails it, and
+            while the filtered search view is active. */}
+        {!restoring && !searching && onGenerateReply && needsReply(messages) && (
+          <div className="pending-reply-row">
+            <button
+              type="button"
+              className="pending-reply-btn"
+              onClick={onGenerateReply}
+              disabled={!canGenerateReply(messages, loading)}
+              aria-label="生成回复"
+              title="上次回复被中断，点击为这条消息生成回复"
+            >
+              ↻ 生成回复
+            </button>
+          </div>
+        )}
 
           <div ref={bottomRef} />
         </div>
