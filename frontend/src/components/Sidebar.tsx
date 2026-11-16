@@ -385,6 +385,9 @@ export default function Sidebar({
               key={p.label}
               className="quick-btn"
               onClick={() => onQuickPrompt(p.prompt)}
+              disabled={busy}
+              aria-disabled={busy || undefined}
+              title={busy ? '回复生成中，请稍候' : undefined}
               aria-label={`快捷提问：${p.label}`}
             >
               <span aria-hidden="true">{p.icon}</span>

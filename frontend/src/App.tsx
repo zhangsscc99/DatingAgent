@@ -49,6 +49,7 @@ import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
 import { isServiceDown } from './lib/serviceStatus';
 import { parseSseDataLine } from './lib/sse';
+import { canRunQuickPrompt } from './lib/quickPromptGate';
 import './App.css';
 
 const STREAM_PHASE_LABELS: Record<StreamPhase, string> = {
@@ -829,6 +830,7 @@ export default function App() {
         isMobile={isMobile}
         onClose={closeSidebar}
         onQuickPrompt={(prompt) => {
+          if (!canRunQuickPrompt(loading)) return;
           handleQuickPrompt(prompt);
           closeSidebar();
         }}

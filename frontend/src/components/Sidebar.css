@@ -393,9 +393,14 @@
   font-family: inherit;
 }
 
-.quick-btn:hover {
+.quick-btn:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--accent);
+}
+
+.quick-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .quick-btn:focus-visible {
