@@ -423,19 +423,24 @@ export default function App() {
       } catch (err) {
         if ((err as Error).name === 'AbortError') {
           // P12: user-initiated stop — keep whatever partial text arrived and
-          // mark the bubble instead of raising an error. Skip the patch when
-          // the bubble is gone (session switched / new chat while in flight).
-          setMessages((prev) =>
-            prev.some((m) => m.id === assistantId)
-              ? upsertAssistant(prev, assistantId, {
-                  content: finalContent,
-                  streaming: false,
-                  streamPhase: undefined,
-                  stopped: true,
-                  toolEvents: toolEvents.length ? [...toolEvents] : undefined,
-                })
-              : prev,
-          );
+          // mark the bubble instead of raising an error. P169: when nothing
+          // arrived at all, drop the placeholder so the trailing user bubble
+          // re-offers P161's 「生成回复」 rather than a blank bubble. Either
+          // way, skip the patch when the bubble is gone (session switched /
+          // new chat while in flight).
+          setMessages((prev) => {
+            if (!prev.some((m) => m.id === assistantId)) return prev;
+            if (!finalContent.trim()) {
+              return prev.filter((m) => m.id !== assistantId);
+            }
+            return upsertAssistant(prev, assistantId, {
+              content: finalContent,
+              streaming: false,
+              streamPhase: undefined,
+              stopped: true,
+              toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+            });
+          });
           return { status: 'aborted' };
         }
         const errorText = `请求失败：${(err as Error).message}`;

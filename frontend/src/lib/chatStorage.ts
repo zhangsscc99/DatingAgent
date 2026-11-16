@@ -54,7 +54,15 @@ export function normalizeStoredSessions(raw: unknown): StoredChatSession[] {
         ? entry.title
         : NORMALIZED_TITLE_FALLBACK;
     const messages = Array.isArray(entry.messages)
-      ? entry.messages.filter(isRecord)
+      ? entry.messages
+          .filter(isRecord)
+          // P169: a blank assistant bubble persisted by the pre-fix abort
+          // path is dead weight — drop it on rehydrate too.
+          .filter(
+            (m) =>
+              m.role !== 'assistant' ||
+              (typeof m.content === 'string' && m.content.trim().length > 0),
+          )
       : [];
     const updatedAt =
       typeof entry.updatedAt === 'number' && Number.isFinite(entry.updatedAt)
@@ -164,18 +172,26 @@ function sessionTitle(messages: ChatMessage[]): string {
 }
 
 /** Strip transient streaming fields before persisting, but keep the retry
- * affordance so a failed turn stays retryable after a reload. */
+ * affordance so a failed turn stays retryable after a reload. P169: keep the
+ * stopped flag on a reply aborted mid-stream (the bubble keeps its 「已停止」
+ * note after a refresh) and never persist a whitespace-only assistant bubble —
+ * an abort before the first token must leave the trailing user message last
+ * so 「生成回复」 can re-offer a reply instead of a blank bubble. */
 export function serializeMessages(messages: ChatMessage[]): ChatMessage[] {
   return messages
     .filter((m) => !m.streaming)
-    .map(({ id, role, content, createdAt, toolEvents, error, retryPrompt }) => ({
-      id,
-      role,
-      content,
-      createdAt,
-      toolEvents: toolEvents?.map((t) => ({ ...t, status: 'done' as const })),
-      ...(error ? { error: true as const, retryPrompt } : {}),
-    }));
+    .filter((m) => m.role !== 'assistant' || m.content.trim().length > 0)
+    .map(
+      ({ id, role, content, createdAt, toolEvents, error, retryPrompt, stopped }) => ({
+        id,
+        role,
+        content,
+        createdAt,
+        toolEvents: toolEvents?.map((t) => ({ ...t, status: 'done' as const })),
+        ...(error ? { error: true as const, retryPrompt } : {}),
+        ...(stopped ? { stopped: true as const } : {}),
+      }),
+    );
 }
 
 export function saveChatSession(sessionId: string, messages: ChatMessage[]): void {
