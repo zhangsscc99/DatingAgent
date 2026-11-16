@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AgentHarness, createSession, parseReplyLanguage } from '../agent/harness.js';
@@ -17,6 +16,7 @@ import {
   handleBodyErrors,
   rejectOversizedMessage,
 } from '../lib/guardrails.js';
+import { isCorsAllowed, requestHost } from '../lib/cors.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const harness = new AgentHarness();
@@ -108,7 +108,37 @@ export function createApp(options: AppOptions = {}) {
   const llmConfigured = options.llmConfigured ?? Boolean(process.env.OPENAI_API_KEY?.trim());
   const llmModel = options.llmModel ?? (process.env.LLM_MODEL?.trim() || 'gpt-4o-mini');
   const app = express();
-  app.use(cors());
+  // P170: same-origin CORS. Reflect the Origin only when it matches the host
+  // the request arrived on (Host or X-Forwarded-Host); foreign origins get no
+  // Access-Control-* headers, so browsers block cross-site calls to /api/*.
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowed = isCorsAllowed(origin, requestHost(req.headers));
+    if (req.method === 'OPTIONS') {
+      // Same shape as cors() defaults: always 204 with an empty body.
+      if (origin) {
+        res.vary('Origin');
+        if (allowed) {
+          res.setHeader('Access-Control-Allow-Origin', origin);
+          res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+          const requested = req.headers['access-control-request-headers'];
+          if (requested) {
+            const value = Array.isArray(requested) ? requested.join(',') : requested;
+            res.setHeader('Access-Control-Allow-Headers', value);
+            res.vary('Access-Control-Request-Headers');
+          }
+        }
+      }
+      res.setHeader('Content-Length', '0');
+      res.status(204).end();
+      return;
+    }
+    if (origin) {
+      res.vary('Origin');
+      if (allowed) res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    next();
+  });
   // Cheap counter; runs before everything so rejected requests are still counted.
   app.use((_req, _res, next) => {
     usageMetrics.recordRequest();
