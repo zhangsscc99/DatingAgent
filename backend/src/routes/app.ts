@@ -146,10 +146,14 @@ export function createApp(options: AppOptions = {}) {
   });
   // Registered before the body parser so even rejected payloads get a log line.
   app.use(createRequestLogger());
-  // F26: security headers on every /api/* response; static/SPA stays untouched.
+  // P147: clickjacking guard on every response — static, SPA and /api alike.
+  app.use((_req, res, next) => {
+    res.setHeader('X-Frame-Options', 'DENY');
+    next();
+  });
+  // F26: security headers on every /api/* response.
   app.use('/api', (_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'no-referrer');
     next();
   });
