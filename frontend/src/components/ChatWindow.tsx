@@ -6,6 +6,12 @@ import SessionSkeleton from './SessionSkeleton';
 import ChatSearchBar from './ChatSearchBar';
 import ErrorToast from './ErrorToast';
 import { DEFAULT_DRAFT_ID } from '../lib/chatDrafts';
+import {
+  EMPTY_CHAT_SEARCH,
+  regenerableMessageId,
+  resetSearchOnSessionChange,
+  retryableMessageId,
+} from '../lib/chatSearchState';
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
 import { canGenerateReply, needsReply } from '../lib/pendingReply';
 import type { ErrorToastState } from '../lib/errorToast';
@@ -84,6 +90,7 @@ export default function ChatWindow({
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const prevSessionId = useRef<string | null | undefined>(undefined);
 
   const normalizedQuery = normalizeQuery(query);
   const searching = searchOpen && isSearching(query);
@@ -91,6 +98,29 @@ export default function ChatWindow({
   const matchCount = matches.length;
   const renderedMessages = searching ? matches : messages;
   const activeMatch = matchCount === 0 ? 0 : Math.min(activeIndex, matchCount - 1);
+  // P162: retry/regenerate act on the true tail of `messages`, never on the
+  // filtered search view — bind by id so hidden turns keep no dead buttons.
+  const retryableId = retryableMessageId(messages);
+  const regenerableId = regenerableMessageId(messages);
+
+  // P162: ChatWindow has no per-session key, so a search left open in one
+  // conversation would keep filtering the next and hide its messages. Reset
+  // on session change; the first mount is skipped — state starts empty.
+  useEffect(() => {
+    const prev = prevSessionId.current;
+    prevSessionId.current = sessionId ?? null;
+    if (prev === undefined) return;
+    const next = resetSearchOnSessionChange(
+      { open: searchOpen, query, activeIndex },
+      prev,
+      sessionId ?? null,
+    );
+    if (next === EMPTY_CHAT_SEARCH) {
+      setSearchOpen(next.open);
+      setQuery(next.query);
+      setActiveIndex(next.activeIndex);
+    }
+  }, [sessionId, searchOpen, query, activeIndex]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
@@ -149,6 +179,13 @@ export default function ChatWindow({
 
   const prevMatch = () => {
     if (matchCount > 0) setActiveIndex((i) => (i - 1 + matchCount) % matchCount);
+  };
+
+  // P162: sending while the search bar is open would hide the new message
+  // behind the stale filter — close search first so it appears immediately.
+  const handleSend = (text: string) => {
+    if (searchOpen) closeSearch();
+    onSend(text);
   };
 
   useEffect(() => {
@@ -300,20 +337,16 @@ export default function ChatWindow({
         )}
 
         {!restoring &&
-          renderedMessages.map((msg, index) => (
+          renderedMessages.map((msg) => (
             <MessageBubble
               key={msg.id}
               message={msg}
               busy={loading}
               highlightQuery={searching ? normalizedQuery : undefined}
-              // Only the newest rendered bubble can be retried or regenerated;
-              // acting on an older turn would append the reply out of order.
-              onRetry={index === renderedMessages.length - 1 ? onRetry : undefined}
-              onRegenerate={
-                index === renderedMessages.length - 1 && msg.role === 'assistant'
-                  ? onRegenerate
-                  : undefined
-              }
+              // Only the newest turn of the full conversation can be retried
+              // or regenerated; anything older would append out of order.
+              onRetry={msg.id === retryableId ? onRetry : undefined}
+              onRegenerate={msg.id === regenerableId ? onRegenerate : undefined}
             />
           ))}
 
@@ -358,7 +391,7 @@ export default function ChatWindow({
       )}
       <InputBar
         ref={inputRef}
-        onSend={onSend}
+        onSend={handleSend}
         streaming={loading}
         onStop={onStop}
         disabled={loading || restoring}
