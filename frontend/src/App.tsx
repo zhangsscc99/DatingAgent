@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
-  AgentEvent,
   ChatMessage,
   ReplyLanguage,
   StreamPhase,
@@ -49,6 +48,7 @@ import { regeneratePromptFor } from './lib/regenerate';
 import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
 import { isServiceDown } from './lib/serviceStatus';
+import { parseSseDataLine } from './lib/sse';
 import './App.css';
 
 const STREAM_PHASE_LABELS: Record<StreamPhase, string> = {
@@ -320,8 +320,10 @@ export default function App() {
           buffer = lines.pop() ?? '';
 
           for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const event = JSON.parse(line.slice(6)) as AgentEvent;
+            // P171: a malformed/injected line is skipped, not fatal — tokens
+            // already accumulated survive and the stream keeps being read.
+            const event = parseSseDataLine(line);
+            if (event === null) continue;
 
             if (event.type === 'thinking') {
               streamPhase = 'thinking';
