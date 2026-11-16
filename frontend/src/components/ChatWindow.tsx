@@ -17,6 +17,7 @@ import { canGenerateReply, needsReply } from '../lib/pendingReply';
 import { hasInteracted } from '../lib/interactionState';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
+import type { ReplyLengthPreference } from '../lib/replyLength';
 import './ChatWindow.css';
 
 /** F15: smooth scrolling is motion; honour the OS preference. */
@@ -96,6 +97,10 @@ interface Props {
   errorToast?: ErrorToastState | null;
   onToastRetry?: () => void;
   onToastDismiss?: () => void;
+  /** P205: reply-length preference forwarded to the composer tool-row cycler. */
+  replyLength?: ReplyLengthPreference;
+  /** P205: the same setter the settings sheet uses — single source of truth. */
+  onReplyLengthChange?: (next: ReplyLengthPreference) => void;
 }
 
 export default function ChatWindow({
@@ -116,6 +121,8 @@ export default function ChatWindow({
   errorToast = null,
   onToastRetry,
   onToastDismiss,
+  replyLength = 'default',
+  onReplyLengthChange,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -448,6 +455,8 @@ export default function ChatWindow({
         disabled={loading || restoring}
         draftKey={sessionId ?? DEFAULT_DRAFT_ID}
         rateLimit={rateLimit}
+        replyLength={replyLength}
+        onReplyLengthChange={onReplyLengthChange}
       />
     </div>
   );

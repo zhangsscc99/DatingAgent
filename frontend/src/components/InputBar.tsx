@@ -21,6 +21,12 @@ import {
   rateLimitWarning,
   type RateLimitBudget,
 } from '../lib/rateLimitStatus';
+import {
+  nextReplyLengthPreference,
+  replyLengthLabel,
+  replyLengthToggleAriaLabel,
+  type ReplyLengthPreference,
+} from '../lib/replyLength';
 import './InputBar.css';
 
 export interface InputBarHandle {
@@ -40,6 +46,10 @@ interface Props {
   draftKey?: string;
   /** P07: last known chat request budget; null until the first response arrives. */
   rateLimit?: RateLimitBudget | null;
+  /** P205: current reply-length preference shown on the tool-row cycler. */
+  replyLength?: ReplyLengthPreference;
+  /** P205: cycles the preference — the same setter the settings sheet uses. */
+  onReplyLengthChange?: (next: ReplyLengthPreference) => void;
 }
 
 /** Must match MAX_MESSAGE_CHARS in backend/src/lib/guardrails.ts (413 above it). */
@@ -136,7 +146,16 @@ export function runComposerEnter(
 }
 
 const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
-  { onSend, disabled, streaming = false, onStop, draftKey, rateLimit = null },
+  {
+    onSend,
+    disabled,
+    streaming = false,
+    onStop,
+    draftKey,
+    rateLimit = null,
+    replyLength = 'default',
+    onReplyLengthChange,
+  },
   ref,
 ) {
   const draftId = draftKey ?? DEFAULT_DRAFT_ID;
@@ -392,52 +411,75 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           </span>
         )}
       </div>
-      <div className="input-hint">
-        <button
-          type="button"
-          className="input-hint-btn"
-          aria-label="键盘快捷键说明"
-          aria-describedby="input-kbd-tip"
-          tabIndex={0}
-        >
-          ⌨
-        </button>
-        <div id="input-kbd-tip" className="input-hint-tip" role="tooltip">
-          <span>
-            <kbd>Enter</kbd> 或 <kbd>{MOD_KEY}+Enter</kbd> 发送
-          </span>
-          <span>
-            <kbd>Shift+Enter</kbd> 换行
-          </span>
-          <span>
-            <kbd>↑</kbd>/<kbd>↓</kbd> 历史消息
-          </span>
-          <span>
-            <kbd>Esc</kbd> 收起输入框
-          </span>
+      {/* P205: the composer tool row — length cycler, ⌨ hint and send/stop
+          stay in one group so they wrap (or not) as a unit on narrow
+          viewports instead of stranding the send button alone. */}
+      <div className="input-tools">
+        {/* In-place reply-length cycler — writes the same storage key the
+            settings sheet uses; 默认 keeps the request body byte-identical
+            to before (no hint injected). */}
+        {onReplyLengthChange && (
+          <button
+            type="button"
+            className="reply-length-toggle"
+            data-length={replyLength}
+            onClick={() => onReplyLengthChange(nextReplyLengthPreference(replyLength))}
+            aria-label={replyLengthToggleAriaLabel(replyLength)}
+            title={replyLengthToggleAriaLabel(replyLength)}
+          >
+            <span className="reply-length-prefix" aria-hidden="true">
+              回复长度·
+            </span>
+            {replyLengthLabel(replyLength)}
+          </button>
+        )}
+        <div className="input-hint">
+          <button
+            type="button"
+            className="input-hint-btn"
+            aria-label="键盘快捷键说明"
+            aria-describedby="input-kbd-tip"
+            tabIndex={0}
+          >
+            ⌨
+          </button>
+          <div id="input-kbd-tip" className="input-hint-tip" role="tooltip">
+            <span>
+              <kbd>Enter</kbd> 或 <kbd>{MOD_KEY}+Enter</kbd> 发送
+            </span>
+            <span>
+              <kbd>Shift+Enter</kbd> 换行
+            </span>
+            <span>
+              <kbd>↑</kbd>/<kbd>↓</kbd> 历史消息
+            </span>
+            <span>
+              <kbd>Esc</kbd> 收起输入框
+            </span>
+          </div>
         </div>
+        {streaming && onStop ? (
+          <button
+            type="button"
+            className="input-send input-stop"
+            onClick={onStop}
+            aria-label="停止生成"
+            title="停止生成回复"
+          >
+            停止
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="input-send"
+            onClick={submit}
+            disabled={disabled || !text.trim()}
+            aria-label="发送消息"
+          >
+            ↑
+          </button>
+        )}
       </div>
-      {streaming && onStop ? (
-        <button
-          type="button"
-          className="input-send input-stop"
-          onClick={onStop}
-          aria-label="停止生成"
-          title="停止生成回复"
-        >
-          停止
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="input-send"
-          onClick={submit}
-          disabled={disabled || !text.trim()}
-          aria-label="发送消息"
-        >
-          ↑
-        </button>
-      )}
       {/* P203: fixed-height row under the composer — empty while idle so
           the hint never shifts the textarea, send button, or message list. */}
       <div className="busy-enter-hint" role="status" aria-live="polite">

@@ -143,6 +143,50 @@
   outline-offset: 2px;
 }
 
+/* P205: composer tool row — the length cycler, ⌨ hint and send/stop are
+   one group so they wrap (or not) as a unit on narrow viewports; column-gap
+   matches the parent .input-bar spacing. */
+.input-tools {
+  display: flex;
+  align-items: flex-end;
+  column-gap: 10px;
+  flex-shrink: 0;
+}
+
+/* P205: reply-length cycler in the composer tool row — same height/border
+   treatment as the ⌨ hint button so the row keeps its shape; a non-default
+   档位 tints the chip so the active preference reads at a glance. */
+.reply-length-toggle {
+  height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted, #8a8a92);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.reply-length-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.reply-length-toggle[data-length='concise'],
+.reply-length-toggle[data-length='detailed'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.reply-length-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* Keyboard-shortcut hint: quiet icon button, tooltip on hover/focus. */
 .input-hint {
   position: relative;
@@ -222,6 +266,20 @@
   .input-hint-btn {
     width: 48px;
     height: 48px;
+  }
+
+  .reply-length-toggle {
+    height: 48px;
+    padding: 0 8px;
+  }
+}
+
+/* P205: at the P193 narrow breakpoint (≤430 px) the prefix drops so the
+   toggle stays a compact 档位 chip and the composer keeps its width — the
+   aria-label still names the control in full. */
+@media (max-width: 430px) {
+  .reply-length-prefix {
+    display: none;
   }
 }
 

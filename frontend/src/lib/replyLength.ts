@@ -11,9 +11,35 @@ export type ReplyLengthPreference = 'default' | 'concise' | 'detailed';
 /** Mirrors `ReplyLength` in backend/src/agent/types.ts — the request field. */
 export type ReplyLengthRequest = 'concise' | 'detailed';
 
-export const REPLY_LENGTH_STORAGE_KEY = 'datingagent.replyLength';
-
 const VALID: readonly ReplyLengthPreference[] = ['default', 'concise', 'detailed'];
+
+const LABELS: Record<ReplyLengthPreference, string> = {
+  default: '默认',
+  concise: '精简',
+  detailed: '详细',
+};
+
+/** Display label for a preference — shared by the composer toggle and tests. */
+export function replyLengthLabel(pref: ReplyLengthPreference): string {
+  return LABELS[pref];
+}
+
+/** P205: next preference in the 默认 → 精简 → 详细 → 默认 cycle. */
+export function nextReplyLengthPreference(
+  pref: ReplyLengthPreference,
+): ReplyLengthPreference {
+  const idx = VALID.indexOf(pref);
+  return VALID[(idx + 1) % VALID.length];
+}
+
+/** P205: accessible name for the composer toggle — current 档位 + outcome. */
+export function replyLengthToggleAriaLabel(pref: ReplyLengthPreference): string {
+  return `回复长度：${replyLengthLabel(pref)}，点击切换为${replyLengthLabel(
+    nextReplyLengthPreference(pref),
+  )}`;
+}
+
+export const REPLY_LENGTH_STORAGE_KEY = 'datingagent.replyLength';
 
 export function readReplyLengthPreference(): ReplyLengthPreference {
   try {

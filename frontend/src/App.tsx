@@ -1198,6 +1198,8 @@ export default function App() {
           errorToast={errorToast}
           onToastRetry={handleToastRetry}
           onToastDismiss={toastCtl.dismiss}
+          replyLength={replyLength}
+          onReplyLengthChange={handleReplyLengthChange}
         />
         <SystemStatusFooter />
       </main>
