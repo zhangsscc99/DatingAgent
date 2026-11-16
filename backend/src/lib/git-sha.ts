@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BUILD_INFO } from '../generated/build-info.js';
+import { BUILD_INFO } from './build-info.js';
 
 /**
  * F16 — resolve the running commit **once, at process start**.

@@ -1,4 +1,4 @@
-import { BUILD_INFO } from '../generated/build-info.js';
+import { BUILD_INFO } from './build-info.js';
 import { resolvedGitSha } from './git-sha.js';
 
 export interface VersionReport {

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { serverStartedAt } from '../config/runtime.js';
-import { BUILD_INFO } from '../generated/build-info.js';
+import { BUILD_INFO } from './build-info.js';
 import { usageMetrics, type MetricsSnapshot } from './metrics.js';
 import type { LastApiError } from './last-error.js';
 

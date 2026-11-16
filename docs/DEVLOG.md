@@ -96,3 +96,4 @@
 2026-11-16 02:51 | P164 | sidebar list-state reconciliation: filterRecentSessions extracted to lib/sessionFilter.ts (re-exported from Sidebar so imports/tests unchanged); new lib/sidebarListState.ts (nextFilterQueryAfterSessionsChange clears query only when the shared matcher finds zero hits, nextEditingIdAfterSessionsChange drops editingId when its row vanished); Sidebar sessionsKey useMemo (length + id:title signature) keys one reconcile effect that also clears editingValue on dropped edit — still-matching queries and surviving renames untouched; frontend/test/sidebar-list-state.test.ts
 2026-11-16 03:09 | P133 | skip-to-content link jumping focus to #main-content
 2026-11-16 03:17 | P133 | gate P105 mount autofocus behind first interaction so the skip link is the first Tab stop on a cold load
+2026-11-16 03:37 | P131 | /api/version degrades to unknown instead of 500 when build info is missing
