@@ -446,13 +446,16 @@
     border-right: 1px solid var(--border);
     border-bottom: none;
     transform: translateX(-100%);
-    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    visibility: hidden;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.28s;
     box-shadow: var(--shadow-drawer);
     padding-top: 0;
   }
 
   .sidebar.sidebar-drawer.open {
     transform: translateX(0);
+    visibility: visible;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s;
   }
 
   .sidebar-drawer-header {
@@ -517,6 +520,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sidebar.sidebar-drawer {
-    transition: none;
+    transition: transform 0s, visibility 0s;
   }
 }

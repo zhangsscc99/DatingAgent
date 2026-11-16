@@ -180,6 +180,7 @@ export default function Sidebar({
       aria-hidden={isMobile ? !open : undefined}
       role={isMobile ? 'dialog' : undefined}
       aria-modal={isMobile ? open : undefined}
+      inert={isMobile && !open ? true : undefined}
     >
       {isMobile && (
         <div className="sidebar-drawer-header">
