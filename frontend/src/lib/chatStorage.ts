@@ -193,6 +193,12 @@ export function deleteChatSession(sessionId: string): void {
   persistState(state);
 }
 
+/** P155: bulk counterpart of deleteChatSession — wipes every stored session
+ * and the active pointer with one persist call, keeping the storage shape. */
+export function clearAllChatSessions(): void {
+  persistState({ activeSessionId: null, sessions: [] });
+}
+
 export function getSession(sessionId: string): StoredChatSession | undefined {
   return loadChatState().sessions.find((s) => s.id === sessionId);
 }

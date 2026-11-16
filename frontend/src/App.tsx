@@ -18,6 +18,7 @@ import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { useTheme } from './hooks/useTheme';
 import {
   clearActiveSession,
+  clearAllChatSessions,
   deleteChatSession,
   getRecentSessions,
   loadChatState,
@@ -708,6 +709,24 @@ export default function App() {
     }
   };
 
+  /**
+   * P155: wipe every stored session and reset the chat surface. The sidebar
+   * button already confirmed, so reaching here always clears — messages, the
+   * active id, and any stale banner/toast all reset to a clean empty chat.
+   */
+  const handleClearAllChats = () => {
+    clearAllChatSessions();
+    setRecentSessions([]);
+    abortRef.current?.abort();
+    toastCtl.dismiss();
+    setServiceDownBanner(false);
+    setMessages([]);
+    setSessionId(null);
+    setLoading(false);
+    setRestoringSession(false);
+    closeSidebar();
+  };
+
   /** P149: rename a stored session. Purely local — never touches the active
    * chat, and the next saveChatSession keeps the custom title. */
   const handleRenameChat = (id: string, title: string) => {
@@ -736,6 +755,7 @@ export default function App() {
         onSelectChat={handleSelectChat}
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}
+        onClearAllChats={handleClearAllChats}
         busy={loading}
         onEditProfile={() => {
           setEditingProfile(true);

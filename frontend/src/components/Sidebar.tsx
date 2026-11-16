@@ -17,8 +17,15 @@ interface Props {
   onSelectChat?: (sessionId: string) => void;
   onDeleteChat?: (sessionId: string) => void;
   onRenameChat?: (sessionId: string, title: string) => void;
+  onClearAllChats?: () => void;
   onEditProfile?: () => void;
   busy?: boolean;
+}
+
+/** P155: gate the bulk clear behind a confirm dialog — a cancelled confirm
+ * runs nothing at all. */
+export function confirmClearAllChats(onClearAll?: () => void): void {
+  if (window.confirm('确定清空全部历史对话？')) onClearAll?.();
 }
 
 export function filterRecentSessions(
@@ -110,6 +117,7 @@ export default function Sidebar({
   onSelectChat,
   onDeleteChat,
   onRenameChat,
+  onClearAllChats,
   onEditProfile,
   busy = false,
 }: Props) {
@@ -194,7 +202,19 @@ export default function Sidebar({
 
       {recentSessions.length > 0 && (
         <section className="sidebar-section recent-chats" aria-label="最近对话">
-          <h3>最近对话</h3>
+          <div className="recent-chats-header">
+            <h3>最近对话</h3>
+            <button
+              type="button"
+              className="recent-chat-clear-all"
+              onClick={() => confirmClearAllChats(onClearAllChats)}
+              disabled={busy || recentSessions.length === 0}
+              aria-label="清空全部历史对话"
+              title="清空全部历史对话"
+            >
+              清空全部
+            </button>
+          </div>
           <input
             type="text"
             className="recent-chat-filter"
