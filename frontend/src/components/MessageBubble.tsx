@@ -4,6 +4,7 @@ import type { ChatMessage } from '../types';
 import { copyText } from '../lib/clipboard';
 import { highlightSegments } from '../lib/messageSearch';
 import { normalizeMarkdownTables } from '../lib/markdownTables';
+import { shouldCollapseReply, visibleReplyContent } from '../lib/replyCollapse';
 import { formatLatencySeconds, formatReplyLatency } from '../lib/relativeTime';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
@@ -40,6 +41,9 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
 
   const [copyState, setCopyState] = useState<CopyState>('idle');
   const resetTimer = useRef<number | null>(null);
+  // P217: long replies start collapsed; a regenerated bubble starts fresh.
+  const [replyExpanded, setReplyExpanded] = useState(false);
+  useEffect(() => setReplyExpanded(false), [message.id]);
 
   const clearResetTimer = useCallback(() => {
     if (resetTimer.current !== null) {
@@ -65,7 +69,15 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
 
   // P197: GFM pipe tables degrade to bullet lists — react-markdown has no
   // remark-gfm, so raw `|---|` rows would collapse into pipe soup.
-  const markdownContent = isUser ? message.content : normalizeMarkdownTables(message.content);
+  let markdownContent = isUser ? message.content : normalizeMarkdownTables(message.content);
+
+  // P217: settled assistant replies past the limit collapse to a preview;
+  // expanding swaps in the full text without touching the scroll position.
+  const collapsible =
+    !isUser && !message.streaming && !message.error && shouldCollapseReply(message.content);
+  if (collapsible && !replyExpanded) {
+    markdownContent = normalizeMarkdownTables(visibleReplyContent(message.content, false));
+  }
 
   const canRegen =
     !isUser &&
@@ -141,6 +153,18 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
             </>
           )}
         </div>
+        {collapsible && (
+          <button
+            type="button"
+            className="collapse-toggle"
+            onClick={() => setReplyExpanded((v) => !v)}
+            aria-expanded={replyExpanded}
+            aria-label={replyExpanded ? '收起回复全文' : '展开回复全文'}
+            title={replyExpanded ? '收起' : '展开全文'}
+          >
+            {replyExpanded ? '收起' : '展开全文'}
+          </button>
+        )}
         {message.stopped && (
           <div className="stopped-note" role="status">
             已停止生成

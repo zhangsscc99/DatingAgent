@@ -252,6 +252,34 @@
   color: var(--text-muted);
 }
 
+/* P217: 「展开全文 / 收起」 affordance on collapsed long replies — same
+   pill footprint as copy/regen but always visible since it gates content. */
+.collapse-toggle {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 9px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.collapse-toggle:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.collapse-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 /* P12: quiet note kept under a reply whose generation the user stopped. */
 .stopped-note {
   margin-top: 8px;
@@ -268,7 +296,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .copy-btn,
-  .regen-btn {
+  .regen-btn,
+  .collapse-toggle {
     transition: none;
   }
 
