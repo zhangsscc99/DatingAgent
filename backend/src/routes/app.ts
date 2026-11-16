@@ -358,6 +358,8 @@ export function createApp(options: AppOptions = {}) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    // P146: tell any reverse proxy (nginx proxy_buffering) not to buffer SSE.
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
     // F19: SSE keepalive — comment pings keep proxies from dropping idle streams.
