@@ -1039,7 +1039,21 @@ export default function App() {
           <div className="header-actions">
             <label className="lang-select" title="选择回复语言（自动跟随对话）">
               <span className="lang-select-icon" aria-hidden="true">
-                🌐
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M2 12h20" />
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
               </span>
               <select
                 className="lang-select-input"
@@ -1061,7 +1075,43 @@ export default function App() {
               title={theme === 'dark' ? '当前：深色 · 点击切换浅色' : '当前：浅色 · 点击切换深色'}
             >
               <span className="theme-icon" aria-hidden="true">
-                {theme === 'dark' ? '☀' : '☾'}
+                {theme === 'dark' ? (
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="5" />
+                    <path d="M12 1v2" />
+                    <path d="M12 21v2" />
+                    <path d="M4.22 4.22l1.42 1.42" />
+                    <path d="M18.36 18.36l1.42 1.42" />
+                    <path d="M1 12h2" />
+                    <path d="M21 12h2" />
+                    <path d="M4.22 19.78l1.42-1.42" />
+                    <path d="M18.36 5.64l1.42-1.42" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                  </svg>
+                )}
               </span>
             </button>
             {/* P206: the desktop (≥1024px) in-conversation search trigger —
@@ -1114,7 +1164,25 @@ export default function App() {
               }
             >
               <span className="btn-icon" aria-hidden="true">
-                {exportState === 'done' ? '✓' : '⬇'}
+                {exportState === 'done' ? (
+                  '✓'
+                ) : (
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <path d="M7 10l5 5 5-5" />
+                    <path d="M12 15V3" />
+                  </svg>
+                )}
               </span>
               <span className="btn-label">
                 {exportState === 'done'
@@ -1147,7 +1215,25 @@ export default function App() {
               }
             >
               <span className="btn-icon" aria-hidden="true">
-                {jsonExportState === 'done' ? '✓' : '⬇'}
+                {jsonExportState === 'done' ? (
+                  '✓'
+                ) : (
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <path d="M7 10l5 5 5-5" />
+                    <path d="M12 15V3" />
+                  </svg>
+                )}
               </span>
               <span className="btn-label">
                 {jsonExportState === 'done'
@@ -1183,7 +1269,24 @@ export default function App() {
               }
             >
               <span className="btn-icon" aria-hidden="true">
-                {copyExportState === 'done' ? '✓' : '⧉'}
+                {copyExportState === 'done' ? (
+                  '✓'
+                ) : (
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                )}
               </span>
               <span className="btn-label">
                 {copyExportState === 'done'

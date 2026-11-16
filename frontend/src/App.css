@@ -224,6 +224,8 @@
 }
 
 .lang-select-icon {
+  display: inline-flex;
+  align-items: center;
   font-size: 13px;
   line-height: 1;
 }
@@ -250,6 +252,11 @@
   background: var(--surface-hover);
   border-color: var(--accent);
   color: var(--text);
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
 }
 
 .export-btn:focus-visible,
