@@ -6,6 +6,7 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react';
+import { DEFAULT_DRAFT_ID, draftStorageKey } from '../lib/chatDrafts';
 import { loadInputHistory } from '../lib/inputHistory';
 import {
   formatRateLimit,
@@ -40,10 +41,6 @@ const COUNTER_THRESHOLD = 3600;
 /** Persisted drafts are capped at 4 KB so localStorage stays small. */
 const MAX_DRAFT_CHARS = 4096;
 
-function draftStorageKey(draftKey: string): string {
-  return `datingagent-draft:${draftKey}`;
-}
-
 function loadDraft(draftKey: string): string {
   try {
     return localStorage.getItem(draftStorageKey(draftKey))?.slice(0, MAX_DRAFT_CHARS) ?? '';
@@ -62,7 +59,7 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   { onSend, disabled, streaming = false, onStop, draftKey, rateLimit = null },
   ref,
 ) {
-  const draftId = draftKey ?? 'default';
+  const draftId = draftKey ?? DEFAULT_DRAFT_ID;
   const [text, setText] = useState(() => loadDraft(draftId));
   const draftIdRef = useRef(draftId);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

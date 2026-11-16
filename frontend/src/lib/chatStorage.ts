@@ -1,4 +1,5 @@
 import type { ChatMessage, UserProfile } from '../types';
+import { purgeDraft, purgeDrafts } from './chatDrafts';
 
 const STORAGE_KEY = 'datingAgent.chatHistory';
 const MAX_SESSIONS = 20;
@@ -194,7 +195,11 @@ export function saveChatSession(sessionId: string, messages: ChatMessage[]): voi
   }
 
   state.sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+  // P159: sessions evicted by the cap lose their drafts too — the unsent
+  // text is private conversation content and must not leak past deletion.
+  const evictedIds = state.sessions.slice(MAX_SESSIONS).map((s) => s.id);
   state.sessions = state.sessions.slice(0, MAX_SESSIONS);
+  purgeDrafts(evictedIds);
   state.activeSessionId = sessionId;
   persistState(state);
 }
@@ -236,6 +241,8 @@ export function deleteChatSession(sessionId: string): void {
   state.sessions = state.sessions.filter((s) => s.id !== sessionId);
   if (state.activeSessionId === sessionId) state.activeSessionId = null;
   persistState(state);
+  // P159: the unsent draft goes with the deleted conversation.
+  purgeDraft(sessionId);
 }
 
 /** P157: fire-and-forget backend DELETEs for sessions being wiped locally.
@@ -260,10 +267,12 @@ export function deleteBackendSessions(
 /** P155: bulk counterpart of deleteChatSession — wipes every stored session
  * and the active pointer with one persist call, keeping the storage shape.
  * P157: the backend copies go first — ids are collected before the local
- * list is cleared, then deleted server-side best-effort. */
+ * list is cleared, then deleted server-side best-effort.
+ * P159: the local drafts of those sessions are wiped with the same ids. */
 export function clearAllChatSessions(): void {
   const ids = loadChatState().sessions.map((s) => s.id);
   deleteBackendSessions(ids);
+  purgeDrafts(ids);
   persistState({ activeSessionId: null, sessions: [] });
 }
 

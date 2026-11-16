@@ -5,6 +5,7 @@ import InputBar, { type InputBarHandle } from './InputBar';
 import SessionSkeleton from './SessionSkeleton';
 import ChatSearchBar from './ChatSearchBar';
 import ErrorToast from './ErrorToast';
+import { DEFAULT_DRAFT_ID } from '../lib/chatDrafts';
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
@@ -338,7 +339,7 @@ export default function ChatWindow({
         streaming={loading}
         onStop={onStop}
         disabled={loading || restoring}
-        draftKey={sessionId ?? 'default'}
+        draftKey={sessionId ?? DEFAULT_DRAFT_ID}
         rateLimit={rateLimit}
       />
     </div>

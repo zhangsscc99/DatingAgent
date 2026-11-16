@@ -29,6 +29,7 @@ import {
   syncSessionWithBackend,
   watchChatStorage,
 } from './lib/chatStorage';
+import { DEFAULT_DRAFT_ID, sweepOrphanDrafts } from './lib/chatDrafts';
 import {
   isOnboardingComplete,
   loadProfile,
@@ -180,6 +181,14 @@ export default function App() {
       .then((r) => r.json())
       .then(setHealth)
       .catch(() => {});
+  }, []);
+
+  // P159: drop draft keys orphaned by sessions deleted before draft purging
+  // existed (or evicted by the session cap). DEFAULT_DRAFT_ID stays valid —
+  // it holds the never-sent draft of a chat that has no session yet.
+  useEffect(() => {
+    const ids = loadChatState().sessions.map((s) => s.id);
+    sweepOrphanDrafts([...ids, DEFAULT_DRAFT_ID]);
   }, []);
 
   useEffect(() => {
