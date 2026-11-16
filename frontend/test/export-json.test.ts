@@ -8,6 +8,7 @@ import {
   buildConversationJson,
   buildConversationMarkdown,
   conversationJsonFilename,
+  formatUtcOffset,
   type ConversationJsonExport,
 } from '../src/lib/exportConversation';
 
@@ -28,6 +29,8 @@ const T_ASSISTANT = new Date(2026, 10, 16, 9, 1).getTime();
 const NOW = new Date(2026, 10, 16, 9, 5).getTime();
 
 const ISO_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/;
+// P182 — local UTC-offset suffix appended to Markdown timestamps.
+const TZ = ` (${formatUtcOffset(new Date(NOW))})`;
 
 const user = (content: string, createdAt: number = T_USER): ChatMessage => ({
   id: `u-${createdAt}`,
@@ -213,28 +216,28 @@ describe('P181 · Markdown output is unchanged', () => {
       [
         '# DatingAgent 对话记录',
         '',
-        '- 导出时间：2026-11-16 09:05',
+        `- 导出时间：2026-11-16 09:05${TZ}`,
         '- 消息数：4',
         '',
-        '## 你 · 2026-11-16 09:00',
+        `## 你 · 2026-11-16 09:00${TZ}`,
         '',
         '帮我优化约会资料',
         '',
         '---',
         '',
-        '## DatingAgent · 2026-11-16 09:01',
+        `## DatingAgent · 2026-11-16 09:01${TZ}`,
         '',
         '当然，先看看你的介绍。',
         '',
         '---',
         '',
-        '## 你 · 2026-11-16 09:02',
+        `## 你 · 2026-11-16 09:02${TZ}`,
         '',
         '第二条',
         '',
         '---',
         '',
-        '## DatingAgent · 2026-11-16 09:03',
+        `## DatingAgent · 2026-11-16 09:03${TZ}`,
         '',
         '> （此条回复生成失败或已停止：请求失败：网关超时）',
         '',

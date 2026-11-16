@@ -16,12 +16,21 @@ function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-/** `YYYY-MM-DD HH:MM` in local time. */
+/** `UTC+08:00` / `UTC+00:00` / `UTC-05:00` — the Date's real local offset,
+ * so an exported timestamp stays unambiguous on another device (P182). */
+export function formatUtcOffset(date: Date): string {
+  const offset = -date.getTimezoneOffset();
+  const sign = offset < 0 ? '-' : '+';
+  const abs = Math.abs(offset);
+  return `UTC${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+}
+
+/** `YYYY-MM-DD HH:MM (UTC±HH:MM)` in local time. */
 export function formatTimestamp(ms: number): string {
   const d = new Date(ms);
   return (
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
-    ` ${pad(d.getHours())}:${pad(d.getMinutes())}`
+    ` ${pad(d.getHours())}:${pad(d.getMinutes())} (${formatUtcOffset(d)})`
   );
 }
 

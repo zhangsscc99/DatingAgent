@@ -4,6 +4,7 @@ import type { ChatMessage } from '../src/types';
 import {
   buildConversationMarkdown,
   exportableMessages,
+  formatUtcOffset,
 } from '../src/lib/exportConversation';
 
 /**
@@ -23,6 +24,8 @@ const T_USER = new Date(2026, 10, 16, 9, 0).getTime();
 const T_ASSISTANT = new Date(2026, 10, 16, 9, 1).getTime();
 const T_LATER = new Date(2026, 10, 16, 9, 2).getTime();
 const NOW = new Date(2026, 10, 16, 9, 5).getTime();
+// P182 — local UTC-offset suffix appended to Markdown timestamps.
+const TZ = ` (${formatUtcOffset(new Date(NOW))})`;
 
 const user = (content: string, createdAt: number = T_USER): ChatMessage => ({
   id: `u-${createdAt}`,
@@ -146,16 +149,16 @@ describe('P180 · normal conversations are byte-identical', () => {
       [
         '# DatingAgent 对话记录',
         '',
-        '- 导出时间：2026-11-16 09:05',
+        `- 导出时间：2026-11-16 09:05${TZ}`,
         '- 消息数：2',
         '',
-        '## 你 · 2026-11-16 09:00',
+        `## 你 · 2026-11-16 09:00${TZ}`,
         '',
         '帮我优化约会资料',
         '',
         '---',
         '',
-        '## DatingAgent · 2026-11-16 09:01',
+        `## DatingAgent · 2026-11-16 09:01${TZ}`,
         '',
         '当然，先看看你的介绍。',
         '',
