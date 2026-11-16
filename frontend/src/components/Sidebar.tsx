@@ -6,7 +6,7 @@ import {
 } from '../lib/chatStorage';
 import type { StoredChatSession } from '../lib/chatStorage';
 import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
-import { formatRelativeTime } from '../lib/relativeTime';
+import { formatRelativeTime, isRenderableTimestamp } from '../lib/relativeTime';
 import { filterRecentSessions } from '../lib/sessionFilter';
 import { nextSessionIndex, sessionNavDirection } from '../lib/sessionListNav';
 import {
@@ -67,7 +67,7 @@ function localDayStart(timestamp: number): number {
 
 /** Bucket an already-filtered session list by local calendar day. Pure:
  * preserves incoming row order inside each bucket, omits empty groups, and
- * never mutates the input. Invalid/missing updatedAt lands in 更早. */
+ * never mutates the input. Invalid/missing/far-future updatedAt lands in 更早. */
 export function groupSessionsByDay(
   sessions: StoredChatSession[],
   now: number = Date.now(),
@@ -90,7 +90,11 @@ export function groupSessionsByDay(
     更早: [],
   };
   for (const s of sessions) {
-    const dayStart = localDayStart(s.updatedAt);
+    // P186: corrupt timestamps (non-number/non-finite/<=0/far-future) must not
+    // form a real day bucket — NaN dayStart falls through to 更早 below.
+    const dayStart = isRenderableTimestamp(s.updatedAt, now)
+      ? localDayStart(s.updatedAt)
+      : Number.NaN;
     const label: SessionDayGroupLabel =
       dayStart >= todayStart
         ? '今天'
