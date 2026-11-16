@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import type { ChatMessage } from '../types';
 import { copyText } from '../lib/clipboard';
 import { highlightSegments } from '../lib/messageSearch';
+import { normalizeMarkdownTables } from '../lib/markdownTables';
 import { formatLatencySeconds } from '../lib/relativeTime';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
@@ -62,6 +63,10 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
   const canCopy =
     !message.streaming && !message.error && message.content.trim().length > 0;
 
+  // P197: GFM pipe tables degrade to bullet lists — react-markdown has no
+  // remark-gfm, so raw `|---|` rows would collapse into pipe soup.
+  const markdownContent = isUser ? message.content : normalizeMarkdownTables(message.content);
+
   const canRegen =
     !isUser &&
     !message.streaming &&
@@ -117,7 +122,7 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
             <>
               {message.content && (
                 <div className={message.streaming ? 'markdown-streaming' : undefined}>
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                  <ReactMarkdown>{markdownContent}</ReactMarkdown>
                 </div>
               )}
               {showCursor && <span className="stream-cursor" aria-hidden="true" />}
