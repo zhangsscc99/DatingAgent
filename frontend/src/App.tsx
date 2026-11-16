@@ -480,9 +480,10 @@ export default function App() {
       const now = Date.now();
       const assistantId = `a-${now}`;
 
-      // P06: the composer draft is already cleared; remember the message for
-      // ArrowUp recall (purely client-side, best-effort localStorage).
-      pushInputHistory(prompt);
+      // P06/P168: the composer draft is already cleared; remember the message
+      // for ArrowUp recall under this session's history (purely client-side,
+      // best-effort localStorage).
+      pushInputHistory(sessionId, prompt);
       setMessages((prev) => [
         ...prev,
         { id: `u-${now}`, role: 'user', content: prompt, createdAt: now },

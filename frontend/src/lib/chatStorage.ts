@@ -1,5 +1,10 @@
 import type { ChatMessage, UserProfile } from '../types';
 import { purgeDraft, purgeDrafts } from './chatDrafts';
+import {
+  purgeAllInputHistories,
+  purgeInputHistories,
+  purgeInputHistory,
+} from './inputHistory';
 
 const STORAGE_KEY = 'datingAgent.chatHistory';
 const MAX_SESSIONS = 20;
@@ -200,6 +205,8 @@ export function saveChatSession(sessionId: string, messages: ChatMessage[]): voi
   const evictedIds = state.sessions.slice(MAX_SESSIONS).map((s) => s.id);
   state.sessions = state.sessions.slice(0, MAX_SESSIONS);
   purgeDrafts(evictedIds);
+  // P168: same for their ArrowUp input history.
+  purgeInputHistories(evictedIds);
   state.activeSessionId = sessionId;
   persistState(state);
 }
@@ -243,6 +250,8 @@ export function deleteChatSession(sessionId: string): void {
   persistState(state);
   // P159: the unsent draft goes with the deleted conversation.
   purgeDraft(sessionId);
+  // P168: so does its ArrowUp input history.
+  purgeInputHistory(sessionId);
 }
 
 /** P157: fire-and-forget backend DELETEs for sessions being wiped locally.
@@ -268,11 +277,16 @@ export function deleteBackendSessions(
  * and the active pointer with one persist call, keeping the storage shape.
  * P157: the backend copies go first — ids are collected before the local
  * list is cleared, then deleted server-side best-effort.
- * P159: the local drafts of those sessions are wiped with the same ids. */
+ * P159: the local drafts of those sessions are wiped with the same ids.
+ * P168: same for their input histories — plus a sweep of the no-session
+ * bucket, the pre-scoping global key and any orphan keys, so a full wipe
+ * leaves nothing ArrowUp can recall. */
 export function clearAllChatSessions(): void {
   const ids = loadChatState().sessions.map((s) => s.id);
   deleteBackendSessions(ids);
   purgeDrafts(ids);
+  purgeInputHistories(ids);
+  purgeAllInputHistories();
   persistState({ activeSessionId: null, sessions: [] });
 }
 

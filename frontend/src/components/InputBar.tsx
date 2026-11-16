@@ -73,10 +73,14 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   const browseDraftRef = useRef('');
   const [historyAnnouncement, setHistoryAnnouncement] = useState('');
 
-  // Session switch: load that session's draft (the old one is already persisted).
+  // Session switch: load that session's draft (the old one is already
+  // persisted) and drop the previous conversation's recall state — ArrowUp
+  // must never surface another session's messages (P168).
   useEffect(() => {
     if (draftIdRef.current === draftId) return;
     draftIdRef.current = draftId;
+    historyRef.current = [];
+    historyPosRef.current = null;
     setText(loadDraft(draftId));
   }, [draftId]);
 
@@ -117,7 +121,7 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   /** ArrowUp: step one entry older (history is stored newest-last). */
   const stepBackHistory = () => {
     if (historyPosRef.current === null) {
-      historyRef.current = loadInputHistory();
+      historyRef.current = loadInputHistory(draftId);
       if (historyRef.current.length === 0) return;
       browseDraftRef.current = textareaRef.current?.value ?? text;
       historyPosRef.current = 0;
