@@ -216,6 +216,9 @@
 .regen-btn {
   padding: 3px 9px;
   background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: 1px solid var(--border);
   border-radius: 20px;
   color: var(--text-muted);

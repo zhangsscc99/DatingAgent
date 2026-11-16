@@ -96,7 +96,7 @@ describe('P218 · bubble copy button has no ⧉ glyph', () => {
   it('the 「换一个」 sibling and the actions-row guard are unchanged', () => {
     expect(tsx).toContain('{(canCopy || canRegen) && (');
     expect(tsx).toContain('className="regen-btn"');
-    expect(tsx).toContain('↻ 换一个');
+    expect(tsx).toContain("{'换一个'}");
     expect(tsx).toContain('aria-label="重新生成回复"');
   });
 });

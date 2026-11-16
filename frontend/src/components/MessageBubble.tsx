@@ -235,7 +235,21 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
                 aria-label="重新生成回复"
                 title="换一个回复"
               >
-                ↻ 换一个
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                {'换一个'}
               </button>
             )}
             <span className="copy-status" role="status" aria-live="polite">
