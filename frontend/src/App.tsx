@@ -64,7 +64,10 @@ import {
   type ReplyLengthPreference,
 } from './lib/replyLength';
 import { formatWaitingLabel, startWaitingTicker, tickIntervalMs } from './lib/thinkingTimer';
-import { streamAnnouncement as buildStreamAnnouncement } from './lib/streamAnnouncement';
+import {
+  streamAnnouncement as buildStreamAnnouncement,
+  toolPhaseLabel,
+} from './lib/streamAnnouncement';
 import './App.css';
 
 const TOOL_LABELS: Record<string, string> = {
@@ -769,8 +772,19 @@ export default function App() {
     });
     return () => ticker.stop();
   }, [waitingForFirstToken]);
+  // P210: the tool_start SSE event already lands in the bubble's toolEvents
+  // with the same TOOL_LABELS mapping the badges use — the still-running
+  // entry's label is what the wait copy names.
+  const streamingMessage = messages.find((m) => m.streaming);
+  const streamingPhase = streamingMessage?.streamPhase;
+  const currentToolLabel = streamingMessage?.toolEvents
+    ?.filter((t) => t.status === 'running')
+    .at(-1)?.label;
+
   const waitingLabel = waitingForFirstToken
-    ? formatWaitingLabel(waitingElapsedMs)
+    ? (streamingPhase === 'tool'
+        ? toolPhaseLabel(currentToolLabel, waitingElapsedMs)
+        : undefined) ?? formatWaitingLabel(waitingElapsedMs)
     : undefined;
 
   const canExport = exportableMessages(messages).length > 0;
@@ -832,8 +846,7 @@ export default function App() {
 
   const closeSidebar = () => setSidebarOpen(false);
 
-  const streamingPhase = messages.find((m) => m.streaming)?.streamPhase;
-  const streamAnnouncement = buildStreamAnnouncement(streamingPhase, waitingElapsedMs);
+  const streamAnnouncement = buildStreamAnnouncement(streamingPhase, waitingElapsedMs, currentToolLabel);
 
   const handleNewChat = () => {
     abortRef.current?.abort();

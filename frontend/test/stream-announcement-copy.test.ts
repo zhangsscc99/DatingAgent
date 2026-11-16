@@ -50,7 +50,7 @@ describe('P198 · streamAnnouncement copy', () => {
   it('App.tsx wires the helper with the existing waiting ticker state', () => {
     const app = read('App.tsx');
     expect(app).toContain("from './lib/streamAnnouncement'");
-    expect(app).toContain('buildStreamAnnouncement(streamingPhase, waitingElapsedMs)');
+    expect(app).toContain('buildStreamAnnouncement(streamingPhase, waitingElapsedMs');
     expect(app).not.toContain('`正在生成…${STREAM_PHASE_LABELS');
   });
 });

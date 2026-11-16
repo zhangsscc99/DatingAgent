@@ -55,6 +55,51 @@ export function parseReplyLength(value: unknown): ReplyLength | undefined {
     : undefined;
 }
 
+/**
+ * P210 — per-run ceiling on executed tool calls. One user question used to
+ * serialise three tool calls (get_relationship_advice → coach_conversation
+ * → plan_date), each a full upstream round trip, pushing a single reply to
+ * 43–70 s. Capping the budget makes the model answer from the tool results
+ * it already has. `TOOL_CALL_BUDGET` overrides the default for ops tuning;
+ * values are clamped to 1..4, anything else falls back to the default.
+ */
+export const TOOL_CALL_BUDGET_DEFAULT = 2;
+export const TOOL_CALL_BUDGET_MIN = 1;
+export const TOOL_CALL_BUDGET_MAX = 4;
+
+export function toolCallBudgetFromEnv(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = (env.TOOL_CALL_BUDGET ?? '').trim();
+  const parsed = Number(raw);
+  if (!raw || !Number.isFinite(parsed)) return TOOL_CALL_BUDGET_DEFAULT;
+  return Math.min(TOOL_CALL_BUDGET_MAX, Math.max(TOOL_CALL_BUDGET_MIN, Math.floor(parsed)));
+}
+
+/**
+ * P210: appended to the prompt once the tool budget is spent, so the
+ * tool-free turn answers from the results already collected.
+ */
+const TOOL_BUDGET_SPENT_DIRECTIVE =
+  '工具结果已足够，请直接基于已获得的信息作答，不要再调用工具。';
+
+/**
+ * P210: deterministic last resort — a run must never end on an empty
+ * assistant bubble, so a budget-capped model that still returns no text
+ * gets a reply built from the tool calls it already ran.
+ */
+function fallbackFromToolResults(messages: Message[]): string {
+  const names = new Set<string>();
+  for (const m of messages) {
+    if (m.role === 'tool' && m.toolName) names.add(m.toolName);
+  }
+  if (names.size === 0) {
+    return '抱歉，我暂时无法生成回复。请换个方式描述你的问题。';
+  }
+  return (
+    `我调用了 ${[...names].join('、')} 拿到了相关信息，但没能把它整理成通顺的回复。` +
+    '换个方式再问一次，或只说你最关心的一点，我直接回答。'
+  );
+}
+
 /** System prompt for one turn: profile injected, plus the optional language and length directives. */
 export function buildSystemPrompt(
   profile: AgentContext['profile'],
@@ -92,6 +137,11 @@ export class AgentHarness {
     // F21: metadata collected across the whole turn for the reply badge.
     const toolsUsed: string[] = [];
     let tokens: number | undefined;
+    // P210: total executed-tool-call budget for this run — counting calls,
+    // not turns, so a multi-call response also spends it.
+    const toolBudget = toolCallBudgetFromEnv();
+    let toolCallsExecuted = 0;
+    let budgetDirectiveAdded = false;
 
     yield { type: 'thinking', data: { message: '正在思考…' } };
 
@@ -99,10 +149,19 @@ export class AgentHarness {
       // Client already gone: stop before starting (and paying for) another turn.
       if (signal?.aborted) return;
 
+      // P210: once the budget is spent, the next turn offers no tools at
+      // all and carries a directive telling the model to answer from the
+      // results already collected — no more serialized round trips.
+      const budgetSpent = toolCallsExecuted >= toolBudget;
+      if (budgetSpent && !budgetDirectiveAdded) {
+        messages.push({ role: 'system', content: TOOL_BUDGET_SPENT_DIRECTIVE });
+        budgetDirectiveAdded = true;
+      }
+
       // P189: stream the reply — each upstream token goes out as a `delta`
       // event so the client bubble grows while the model is still writing.
       // The generator's return value is the turn's authoritative response.
-      const stream = this.llm.chatStream(messages, toolRegistry, signal);
+      const stream = this.llm.chatStream(messages, budgetSpent ? [] : toolRegistry, signal);
       let accumulated = '';
       let step = await stream.next();
       while (!step.done) {
@@ -117,7 +176,7 @@ export class AgentHarness {
         tokens = (tokens ?? 0) + response.usage.promptTokens + response.usage.completionTokens;
       }
 
-      if (response.toolCalls.length > 0) {
+      if (response.toolCalls.length > 0 && !budgetSpent) {
         messages.push({
           role: 'assistant',
           content: response.content ?? '',
@@ -134,7 +193,9 @@ export class AgentHarness {
           };
         }
 
-        for (const call of response.toolCalls) {
+        // P210: a response can hold more calls than the remaining budget —
+        // execute only what fits, so executions never exceed the cap.
+        for (const call of response.toolCalls.slice(0, toolBudget - toolCallsExecuted)) {
           toolsUsed.push(call.name);
           const tool = getTool(call.name);
           if (!tool) {
@@ -142,6 +203,7 @@ export class AgentHarness {
             continue;
           }
 
+          toolCallsExecuted += 1;
           yield {
             type: 'tool_start',
             data: { name: call.name, arguments: call.arguments },
@@ -174,9 +236,12 @@ export class AgentHarness {
         continue;
       }
 
-      const finalContent =
-        response.content ??
-        '抱歉，我暂时无法生成回复。请换个方式描述你的问题。';
+      // P210: a run must never end on an empty assistant message — when the
+      // model returns no text (e.g. it still wanted tools after the budget
+      // was spent), answer deterministically from what was collected.
+      const finalContent = response.content?.trim()
+        ? response.content
+        : fallbackFromToolResults(messages);
 
       messages.push({ role: 'assistant', content: finalContent });
       context.conversationHistory.push(
