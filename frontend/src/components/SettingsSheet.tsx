@@ -167,9 +167,14 @@ export default function SettingsSheet({
           {renderSegmented('回复长度偏好', REPLY_LENGTH_OPTIONS, replyLength, onReplyLengthChange)}
         </section>
 
-        <section className="settings-section" aria-label="语言">
-          <h3>语言</h3>
-          {renderSegmented('语言', LANGUAGE_OPTIONS, language, onLanguageChange)}
+        <section className="settings-section" aria-label="回复语言">
+          <h3>回复语言</h3>
+          {renderSegmented('回复语言', LANGUAGE_OPTIONS, language, onLanguageChange)}
+          <p className="settings-lang-note">
+            {language === 'en'
+              ? 'Reply language only — the interface stays in Chinese.'
+              : '只影响 AI 回复的语言，界面保持中文。'}
+          </p>
         </section>
 
         <section className="settings-section" aria-label="主题">

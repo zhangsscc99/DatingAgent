@@ -107,7 +107,7 @@ describe('P196 · settings sheet', () => {
   describe('sections', () => {
     it('renders the five sections when open', () => {
       const html = renderSheet(true);
-      for (const heading of ['回复长度偏好', '语言', '主题', '数据', '关于']) {
+      for (const heading of ['回复长度偏好', '回复语言', '主题', '数据', '关于']) {
         expect(html).toContain(`<h3>${heading}</h3>`);
       }
       // Segmented reply-length control: 默认 / 精简 / 详细.

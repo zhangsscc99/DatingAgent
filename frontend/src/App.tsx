@@ -1060,6 +1060,7 @@ export default function App() {
                 value={language}
                 onChange={(e) => applyLanguage(e.target.value as ReplyLanguage)}
                 aria-label="回复语言"
+                title="回复语言（只影响 AI 回复的语言，界面保持中文）"
               >
                 <option value="auto">自动</option>
                 <option value="zh">中文</option>

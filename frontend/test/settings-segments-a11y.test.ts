@@ -59,7 +59,7 @@ function pressedLabels(group: string): string[] {
 
 describe('P211 · settings segmented a11y state', () => {
   it('语言 selects 自动 when language is auto', () => {
-    const group = groupMarkup(renderSheet('auto'), '语言');
+    const group = groupMarkup(renderSheet('auto'), '回复语言');
     expect(pressedLabels(group)).toEqual(['自动']);
     expect(group).toContain('aria-pressed="false" aria-label="中文"');
     expect(group).toContain('aria-pressed="false" aria-label="English"');
@@ -73,7 +73,7 @@ describe('P211 · settings segmented a11y state', () => {
   });
 
   it('selection moves to English when language is en', () => {
-    const group = groupMarkup(renderSheet('en'), '语言');
+    const group = groupMarkup(renderSheet('en'), '回复语言');
     expect(pressedLabels(group)).toEqual(['English']);
     expect(group).toContain('aria-pressed="false" aria-label="自动"');
     expect(group).toContain('aria-pressed="false" aria-label="中文"');
