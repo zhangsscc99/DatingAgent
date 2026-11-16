@@ -37,6 +37,40 @@ const STARTER_PROMPTS = [
   { label: '约会规划', prompt: '帮我规划一次第一次约会' },
 ];
 
+type FeatureIconKey = 'wrench' | 'chat' | 'chart';
+
+// P200: restrained inline SVGs (currentColor stroke) replace the emoji
+// decoration on the welcome card; the text labels carry the meaning, so
+// every icon is aria-hidden. Same pattern as the P199 SidebarIcon.
+const FEATURE_ICON_PATHS: Record<FeatureIconKey, string[]> = {
+  wrench: [
+    'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z',
+  ],
+  chat: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
+  chart: ['M3 3v18h18', 'M18 17V9', 'M13 17V5', 'M8 17v-3'],
+};
+
+function FeatureIcon({ iconKey }: { iconKey: FeatureIconKey }) {
+  return (
+    <svg
+      className="feature-icon"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {FEATURE_ICON_PATHS[iconKey].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+}
+
 interface Props {
   messages: ChatMessage[];
   loading: boolean;
@@ -279,9 +313,6 @@ export default function ChatWindow({
 
         {!restoring && !searchOpen && messages.length === 0 && (
           <div className="welcome animate-in">
-            <div className="welcome-icon" aria-hidden="true">
-              🌹
-            </div>
             <h2>
               {profile?.name ? `你好，${profile.name}！` : '你好，我是 DatingAgent'}
             </h2>
@@ -319,21 +350,27 @@ export default function ChatWindow({
             </div>
             <div className="welcome-features">
               <div className="feature">
-                <span aria-hidden="true">🔧</span>
+                <span aria-hidden="true">
+                  <FeatureIcon iconKey="wrench" />
+                </span>
                 <div>
                   <strong>Tool-calling Loop</strong>
                   <p>自动调用专业工具分析你的问题</p>
                 </div>
               </div>
               <div className="feature">
-                <span aria-hidden="true">💬</span>
+                <span aria-hidden="true">
+                  <FeatureIcon iconKey="chat" />
+                </span>
                 <div>
                   <strong>真诚沟通</strong>
                   <p>拒绝 PUA 套路，倡导共情与边界感</p>
                 </div>
               </div>
               <div className="feature">
-                <span aria-hidden="true">📊</span>
+                <span aria-hidden="true">
+                  <FeatureIcon iconKey="chart" />
+                </span>
                 <div>
                   <strong>结构化输出</strong>
                   <p>资料优化、聊天指导、约会规划一应俱全</p>

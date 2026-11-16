@@ -101,9 +101,6 @@ export default function ProfileOnboarding({
           </button>
         )}
         <div className="profile-header">
-          <span className="profile-icon" aria-hidden="true">
-            ✨
-          </span>
           <div>
             <h2 id="profile-title">完善你的资料</h2>
             <p>告诉我一点关于你的信息，我会给出更贴心的建议</p>
