@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const app = readFileSync(join(SRC, 'App.tsx'), 'utf8');
 const css = readFileSync(join(SRC, 'App.css'), 'utf8');
+const chatWindow = readFileSync(join(SRC, 'components', 'ChatWindow.tsx'), 'utf8');
 
 describe('P133 · skip-to-content link', () => {
   it('renders a skip link pointing at the main content', () => {
@@ -38,5 +39,10 @@ describe('P133 · skip-to-content link', () => {
   it('hides the link at rest and reveals it on focus', () => {
     expect(css).toMatch(/\.skip-link\s*\{/);
     expect(css).toMatch(/\.skip-link:focus(-visible)?\b/);
+  });
+
+  it('gates the composer mount autofocus behind first interaction', () => {
+    const mountEffect = chatWindow.match(/P105[\s\S]*?\},\s*\[\]\s*\)/)?.[0] ?? '';
+    expect(mountEffect).toContain('hasInteracted');
   });
 });

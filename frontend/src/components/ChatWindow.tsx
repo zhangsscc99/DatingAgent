@@ -14,6 +14,7 @@ import {
 } from '../lib/chatSearchState';
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
 import { canGenerateReply, needsReply } from '../lib/pendingReply';
+import { hasInteracted } from '../lib/interactionState';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
 import './ChatWindow.css';
@@ -212,7 +213,10 @@ export default function ChatWindow({
 
   // P105: autofocus the composer once on first mount — skip for reduced-motion
   // users, open modals, small viewports, or when focus is already in a field.
+  // P133: only after the user has interacted, so a cold load keeps the skip
+  // link as the first Tab stop.
   useEffect(() => {
+    if (!hasInteracted()) return;
     if (prefersReducedMotion()) return;
     if (document.querySelector('[aria-modal="true"]')) return;
     if (window.matchMedia('(max-width: 640px)').matches) return;
