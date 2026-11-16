@@ -302,6 +302,9 @@ export function deleteChatSession(sessionId: string): void {
   state.sessions = state.sessions.filter((s) => s.id !== sessionId);
   if (state.activeSessionId === sessionId) state.activeSessionId = null;
   persistState(state);
+  // P188: a user delete invalidates the recorded eviction — the notice would
+  // point at history the user just removed themselves.
+  clearLastEvictionNotice();
   // P159: the unsent draft goes with the deleted conversation.
   purgeDraft(sessionId);
   // P168: so does its ArrowUp input history.
@@ -334,13 +337,16 @@ export function deleteBackendSessions(
  * P159: the local drafts of those sessions are wiped with the same ids.
  * P168: same for their input histories — plus a sweep of the no-session
  * bucket, the pre-scoping global key and any orphan keys, so a full wipe
- * leaves nothing ArrowUp can recall. */
+ * leaves nothing ArrowUp can recall.
+ * P188: the eviction notice goes too — after a full wipe it would describe
+ * history that no longer exists anywhere. */
 export function clearAllChatSessions(): void {
   const ids = loadChatState().sessions.map((s) => s.id);
   deleteBackendSessions(ids);
   purgeDrafts(ids);
   purgeInputHistories(ids);
   purgeAllInputHistories();
+  clearLastEvictionNotice();
   persistState({ activeSessionId: null, sessions: [] });
 }
 

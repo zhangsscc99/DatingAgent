@@ -33,6 +33,19 @@ export function shouldShowFilterEmptyHint(
 }
 
 /**
+ * P188: the eviction notice is only meaningful while stored sessions still
+ * exist — with an empty history it would point at conversations that are
+ * already gone. Pure: takes the module-state notice plus the list length so
+ * the render gate can be tested without mounting the sidebar.
+ */
+export function shouldShowEvictionNotice(
+  notice: string | null,
+  sessionCount: number,
+): boolean {
+  return notice !== null && sessionCount > 0;
+}
+
+/**
  * Keep an in-progress rename only while its row still exists. A vanished row
  * (deleted in this tab or removed by a cross-tab sync) drops the id so a stale
  * editingValue can never commit onto a wrong or absent row.

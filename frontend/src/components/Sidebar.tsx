@@ -12,6 +12,7 @@ import { nextSessionIndex, sessionNavDirection } from '../lib/sessionListNav';
 import {
   nextEditingIdAfterSessionsChange,
   nextFilterQueryAfterSessionsChange,
+  shouldShowEvictionNotice,
   shouldShowFilterEmptyHint,
 } from '../lib/sidebarListState';
 import type { ToolInfo, UserProfile } from '../types';
@@ -415,7 +416,9 @@ export default function Sidebar({
               </Fragment>
             ))}
           </ul>
-          {evictionNotice && (
+          {/* P188: an empty history can never legitimately show the notice,
+              even if some other path left the module state set. */}
+          {shouldShowEvictionNotice(evictionNotice, recentSessions.length) && (
             <div className="recent-chat-eviction" role="status">
               <span className="recent-chat-eviction-text">{evictionNotice}</span>
               <button

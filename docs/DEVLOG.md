@@ -122,3 +122,4 @@
 2026-11-16 10:18 | P185 | evictedSessionIds 纯函数统一 MAX_SESSIONS 裁剪与上报；新增 getLastEvictionNotice/clearLastEvictionNotice 模块态，Sidebar 最近对话底部渲染可关闭 dim 提示；session-eviction-notice.test.ts
 2026-11-16 10:36 | P186 | relativeTime.ts adds isRenderableTimestamp guard (non-finite/<=0/far-future → 时间未知); groupSessionsByDay buckets corrupt updatedAt into 更早; frontend/test/relative-time-invalid.test.ts
 2026-11-16 10:52 | P187 | sidebar filter empty-state: dim 没有匹配「query」的对话 hint + 清除筛选 button (setFilterQuery('')) gated on new shouldShowFilterEmptyHint(total,visible) in sidebarListState; P150 无匹配对话 kept as sr-only prefix; frontend/test/recent-chat-empty-filter.test.ts
+2026-11-16 11:07 | P188 | 清空/删除会话后清除淘汰提示，空列表不渲染该提示
