@@ -14,6 +14,7 @@ const AGENT_EVENT_TYPES: readonly string[] = [
   'thinking',
   'tool_start',
   'tool_end',
+  'delta',
   'message',
   'error',
   'done',

@@ -78,7 +78,20 @@ export class AgentHarness {
     for (let turn = 0; turn < this.maxTurns; turn++) {
       // Client already gone: stop before starting (and paying for) another turn.
       if (signal?.aborted) return;
-      const response = await this.llm.chat(messages, toolRegistry, signal);
+
+      // P189: stream the reply — each upstream token goes out as a `delta`
+      // event so the client bubble grows while the model is still writing.
+      // The generator's return value is the turn's authoritative response.
+      const stream = this.llm.chatStream(messages, toolRegistry, signal);
+      let accumulated = '';
+      let step = await stream.next();
+      while (!step.done) {
+        accumulated += step.value;
+        yield { type: 'delta', data: { content: step.value } };
+        step = await stream.next();
+      }
+      const response = step.value;
+
       if (response.usage) {
         usageMetrics.recordTokens(response.usage.promptTokens, response.usage.completionTokens);
         tokens = (tokens ?? 0) + response.usage.promptTokens + response.usage.completionTokens;
@@ -89,6 +102,17 @@ export class AgentHarness {
           role: 'assistant',
           content: response.content ?? '',
         });
+
+        // A turn that streamed text before deciding to call tools: pin the
+        // draft to the authoritative content before the tool phase, so the
+        // client bubble matches what history will record.
+        const turnContent = response.content ?? accumulated;
+        if (turnContent) {
+          yield {
+            type: 'message',
+            data: { content: turnContent, role: 'assistant' },
+          };
+        }
 
         for (const call of response.toolCalls) {
           toolsUsed.push(call.name);

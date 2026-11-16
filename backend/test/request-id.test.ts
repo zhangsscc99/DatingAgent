@@ -8,6 +8,11 @@ const { chatMock } = vi.hoisted(() => ({ chatMock: vi.fn() }));
 vi.mock('../src/llm/client.js', () => ({
   LLMClient: class {
     chat = chatMock;
+    // P189: the turn loop streams through chatStream; delegate to the same
+    // mock so mockRejectedValueOnce still fails the request.
+    async *chatStream(...args: unknown[]) {
+      return await chatMock(...args);
+    }
   },
   LLMTimeoutError: class LLMTimeoutError extends Error {
     constructor() {

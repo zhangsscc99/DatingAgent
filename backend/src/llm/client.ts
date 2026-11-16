@@ -17,6 +17,52 @@ interface ChatCompletionChoice {
   finish_reason: string;
 }
 
+/** One upstream SSE chunk (`stream: true`): content arrives as deltas. */
+interface ChatCompletionChunkChoice {
+  delta?: {
+    content?: string | null;
+    tool_calls?: Array<{
+      index?: number;
+      id?: string;
+      function?: { name?: string; arguments?: string };
+    }>;
+  };
+  finish_reason?: string | null;
+}
+
+interface ChatCompletionChunk {
+  choices?: ChatCompletionChunkChoice[];
+  usage?: ChatCompletionUsage;
+}
+
+/** Map a non-streamed chat-completion JSON body to LLMResponse. */
+function completionToResponse(data: {
+  choices: ChatCompletionChoice[];
+  usage?: ChatCompletionUsage;
+}): LLMResponse {
+  const choice = data.choices[0];
+  return {
+    content: choice.message.content,
+    toolCalls: (choice.message.tool_calls ?? []).map((tc) => ({
+      id: tc.id,
+      name: tc.function.name,
+      arguments: JSON.parse(tc.function.arguments) as Record<string, unknown>,
+    })),
+    finishReason:
+      choice.finish_reason === 'tool_calls'
+        ? 'tool_calls'
+        : choice.finish_reason === 'length'
+          ? 'length'
+          : 'stop',
+    usage: data.usage
+      ? {
+          promptTokens: data.usage.prompt_tokens ?? 0,
+          completionTokens: data.usage.completion_tokens ?? 0,
+        }
+      : undefined,
+  };
+}
+
 /** Default upstream deadline; `LLM_TIMEOUT_MS` or a per-call arg can shrink it. */
 const DEFAULT_LLM_TIMEOUT_MS = 60_000;
 
@@ -61,23 +107,7 @@ export class LLMClient {
       return this.mockResponse(messages, tools);
     }
 
-    const body = {
-      model: this.model,
-      messages: messages.map((m) => ({
-        role: m.role === 'tool' ? 'tool' : m.role,
-        content: m.content,
-        ...(m.toolCallId ? { tool_call_id: m.toolCallId } : {}),
-      })),
-      tools: tools.map((t) => ({
-        type: 'function',
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.parameters,
-        },
-      })),
-      tool_choice: 'auto',
-    };
+    const body = this.requestBody(messages, tools);
 
     // One combined signal: our deadline plus the caller's disconnect signal
     // (P165). `AbortSignal.any` registers a single dependent listener on each
@@ -137,6 +167,180 @@ export class LLMClient {
           }
         : undefined,
     };
+  }
+
+  /** Shared request payload for chat() and chatStream() — identical fields. */
+  private requestBody(messages: Message[], tools: ToolDefinition[]) {
+    return {
+      model: this.model,
+      messages: messages.map((m) => ({
+        role: m.role === 'tool' ? 'tool' : m.role,
+        content: m.content,
+        ...(m.toolCallId ? { tool_call_id: m.toolCallId } : {}),
+      })),
+      tools: tools.map((t) => ({
+        type: 'function',
+        function: {
+          name: t.name,
+          description: t.description,
+          parameters: t.parameters,
+        },
+      })),
+      tool_choice: 'auto',
+    };
+  }
+
+  /**
+   * P189 — streaming variant of chat(): the same request plus `stream: true`.
+   * Each upstream `delta.content` increment is yielded as it arrives, while
+   * `delta.tool_calls` fragments are reassembled by `index` and their
+   * `function.arguments` string is parsed once at the end. The generator's
+   * return value is the same LLMResponse shape chat() produces — except
+   * `finish_reason: 'length'` is reported faithfully instead of being
+   * collapsed to 'stop'. Signal semantics match chat(): the per-call
+   * deadline throws LLMTimeoutError, a caller abort propagates as-is.
+   */
+  async *chatStream(
+    messages: Message[],
+    tools: ToolDefinition[],
+    signal?: AbortSignal,
+    timeoutMs?: number,
+  ): AsyncGenerator<string, LLMResponse, unknown> {
+    if (!this.isConfigured) {
+      return this.mockResponse(messages, tools);
+    }
+
+    // Same combined signal as chat(): our deadline plus the caller's signal.
+    const timeout = resolveTimeoutMs(timeoutMs);
+    const timeoutSignal = AbortSignal.timeout(timeout);
+    const combinedSignal = signal
+      ? AbortSignal.any([signal, timeoutSignal])
+      : timeoutSignal;
+
+    try {
+      const res = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({ ...this.requestBody(messages, tools), stream: true }),
+        signal: combinedSignal,
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`LLM API error ${res.status}: ${err}`);
+      }
+
+      // A provider that ignores `stream: true` replies with a regular JSON
+      // completion — parse it like chat() instead of hanging on SSE lines.
+      const contentType = res.headers.get('content-type') ?? '';
+      if (!contentType.includes('text/event-stream')) {
+        const data = (await res.json()) as {
+          choices: ChatCompletionChoice[];
+          usage?: ChatCompletionUsage;
+        };
+        return completionToResponse(data);
+      }
+
+      if (!res.body) {
+        throw new Error('LLM stream response has no body');
+      }
+
+      let content = '';
+      let sawContent = false;
+      let finishReason: string | null = null;
+      let usage: ChatCompletionUsage | undefined;
+      const toolParts = new Map<number, { id: string; name: string; arguments: string }>();
+
+      // Lines can split across TCP chunks — buffer the tail of every read.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffered = '';
+      let upstreamDone = false;
+      try {
+        while (!upstreamDone) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffered += decoder.decode(value, { stream: true });
+          const lines = buffered.split('\n');
+          buffered = lines.pop() ?? '';
+          for (const rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line.startsWith('data:')) continue;
+            const payload = line.slice('data:'.length).trim();
+            if (!payload) continue;
+            if (payload === '[DONE]') {
+              upstreamDone = true;
+              break;
+            }
+            let chunk: ChatCompletionChunk;
+            try {
+              chunk = JSON.parse(payload) as ChatCompletionChunk;
+            } catch {
+              continue;
+            }
+            if (chunk.usage) usage = chunk.usage;
+            const choice = chunk.choices?.[0];
+            if (!choice) continue;
+            const delta = choice.delta;
+            if (typeof delta?.content === 'string' && delta.content.length > 0) {
+              sawContent = true;
+              content += delta.content;
+              yield delta.content;
+            }
+            if (Array.isArray(delta?.tool_calls)) {
+              for (const part of delta.tool_calls) {
+                const index = typeof part.index === 'number' ? part.index : 0;
+                const slot = toolParts.get(index) ?? { id: '', name: '', arguments: '' };
+                if (typeof part.id === 'string') slot.id += part.id;
+                if (typeof part.function?.name === 'string') {
+                  slot.name += part.function.name;
+                }
+                if (typeof part.function?.arguments === 'string') {
+                  slot.arguments += part.function.arguments;
+                }
+                toolParts.set(index, slot);
+              }
+            }
+            if (typeof choice.finish_reason === 'string') {
+              finishReason = choice.finish_reason;
+            }
+          }
+        }
+      } finally {
+        await reader.cancel().catch(() => {});
+      }
+
+      const toolCalls: ToolCall[] = [...toolParts.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([, slot]) => ({
+          id: slot.id,
+          name: slot.name,
+          arguments: JSON.parse(slot.arguments || '{}') as Record<string, unknown>,
+        }));
+
+      return {
+        content: sawContent ? content : null,
+        toolCalls,
+        finishReason:
+          toolCalls.length > 0 ? 'tool_calls' : finishReason === 'length' ? 'length' : 'stop',
+        usage: usage
+          ? {
+              promptTokens: usage.prompt_tokens ?? 0,
+              completionTokens: usage.completion_tokens ?? 0,
+            }
+          : undefined,
+      };
+    } catch (err) {
+      // Same discrimination as chat(): an armed deadline with a live caller
+      // signal is an upstream timeout — anything else rethrows untouched.
+      if (timeoutSignal.aborted && !signal?.aborted) {
+        throw new LLMTimeoutError(timeout);
+      }
+      throw err;
+    }
   }
 
   /** Fallback when no API key — deterministic tool routing for demo */

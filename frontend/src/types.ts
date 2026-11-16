@@ -55,6 +55,6 @@ export interface ToolInfo {
 }
 
 export interface AgentEvent {
-  type: 'thinking' | 'tool_start' | 'tool_end' | 'message' | 'error' | 'done';
+  type: 'thinking' | 'tool_start' | 'tool_end' | 'delta' | 'message' | 'error' | 'done';
   data: unknown;
 }

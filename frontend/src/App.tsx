@@ -53,6 +53,7 @@ import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
 import { isServiceDown } from './lib/serviceStatus';
 import { parseSseDataLine } from './lib/sse';
+import { foldReplyDraft } from './lib/streamDraft';
 import { canRunQuickPrompt } from './lib/quickPromptGate';
 import './App.css';
 
@@ -368,15 +369,29 @@ export default function App() {
               });
             }
 
+            // P189: token increments grow the bubble while the model writes;
+            // a later `message` still overwrites with the authoritative text.
+            if (event.type === 'delta') {
+              const folded = foldReplyDraft(finalContent, event);
+              if (folded !== null) {
+                finalContent = folded;
+                streamPhase = 'generating';
+                patchAssistant({ content: finalContent, streamPhase, streaming: true });
+              }
+            }
+
             if (event.type === 'message') {
-              finalContent = (event.data as { content: string }).content;
-              streamPhase = 'generating';
-              patchAssistant({
-                content: finalContent,
-                streamPhase,
-                streaming: true,
-                toolEvents: toolEvents.length ? [...toolEvents] : undefined,
-              });
+              const folded = foldReplyDraft(finalContent, event);
+              if (folded !== null) {
+                finalContent = folded;
+                streamPhase = 'generating';
+                patchAssistant({
+                  content: finalContent,
+                  streamPhase,
+                  streaming: true,
+                  toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+                });
+              }
             }
 
             if (event.type === 'done') {
