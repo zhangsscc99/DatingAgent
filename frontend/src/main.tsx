@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { startInteractionTracking } from './lib/interactionState';
 import './index.css';
+import './print.css';
 
 startInteractionTracking();
 

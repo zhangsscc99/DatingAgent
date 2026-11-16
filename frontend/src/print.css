@@ -1,0 +1,106 @@
+/* P134 · Print stylesheet — Ctrl+P on the chat view should print a clean
+ * transcript. Everything that is not the conversation (sidebar, composer,
+ * header actions, toasts, status footer, overlays) is hidden, and the
+ * message scroll containers are unclipped so the full transcript flows
+ * across pages. All rules live inside @media print: screen rendering and
+ * the vitest/DOM layout are unaffected. */
+
+@media print {
+  /* Hide non-transcript chrome. */
+  .sidebar,
+  .sidebar-backdrop,
+  .sidebar-drawer,
+  .input-bar,
+  .quick-prompts,
+  .header-actions,
+  .menu-btn,
+  .chat-search-bar,
+  .search-toggle,
+  .error-toast,
+  .service-banner,
+  .system-status,
+  .streaming-indicator,
+  .skip-link,
+  .profile-overlay,
+  .scroll-to-bottom,
+  .pending-reply-row,
+  .offline-note,
+  .starter-chips,
+  .welcome-cta,
+  .session-skeleton,
+  .bubble-actions,
+  .sr-only {
+    display: none !important;
+  }
+
+  /* Unclip the transcript: scroll containers expand to full content. */
+  .app,
+  .main,
+  .chat-window,
+  .messages-wrap,
+  .messages {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Full-width, ink-friendly transcript. */
+  body,
+  .app,
+  .main {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt !important;
+  }
+
+  .header {
+    position: static !important;
+    border: none !important;
+    padding: 0 0 8pt !important;
+  }
+
+  .messages {
+    padding: 0 !important;
+  }
+
+  .bubble {
+    background: #fff !important;
+    color: #000 !important;
+    border: 1px solid #999 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    max-width: none !important;
+  }
+
+  .bubble-row {
+    break-inside: avoid;
+  }
+
+  /* Keep a sender label attached to its bubble. */
+  .bubble-content > :first-child,
+  .reply-meta {
+    break-after: avoid;
+  }
+
+  .avatar {
+    display: none !important;
+  }
+
+  .tool-events,
+  .tool-item {
+    color: #000 !important;
+  }
+
+  /* Links print as plain readable text. */
+  a,
+  a:visited,
+  a:hover {
+    color: #000 !important;
+    text-decoration: underline !important;
+  }
+}
