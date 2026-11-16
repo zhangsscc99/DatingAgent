@@ -17,6 +17,7 @@ import { useMediaQuery } from './hooks/useMediaQuery';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { useTheme } from './hooks/useTheme';
 import {
+  activeChatFromState,
   clearActiveSession,
   clearAllChatSessions,
   deleteChatSession,
@@ -26,6 +27,7 @@ import {
   saveChatSession,
   setActiveSessionId,
   syncSessionWithBackend,
+  watchChatStorage,
 } from './lib/chatStorage';
 import {
   isOnboardingComplete,
@@ -127,11 +129,7 @@ function upsertAssistant(
 }
 
 function readInitialChat(): { messages: ChatMessage[]; sessionId: string | null } {
-  const { activeSessionId, sessions } = loadChatState();
-  if (!activeSessionId) return { messages: [], sessionId: null };
-  const session = sessions.find((s) => s.id === activeSessionId);
-  if (!session) return { messages: [], sessionId: null };
-  return { messages: session.messages, sessionId: session.id };
+  return activeChatFromState(loadChatState());
 }
 
 export default function App() {
@@ -222,6 +220,29 @@ export default function App() {
       toastCtl.destroy();
     },
     [toastCtl],
+  );
+
+  // P156: the storage watcher below binds once on mount, so it reads the
+  // streaming flag through a ref rather than re-subscribing on every change.
+  const loadingRef = useRef(loading);
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  // P156: a write to the chat-history key from another tab fires `storage`
+  // here — reload so the sidebar list and the open conversation match the
+  // shared store. An in-flight stream is never interrupted; the refresh is
+  // skipped instead of aborting the reply.
+  useEffect(
+    () =>
+      watchChatStorage(() => {
+        if (loadingRef.current) return;
+        setRecentSessions(getRecentSessions());
+        const next = activeChatFromState(loadChatState());
+        setSessionId(next.sessionId);
+        setMessages(next.messages);
+      }),
+    [],
   );
 
   useEffect(() => {

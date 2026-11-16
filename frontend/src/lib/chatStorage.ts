@@ -203,6 +203,39 @@ export function getSession(sessionId: string): StoredChatSession | undefined {
   return loadChatState().sessions.find((s) => s.id === sessionId);
 }
 
+/** P156: resolve which conversation a stored state points at — the active
+ * session's messages, or a clean empty chat when the id is missing or
+ * dangling (the session was deleted/cleared in another tab). Pure: callers
+ * supply the result of loadChatState(). */
+export function activeChatFromState(state: ChatStorageState): {
+  sessionId: string | null;
+  messages: ChatMessage[];
+} {
+  const session = state.activeSessionId
+    ? state.sessions.find((s) => s.id === state.activeSessionId)
+    : undefined;
+  return session
+    ? { sessionId: session.id, messages: session.messages }
+    : { sessionId: null, messages: [] };
+}
+
+/**
+ * P156 — cross-tab session sync. Writes to the chat-history key in another
+ * tab fire a `storage` event on this window; `key === null` reports a full
+ * `localStorage.clear()`. Returns the unsubscribe used as effect cleanup.
+ * Guarded inside the call so SSR/tests without a window get a no-op.
+ */
+export function watchChatStorage(onChange: () => void): () => void {
+  if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+    return () => {};
+  }
+  const listener = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY || event.key === null) onChange();
+  };
+  window.addEventListener('storage', listener);
+  return () => window.removeEventListener('storage', listener);
+}
+
 export function clearActiveSession(): void {
   setActiveSessionId(null);
 }
