@@ -7,7 +7,7 @@ import type {
   ToolInfo,
   UserProfile,
 } from './types';
-import ChatWindow from './components/ChatWindow';
+import ChatWindow, { type ChatWindowHandle } from './components/ChatWindow';
 import ServiceBanner from './components/ServiceBanner';
 import Sidebar, { confirmClearAllChats } from './components/Sidebar';
 import ProfileOnboarding from './components/ProfileOnboarding';
@@ -185,6 +185,9 @@ export default function App() {
     return Boolean(session && session.messages.length > 0);
   });
   const abortRef = useRef<AbortController | null>(null);
+  // P206: the desktop header search toggle drives the in-conversation search
+  // through this handle; below 1024px the floating .search-toggle stays.
+  const chatWindowRef = useRef<ChatWindowHandle>(null);
   // P161: covers the frame between a 「生成回复」 click and the loading state
   // flush — a second click landing there must be a no-op.
   const replyInFlightRef = useRef(false);
@@ -1061,6 +1064,33 @@ export default function App() {
                 {theme === 'dark' ? '☀' : '☾'}
               </span>
             </button>
+            {/* P206: the desktop (≥1024px) in-conversation search trigger —
+                inside the header it can never overlap a bubble; CSS hides it
+                below 1024px where the floating .search-toggle still works. */}
+            {!restoringSession && messages.length > 0 && (
+              <button
+                type="button"
+                className="search-toggle-header"
+                aria-label="搜索对话"
+                title="搜索当前对话"
+                onClick={() => chatWindowRef.current?.openSearch()}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                </svg>
+              </button>
+            )}
             <button
               type="button"
               className={`export-btn${exportState === 'done' ? ' done' : ''}${
@@ -1194,6 +1224,7 @@ export default function App() {
           onDismiss={() => setServiceDownBanner(false)}
         />
         <ChatWindow
+          ref={chatWindowRef}
           messages={messages}
           loading={loading}
           waitingLabel={waitingLabel}

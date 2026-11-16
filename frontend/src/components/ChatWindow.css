@@ -221,6 +221,16 @@
   outline-offset: 2px;
 }
 
+/* P206: at ≥1024px the trigger lives in the header action row
+ * (.search-toggle-header, App.css) — this floating button physically
+ * overlapped the first user bubble there. Below 1024px it stays put:
+ * it is the only in-conversation search entry on mobile. */
+@media (min-width: 1024px) {
+  .search-toggle {
+    display: none;
+  }
+}
+
 /* P154: single dim line directly above the composer while offline; it only
  * exists while offline so reconnecting restores the layout exactly. */
 .offline-note {

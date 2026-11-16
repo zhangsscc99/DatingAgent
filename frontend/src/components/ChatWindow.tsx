@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import type { ChatMessage, UserProfile } from '../types';
 import MessageBubble from './MessageBubble';
 import InputBar, { type InputBarHandle } from './InputBar';
@@ -103,7 +110,13 @@ interface Props {
   onReplyLengthChange?: (next: ReplyLengthPreference) => void;
 }
 
-export default function ChatWindow({
+/** P206: lets the desktop header search toggle drive the same in-conversation
+ * search the floating .search-toggle opens on mobile. */
+export interface ChatWindowHandle {
+  openSearch: () => void;
+}
+
+const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   messages,
   loading,
   waitingLabel,
@@ -123,7 +136,7 @@ export default function ChatWindow({
   onToastDismiss,
   replyLength = 'default',
   onReplyLengthChange,
-}: Props) {
+}: Props, ref) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<InputBarHandle>(null);
@@ -218,6 +231,14 @@ export default function ChatWindow({
     setActiveIndex(0);
   };
 
+  // P206: one open path shared by the floating toggle (mobile) and the
+  // header toggle (desktop) — identical behaviour at every breakpoint.
+  const openSearch = useCallback(() => {
+    setSearchOpen(true);
+    setActiveIndex(0);
+  }, []);
+  useImperativeHandle(ref, () => ({ openSearch }), [openSearch]);
+
   const nextMatch = () => {
     if (matchCount > 0) setActiveIndex((i) => (i + 1) % matchCount);
   };
@@ -286,10 +307,7 @@ export default function ChatWindow({
             className="search-toggle"
             aria-label="搜索对话"
             title="搜索当前对话"
-            onClick={() => {
-              setSearchOpen(true);
-              setActiveIndex(0);
-            }}
+            onClick={openSearch}
           >
             🔍
           </button>
@@ -460,4 +478,6 @@ export default function ChatWindow({
       />
     </div>
   );
-}
+});
+
+export default ChatWindow;
