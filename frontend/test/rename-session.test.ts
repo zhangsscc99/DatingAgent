@@ -66,8 +66,9 @@ describe('P149 · rename history session', () => {
       const renameBtn = sidebar.indexOf('recent-chat-rename');
       expect(renameBtn).toBeGreaterThan(switchClose);
       // Inline edit: Enter/blur commit, Escape cancels, one row at a time.
-      expect(sidebar).toContain("e.key === 'Enter'");
-      expect(sidebar).toContain("e.key === 'Escape'");
+      // P167 routed both through the IME composition guards.
+      expect(sidebar).toContain('shouldSubmitOnEnter(e)');
+      expect(sidebar).toContain('shouldHandleEscape(e)');
       expect(sidebar).toContain('onBlur={commitRename}');
       expect(sidebar).toContain('editingId === s.id');
     });

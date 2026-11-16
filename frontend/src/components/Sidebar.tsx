@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { StoredChatSession } from '../lib/chatStorage';
+import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
 import { formatRelativeTime } from '../lib/relativeTime';
 import { filterRecentSessions } from '../lib/sessionFilter';
 import {
@@ -248,7 +249,8 @@ export default function Sidebar({
             aria-label="筛选对话"
             onChange={(e) => setFilterQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') {
+              // P167: a composing Escape cancels the IME, not the filter.
+              if (shouldHandleEscape(e)) {
                 setFilterQuery('');
                 e.currentTarget.blur();
               }
@@ -284,8 +286,10 @@ export default function Sidebar({
                           aria-label={`重命名对话：${s.title}`}
                           onChange={(e) => setEditingValue(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') commitRename();
-                            if (e.key === 'Escape') setEditingId(null);
+                            // P167: while composing, Enter/Escape belong to
+                            // the IME — never commit or cancel mid-conversion.
+                            if (shouldSubmitOnEnter(e)) commitRename();
+                            if (shouldHandleEscape(e)) setEditingId(null);
                           }}
                           onBlur={commitRename}
                         />

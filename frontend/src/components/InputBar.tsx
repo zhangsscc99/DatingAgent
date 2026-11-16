@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { DEFAULT_DRAFT_ID, draftStorageKey } from '../lib/chatDrafts';
+import { shouldSubmitOnEnter } from '../lib/ime';
 import { loadInputHistory } from '../lib/inputHistory';
 import {
   formatRateLimit,
@@ -185,10 +186,10 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
       return;
     }
 
-    if (e.key !== 'Enter') return;
-
-    // Shift+Enter keeps the default newline behaviour.
-    if (e.shiftKey) return;
+    // P167: only a real Enter sends. Shift+Enter keeps the default newline
+    // behaviour, and a composing Enter is left for the IME (candidate
+    // select) — no preventDefault, no submit.
+    if (!shouldSubmitOnEnter(e)) return;
 
     // Enter or Ctrl/Cmd+Enter both send.
     e.preventDefault();

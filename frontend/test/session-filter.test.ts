@@ -58,7 +58,7 @@ describe('P150 · sidebar session filter', () => {
         sidebar.indexOf('recent-chat-filter'),
         sidebar.indexOf('className="recent-chat-list"'),
       );
-      expect(input).toContain("e.key === 'Escape'");
+      expect(input).toContain('shouldHandleEscape(e)');
       expect(input).toContain("setFilterQuery('')");
       expect(input).toContain('blur()');
     });
