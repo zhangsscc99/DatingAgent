@@ -7,6 +7,12 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { DEFAULT_DRAFT_ID, draftStorageKey } from '../lib/chatDrafts';
+import {
+  COMPOSER_PLACEHOLDER_FULL,
+  COMPOSER_PLACEHOLDER_NARROW,
+  NARROW_COMPOSER_QUERY,
+  isNarrowComposerViewport,
+} from '../lib/composerPlaceholder';
 import { shouldSubmitOnEnter } from '../lib/ime';
 import { loadInputHistory } from '../lib/inputHistory';
 import {
@@ -65,6 +71,22 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   const [text, setText] = useState(() => loadDraft(draftId));
   const draftIdRef = useRef(draftId);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // P193: the full placeholder wraps to three clipped lines inside the 50 px
+  // composer at 390 px, so ≤430 px viewports get a short hint instead. The
+  // aria-label keeps the full description at every width.
+  const [narrowViewport, setNarrowViewport] = useState(isNarrowComposerViewport);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const mq = window.matchMedia(NARROW_COMPOSER_QUERY);
+    const onChange = () => setNarrowViewport(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   // P06: terminal-style recall of sent messages. `historyPos` counts steps
   // back from the newest entry (null = not browsing); `browseDraft` holds
@@ -232,11 +254,13 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
             setText(e.target.value);
           }}
           onKeyDown={handleKeyDown}
-          placeholder="描述你的问题，例如：对方说「在干嘛」，我该怎么回？"
+          placeholder={
+            narrowViewport ? COMPOSER_PLACEHOLDER_NARROW : COMPOSER_PLACEHOLDER_FULL
+          }
           rows={1}
           maxLength={MAX_MESSAGE_CHARS}
           disabled={disabled}
-          aria-label="输入你的问题"
+          aria-label={COMPOSER_PLACEHOLDER_FULL}
           aria-disabled={disabled}
           aria-describedby={showCounter ? 'chat-input-counter' : undefined}
           title={`Enter 发送 · Shift+Enter 换行 · ${MOD_KEY}+Enter 发送 · ↑ 历史消息 · Esc 收起输入`}
