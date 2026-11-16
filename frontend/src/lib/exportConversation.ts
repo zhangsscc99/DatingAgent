@@ -91,9 +91,33 @@ export function sanitizeFilenamePart(raw: string): string {
     .replace(EDGE_DOTS_AND_SPACES_END, '');
 }
 
-/** Messages worth exporting: finished bubbles with actual text. */
+/** Messages worth exporting: every finished bubble. In-flight streams are
+ * never exported and empty user bubbles carry nothing, but a failed or
+ * empty assistant reply still earns a placeholder row (P180) so the saved
+ * transcript matches what stayed on screen. */
 export function exportableMessages(messages: ChatMessage[]): ChatMessage[] {
-  return messages.filter((m) => !m.streaming && !m.error && m.content.trim().length > 0);
+  return messages.filter(
+    (m) => !m.streaming && (m.role !== 'user' || m.content.trim().length > 0),
+  );
+}
+
+/** P180 — the body line for one exported bubble. A non-streaming assistant
+ * bubble with nothing usable (error flag, or empty/whitespace content)
+ * becomes a single blockquote placeholder instead of being dropped; every
+ * other bubble renders exactly as before. */
+function exportBodyLine(message: ChatMessage): string {
+  const unusable =
+    message.role === 'assistant' &&
+    (message.error || message.content.trim().length === 0);
+  if (!unusable) {
+    return escapeHtml(message.content.trimEnd());
+  }
+  const detail =
+    (message.errorDetail ?? '').trim() ||
+    (message.error ? message.content.trim() : '');
+  return detail
+    ? `> （此条回复生成失败或已停止：${escapeHtml(detail)}）`
+    : '> （此条回复生成失败或已停止）';
 }
 
 export function buildConversationMarkdown(
@@ -120,7 +144,7 @@ export function buildConversationMarkdown(
       lines.push(`> 工具：${labels}`, '');
     }
 
-    lines.push(escapeHtml(message.content.trimEnd()), '');
+    lines.push(exportBodyLine(message), '');
     if (index < rows.length - 1) lines.push('---', '');
   });
 
