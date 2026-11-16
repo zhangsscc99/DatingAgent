@@ -184,6 +184,42 @@
   color: var(--text-muted);
 }
 
+.filter-empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-empty-hint-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-empty-clear {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.filter-empty-clear:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.filter-empty-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .recent-chat-group {
   padding: 0 10px;
   font-size: 10px;

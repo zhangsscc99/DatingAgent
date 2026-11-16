@@ -12,6 +12,7 @@ import { nextSessionIndex, sessionNavDirection } from '../lib/sessionListNav';
 import {
   nextEditingIdAfterSessionsChange,
   nextFilterQueryAfterSessionsChange,
+  shouldShowFilterEmptyHint,
 } from '../lib/sidebarListState';
 import type { ToolInfo, UserProfile } from '../types';
 import './Sidebar.css';
@@ -304,9 +305,27 @@ export default function Sidebar({
             }}
           />
           <ul className="recent-chat-list" ref={sessionListRef}>
-            {visibleSessions.length === 0 && (
-              <li className="recent-chat-empty" aria-live="polite">
-                无匹配对话
+            {shouldShowFilterEmptyHint(
+              recentSessions.length,
+              visibleSessions.length,
+            ) && (
+              <li
+                className="recent-chat-empty filter-empty-hint"
+                aria-live="polite"
+              >
+                <span className="sr-only">无匹配对话：</span>
+                <span className="filter-empty-hint-text">
+                  没有匹配「{filterQuery.trim()}」的对话
+                </span>
+                <button
+                  type="button"
+                  className="filter-empty-clear"
+                  aria-label="清除筛选"
+                  title="清除筛选"
+                  onClick={() => setFilterQuery('')}
+                >
+                  清除筛选
+                </button>
               </li>
             )}
             {sessionGroups.map((group) => (

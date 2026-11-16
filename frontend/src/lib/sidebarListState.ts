@@ -21,6 +21,18 @@ export function nextFilterQueryAfterSessionsChange(
 }
 
 /**
+ * P187: the filter empty-state hint is only meaningful when stored sessions
+ * exist but the current query emptied the visible list — a genuinely empty
+ * history must not claim a filter is hiding anything.
+ */
+export function shouldShowFilterEmptyHint(
+  totalSessions: number,
+  visibleSessions: number,
+): boolean {
+  return totalSessions > 0 && visibleSessions === 0;
+}
+
+/**
  * Keep an in-progress rename only while its row still exists. A vanished row
  * (deleted in this tab or removed by a cross-tab sync) drops the id so a stale
  * editingValue can never commit onto a wrong or absent row.
