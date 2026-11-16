@@ -37,7 +37,11 @@ const stubPort = (stub.address() as AddressInfo).port;
 process.env.OPENAI_API_KEY = 'test-key';
 process.env.LLM_BASE_URL = `http://127.0.0.1:${stubPort}/v1`;
 process.env.LLM_MODEL = 'test-model';
-process.env.LLM_TIMEOUT_MS = '50';
+// 200ms gives the real local HTTP round-trip in "a normal request is
+// unaffected" enough margin to not flake under CPU contention, while the
+// stalled-upstream cases still hit the deadline well under their 1s
+// assertions (deadline + handler overhead must stay < 1000ms).
+process.env.LLM_TIMEOUT_MS = '200';
 
 const { createApp } = await import('../src/routes/app.js');
 
