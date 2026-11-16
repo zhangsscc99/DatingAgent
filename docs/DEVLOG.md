@@ -131,3 +131,4 @@
 2026-11-16 13:35 | docs | third walkthrough notes (desktop placeholder clipping, no settings surface) + seed P195/P196
 2026-11-16 13:49 | P194 | sidebar filter empty state: merged sr-only 无匹配对话： heading into the hint li as aria-label so the copy is rendered once (没有匹配「q」的对话 + 清除筛选); test asserts 无匹配 appears exactly once
 2026-11-16 14:20 | P196 | settings sheet: gear button (⚙ 设置) in sidebar footer opens a 480px dialog reusing dialogDismiss (Escape/Tab trap/focus restore); sections 回复长度偏好/语言/主题/数据/关于; replyLength pref persisted in localStorage, sent as optional replyLength field only when non-default (default body byte-identical); backend validates 'concise'|'detailed' and appends one system-prompt sentence; tests: frontend/test/settings-sheet.test.ts + backend/test/reply-length-hint.test.ts (603 green)
+2026-11-16 14:52 | P195 | composer textarea min-height 88px for 431–599px band so 3-line placeholder is not clipped; helper + media query + test

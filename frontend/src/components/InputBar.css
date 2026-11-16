@@ -208,3 +208,13 @@
     height: 48px;
   }
 }
+
+/* P195: in the 431–599 px band the full placeholder wraps to three lines
+   (~84 px scrollHeight) and the 60 px box clips the last line — grow the
+   textarea only; the send button row and everything else stay put. Must
+   come after the ≤768 px block so the taller min-height wins. */
+@media (min-width: 431px) and (max-width: 599px) {
+  .input-bar textarea {
+    min-height: 88px;
+  }
+}
