@@ -25,8 +25,9 @@
 }
 
 .tool-icon {
-  font-size: 14px;
-  line-height: 1;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .tool-label {
