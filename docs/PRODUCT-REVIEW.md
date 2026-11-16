@@ -70,3 +70,65 @@ scores are 1-5 and anything below 3 must become a backlog item in `docs/FEATURES
   round's item.
 - **P190 (P1)** 剩余请求 quota chip is unexplained to a first-time user.
 - **P191 (P2)** the interests field asks the user to obey a comma rule instead of parsing it.
+
+---
+
+## 2026-11-16 12:10 UTC · viewport 390x844 + 1440x900 (fresh context, no cache)
+
+### What I did
+
+Same 10-step journey. This round I sampled the reply bubble every 0.5 s while waiting, to check
+whether P189's streaming actually reached the browser.
+
+### What I saw, in my own words
+
+- **The wait finally has a pulse.** Reply 1: placeholder text for 4 s, then the bubble started
+  growing at 9.2 s and was complete at 25.6 s (26 → 91 → 140 → 232 → 414 → 857 chars). Reply 3:
+  first visible text at 15.6 s. Compared with last round's 「12.7 / 18.3 / 34.5 s, then a wall of text」
+  this is a different product — I could tell it was writing.
+- **But the first 9–16 seconds are still a still image.** The bubble sits on 「正在生成回复」 with no
+  motion, no elapsed time, no character count. Twice I caught myself wondering whether 停止 would be
+  faster than waiting. The minutes of doubt shrank, they did not disappear.
+- The growth is bursty rather than smooth: it held at 26 characters for ~7 s, then jumped 26 → 300 in
+  one second. That is the model, not the UI, but it means the "alive" feeling arrives late and then
+  all at once.
+- Quality is unchanged and good: the anxious message got 「先深呼吸一下，你的焦虑我接住了」 plus a
+  non-blaming read of slow replies; the dry 「你定」 got a decisive 「☕ 定：咖啡 + 城市漫步」 with a
+  three-line reason and a same-day checklist. Answers run 300–890 characters — still long.
+- Refresh kept all 8 bubbles, the sidebar row still reads 「8 条」, and 我的资料 → 编辑 was prefilled
+  (小周 / 28 / 徒步、摄影 / 认真恋爱). Nothing to complain about.
+- The quota chip is the one thing that still reads like a debugging aid: 「剩余请求 27/30」 with the
+  explanation only in `title`/`aria-label`, and after a page reload it is **absent entirely** until
+  the next reply arrives (budget state is null until a response carries the headers).
+- Sidebar filter empty state now says both 「无匹配对话：」 and 「没有匹配「zzz不存在」的对话」 — two
+  lines saying the same thing, slightly noisy but not confusing.
+- Profile-edit dialog measures 342×688 inside 390×844: fits, no clipping.
+
+### Scores (1-5)
+
+| Dimension | Score | One-line reason |
+|---|---|---|
+| Responsiveness (alive within 1.5 s) | **3** | Text now streams visibly from 9.2 s / 15.6 s and completes in bursts, but time-to-first-token is still a silent 9–16 s. |
+| Conversational quality | 4 | Warm on anxiety, decisive on the dry message, uses my 徒步/摄影 interests; still 300–890 characters. |
+| State consistency | 4 | 8 bubbles, sidebar count and profile all survive a refresh. |
+| Discoverability | 3 | Onboarding is clear, but 「剩余请求 27/30」 is still unexplained in visible text and vanishes on reload. |
+
+### What I naturally wanted next but the product lacked
+
+- While the bubble is still empty, **something that counts**: 「正在生成… 已等待 6 秒」 or a live
+  character counter. Anything that changes once a second makes the 9 s wait feel like progress.
+- The quota chip should exist from page load (or not exist at all), and its visible text should say
+  「本分钟」 instead of leaving it to a tooltip.
+
+### Backlog derived from this walkthrough
+
+- **P190 (P1)** quota chip copy — already in the pool, top unchecked item, this round's work.
+- **P192 (P2)** the first-token window (9–16 s) still shows a frozen placeholder; a live elapsed
+  counter would carry it.
+
+### Harness note (not a product bug)
+
+The mobile drawer measured `translateX(-100%)` while carrying `.open`: the CSS transition reports
+`playState: "running"` forever in this headless harness, so transform never advances. Forcing
+`transition: none` snaps it to `translateX(0)` and the drawer is correct. Do not file drawer CSS
+bugs from this harness without re-checking with transitions disabled.

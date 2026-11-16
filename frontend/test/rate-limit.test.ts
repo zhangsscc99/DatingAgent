@@ -55,13 +55,13 @@ describe('P07 · parseRateLimit', () => {
 });
 
 describe('P07 · rateLimitWarning / formatRateLimit', () => {
-  it('warns only below the threshold, not at it', () => {
-    expect(rateLimitWarning({ remaining: RATE_LIMIT_WARN_THRESHOLD, limit: 30 })).toBe(false);
-    expect(rateLimitWarning({ remaining: RATE_LIMIT_WARN_THRESHOLD - 1, limit: 30 })).toBe(true);
+  it('warns at or below the threshold', () => {
+    expect(rateLimitWarning({ remaining: RATE_LIMIT_WARN_THRESHOLD, limit: 30 })).toBe(true);
+    expect(rateLimitWarning({ remaining: RATE_LIMIT_WARN_THRESHOLD + 1, limit: 30 })).toBe(false);
     expect(rateLimitWarning({ remaining: 0, limit: 30 })).toBe(true);
   });
 
   it('formats the indicator label', () => {
-    expect(formatRateLimit({ remaining: 27, limit: 30 })).toBe('剩余请求 27/30');
+    expect(formatRateLimit({ remaining: 27, limit: 30 })).toBe('本分钟还可提问 27 次');
   });
 });

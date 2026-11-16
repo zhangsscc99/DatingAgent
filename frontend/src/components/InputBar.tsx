@@ -11,6 +11,7 @@ import { shouldSubmitOnEnter } from '../lib/ime';
 import { loadInputHistory } from '../lib/inputHistory';
 import {
   formatRateLimit,
+  rateLimitDim,
   rateLimitWarning,
   type RateLimitBudget,
 } from '../lib/rateLimitStatus';
@@ -242,13 +243,15 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
         />
         {rateLimit !== null && (
           <span
-            className={
-              rateLimitWarning(rateLimit)
-                ? 'rate-limit-indicator warn'
-                : 'rate-limit-indicator'
-            }
-            title="每分钟请求额度（服务端限流，窗口自动恢复）"
-            aria-label={`${formatRateLimit(rateLimit)}，每分钟额度`}
+            className={[
+              'rate-limit-indicator',
+              rateLimitWarning(rateLimit) ? 'warn' : '',
+              rateLimitDim(rateLimit) ? 'dim' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            title={`每分钟最多提问 ${rateLimit.limit} 次，每分钟重置`}
+            aria-label={`${formatRateLimit(rateLimit)}，每分钟重置`}
           >
             {formatRateLimit(rateLimit)}
           </span>

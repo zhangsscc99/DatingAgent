@@ -124,3 +124,4 @@
 2026-11-16 10:52 | P187 | sidebar filter empty-state: dim 没有匹配「query」的对话 hint + 清除筛选 button (setFilterQuery('')) gated on new shouldShowFilterEmptyHint(total,visible) in sidebarListState; P150 无匹配对话 kept as sr-only prefix; frontend/test/recent-chat-empty-filter.test.ts
 2026-11-16 11:07 | P188 | 清空/删除会话后清除淘汰提示，空列表不渲染该提示
 2026-11-16 11:43 | P189 | SSE 正文改为 delta 增量下发，首字 3 秒内可见
+2026-11-16 12:21 | P190 | rate-limit chip copy self-explanatory: 本分钟还可提问 N 次 (+ retry-after countdown 本分钟额度已用完，N 秒后可再问), title/aria 每分钟重置, warn ≤5 / dim >10, nowrap CSS; frontend/test/rate-limit-copy.test.ts

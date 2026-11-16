@@ -10,6 +10,11 @@ export interface RateLimitBudget {
   remaining: number;
   /** Window size reported by the server. */
   limit: number;
+  /**
+   * Seconds until the window reopens, from the `Retry-After` header. Only
+   * present on a 429, when the budget is already exhausted.
+   */
+  retryAfterSec?: number;
 }
 
 /**
@@ -20,8 +25,10 @@ export interface HeaderReader {
   get(name: string): string | null;
 }
 
-/** Below this many remaining requests the indicator turns warning colour. */
+/** At or below this many remaining requests the indicator turns warning colour. */
 export const RATE_LIMIT_WARN_THRESHOLD = 5;
+/** Above this many remaining requests the indicator drops to a dim style. */
+export const RATE_LIMIT_DIM_THRESHOLD = 10;
 
 function parseCount(raw: string | null): number | null {
   if (raw === null) return null;
@@ -41,15 +48,36 @@ export function parseRateLimit(
   const remaining = parseCount(headers.get('x-ratelimit-remaining'));
   const limit = parseCount(headers.get('x-ratelimit-limit'));
   if (remaining === null || limit === null || limit === 0) return null;
-  return { remaining, limit };
+  // Retry-After is optional (only sent on 429) — a garbage value is ignored
+  // rather than sinking the whole budget.
+  const retryAfter = parseCount(headers.get('retry-after'));
+  return retryAfter === null
+    ? { remaining, limit }
+    : { remaining, limit, retryAfterSec: retryAfter };
 }
 
-/** True when fewer than RATE_LIMIT_WARN_THRESHOLD requests remain. */
+/** True when at most RATE_LIMIT_WARN_THRESHOLD requests remain. */
 export function rateLimitWarning(budget: RateLimitBudget): boolean {
-  return budget.remaining < RATE_LIMIT_WARN_THRESHOLD;
+  return budget.remaining <= RATE_LIMIT_WARN_THRESHOLD;
 }
 
-/** e.g. `剩余请求 27/30` */
+/** True when the budget is comfortable enough to stay out of the way. */
+export function rateLimitDim(budget: RateLimitBudget): boolean {
+  return budget.remaining > RATE_LIMIT_DIM_THRESHOLD && !rateLimitWarning(budget);
+}
+
+/**
+ * Self-explanatory chip copy — names the window and the unit, and shows the
+ * countdown while a Retry-After window is active. e.g. `本分钟还可提问 27 次`,
+ * `本分钟额度已用完，45 秒后可再问`.
+ */
 export function formatRateLimit(budget: RateLimitBudget): string {
-  return `剩余请求 ${budget.remaining}/${budget.limit}`;
+  if (
+    budget.remaining === 0 &&
+    budget.retryAfterSec !== undefined &&
+    budget.retryAfterSec > 0
+  ) {
+    return `本分钟额度已用完，${budget.retryAfterSec} 秒后可再问`;
+  }
+  return `本分钟还可提问 ${budget.remaining} 次`;
 }
