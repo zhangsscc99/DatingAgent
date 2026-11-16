@@ -488,6 +488,12 @@
   outline-offset: 2px;
 }
 
+/* P199: inline SVG icons must never shrink inside the flex row. */
+.sidebar-icon,
+.settings-open-btn svg {
+  flex: none;
+}
+
 .tool-list {
   list-style: none;
   display: flex;

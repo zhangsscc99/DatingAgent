@@ -134,3 +134,4 @@
 2026-11-16 14:52 | P195 | composer textarea min-height 88px for 431–599px band so 3-line placeholder is not clipped; helper + media query + test
 2026-11-16 15:08 | P197 | GFM pipe tables in assistant bubbles degrade to bullet lists via pure normalizeMarkdownTables pre-pass (first cell bolded label, emoji stripped from col 1 only, escaped pipes/code fences/streaming partials safe); ReactMarkdown unchanged otherwise
 2026-11-16 15:30 | P198 | aria-live stream announcement deduped: new pure lib/streamAnnouncement.ts (thinking→正在思考…, tool→正在调用工具…, generating→formatWaitingLabel elapsed copy), App.tsx drops STREAM_PHASE_LABELS and calls helper with waitingElapsedMs; test asserts no doubled 正在生成 and 8s→已等待 8 秒
+2026-11-16 15:51 | P199 | sidebar emoji icons replaced: quick entries + rename pencil get inline currentColor SVGs (aria-hidden), Agent 工具 rows drop icon spans, 设置 gear is now SVG; sidebar-no-emoji.test.ts locks zero Extended_Pictographic + 4 quick entries

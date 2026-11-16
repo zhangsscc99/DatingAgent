@@ -111,12 +111,51 @@ export function groupSessionsByDay(
   );
 }
 
+type QuickIconKey = 'profile' | 'chat' | 'calendar' | 'heart';
+
+// P199: restrained inline SVGs (currentColor stroke) replace the emoji glyphs;
+// the text label still carries the meaning, so every icon is aria-hidden.
+const QUICK_ICON_PATHS: Record<QuickIconKey, string[]> = {
+  profile: ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'],
+  chat: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
+  calendar: [
+    'M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z',
+    'M16 2v4',
+    'M8 2v4',
+    'M3 10h18',
+  ],
+  heart: [
+    'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
+  ],
+};
+
+function SidebarIcon({ iconKey }: { iconKey: QuickIconKey }) {
+  return (
+    <svg
+      className="sidebar-icon"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {QUICK_ICON_PATHS[iconKey].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+}
+
 const QUICK_PROMPTS = [
-  { icon: '📝', label: '优化资料', prompt: '帮我看看交友资料怎么写更有吸引力' },
-  { icon: '💬', label: '聊天回复', prompt: '对方说「周末有什么安排」，我该怎么回复？' },
-  { icon: '📅', label: '约会规划', prompt: '帮我规划一次轻松自然的第一次约会' },
-  { icon: '💕', label: '匹配分析', prompt: '我偏内向慢热，对方很外向，分析一下合不合适' },
-];
+  { iconKey: 'profile', label: '优化资料', prompt: '帮我看看交友资料怎么写更有吸引力' },
+  { iconKey: 'chat', label: '聊天回复', prompt: '对方说「周末有什么安排」，我该怎么回复？' },
+  { iconKey: 'calendar', label: '约会规划', prompt: '帮我规划一次轻松自然的第一次约会' },
+  { iconKey: 'heart', label: '匹配分析', prompt: '我偏内向慢热，对方很外向，分析一下合不合适' },
+] as const;
 
 export default function Sidebar({
   tools,
@@ -397,7 +436,7 @@ export default function Sidebar({
                             aria-label={`重命名对话：${s.title}`}
                             title={`重命名对话：${s.title}`}
                           >
-                            <span aria-hidden="true">✎</span>
+                            <SidebarIcon iconKey="profile" />
                           </button>
                           <button
                             type="button"
@@ -479,7 +518,7 @@ export default function Sidebar({
               title={busy ? '回复生成中，请稍候' : undefined}
               aria-label={`快捷提问：${p.label}`}
             >
-              <span aria-hidden="true">{p.icon}</span>
+              <SidebarIcon iconKey={p.iconKey} />
               {p.label}
             </button>
           ))}
@@ -489,10 +528,9 @@ export default function Sidebar({
       <section className="sidebar-section" aria-label="Agent 工具">
         <h3>Agent 工具</h3>
         <ul className="tool-list">
-          {(tools.length ? tools : QUICK_PROMPTS.map((p, i) => ({ name: String(i), label: p.label, icon: p.icon }))).map(
+          {(tools.length ? tools : QUICK_PROMPTS.map((p, i) => ({ name: String(i), label: p.label, icon: '' }))).map(
             (t) => (
               <li key={t.name} className="tool-item">
-                <span aria-hidden="true">{t.icon}</span>
                 {t.label}
               </li>
             ),
@@ -508,7 +546,20 @@ export default function Sidebar({
           title="设置"
           onClick={onOpenSettings}
         >
-          <span aria-hidden="true">⚙</span>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
           设置
         </button>
         <p>基于 Agent Harness 架构</p>
