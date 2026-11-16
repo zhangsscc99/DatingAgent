@@ -132,3 +132,57 @@ The mobile drawer measured `translateX(-100%)` while carrying `.open`: the CSS t
 `playState: "running"` forever in this headless harness, so transform never advances. Forcing
 `transition: none` snaps it to `translateX(0)` and the drawer is correct. Do not file drawer CSS
 bugs from this harness without re-checking with transitions disabled.
+
+## 2026-11-16 12:34 UTC · viewport 390x844 (fresh context, cache cleared) + 780x380 default
+
+### What I did
+
+Same 10-step journey, this time as a **brand-new user**: cleared storage, filled onboarding the
+way a normal person would type (`徒步 摄影 烹饪`, spaces, no documentation read), sent the three
+tone messages, opened 我的资料 → 编辑, searched the sidebar with a nonsense term, refreshed, and read
+the empty-state copy.
+
+### What I saw, in my own words
+
+- **First visible character: 6.5 s / 15.2 s / 11.6 s** on the happy / anxious / dry messages, with
+  the bubble sitting on a static 「正在生成回复」 the whole time. P190's chip beside the composer is
+  fixed and reads 「本分钟还可提问 29 次」, so the thing I *can* read is the rate limit while the thing
+  I actually care about — how long I have been waiting — is still silent. P192 is exactly this gap.
+- **The replies are the best part of the product.** The anxious message got 「先深呼吸——两小时真的
+  不算异常信号」, a non-blaming read, and an explicit 「不建议问『怎么回这么慢』」. The dry 「你定」 got a
+  decision plus a ready-to-paste message with a stated duration (「一个半小时左右」). It quoted my own
+  interests (「我知道条江边很好拍的徒步路线」). This is worth waiting 12 s for.
+- **Onboarding silently ate my interests.** I typed `徒步 摄影 烹饪` (spaces, the way you type when
+  nothing tells you otherwise); the placeholder said 「…（用逗号分隔）」 which I read as *example
+  separator*, not *a required syntax*. Stored result: `{"interests":["徒步 摄影 烹饪"]}` — one item.
+  My profile card then showed 「徒步 摄影 烹饪」 which *looks* like three interests, so the damage is
+  invisible; reopening 编辑 showed the raw string `徒步 摄影 烹饪` in the field, and the model happened
+  to split it on its own — pure luck, not design. Same field, no error, no hint.
+- **The quota chip disappears after a refresh** (chip: `absent` on the reloaded page until the next
+  reply). Still the one element that reads like a debugging aid that comes and goes.
+- **Filter empty state says the same thing twice**: 「无匹配对话：」 above 「没有匹配「zzz不存在」的对话」
+  plus 清除筛选. Slightly noisy, not confusing — cosmetic only.
+- Refresh kept all 6 bubbles, the sidebar row read 「6 条」, and the header's three export buttons fit
+  inside 390 px as icons (P183 holds). Clearing everything goes through a native `window.confirm`,
+  which froze the automation harness (not a product bug — but a custom dialog would be nicer on mobile).
+
+### Scores (1-5)
+
+| Dimension | Score | One-line reason |
+|---|---|---|
+| Responsiveness (alive within 1.5 s) | **3** | Text streams once it starts, but 6.5–15.2 s of frozen placeholder is still the first thing you feel. |
+| Conversational quality | 5 | The anxious reply refused to feed my anxiety and the dry reply made a decision with a paste-ready message. |
+| State consistency | 4 | 6 bubbles, sidebar count, profile chips and header layout all survive a refresh. |
+| Discoverability | 3 | Onboarding is obvious, but nothing tells me how interests must be written and the quota chip vanishes on reload. |
+
+### What I naturally wanted next but the product lacked
+
+- A live elapsed counter during the first 6–15 s (P192, queued).
+- The interests field to accept what I type — spaces included — and to show me the parsed chunks
+  before saving (this round's item, P191).
+- The quota chip to exist from page load instead of appearing after the first reply.
+
+### Backlog derived from this walkthrough
+
+- **P191 (P1)** interests parsing is this round's work — evidence measured live above.
+- **P192 (P2)** the frozen first-token window is unchanged and is now the top responsiveness item.

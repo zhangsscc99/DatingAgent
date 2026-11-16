@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { startDialogDismiss } from '../lib/dialogDismiss';
+import { formatInterests, parseInterests } from '../lib/interests';
 import type { UserProfile } from '../types';
 import './ProfileOnboarding.css';
 
@@ -37,7 +38,7 @@ export default function ProfileOnboarding({
     if (!open) return;
     setName(initialProfile?.name ?? '');
     setAge(initialProfile?.age ? String(initialProfile.age) : '');
-    setInterestsText(initialProfile?.interests?.join('、') ?? '');
+    setInterestsText(formatInterests(initialProfile?.interests));
     setGoals(initialProfile?.goals ?? '');
     setError('');
   }, [open, initialProfile]);
@@ -81,10 +82,7 @@ export default function ProfileOnboarding({
       return;
     }
 
-    const interests = interestsText
-      .split(/[,，、\n]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const interests = parseInterests(interestsText);
 
     onSave({
       name: trimmedName,
@@ -143,7 +141,7 @@ export default function ProfileOnboarding({
               type="text"
               value={interestsText}
               onChange={(e) => setInterestsText(e.target.value)}
-              placeholder="徒步、摄影、烹饪…（用逗号分隔）"
+              placeholder="徒步、摄影、烹饪…（逗号、空格都行）"
             />
           </label>
 
