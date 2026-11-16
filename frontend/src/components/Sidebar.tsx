@@ -1,8 +1,10 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { StoredChatSession } from '../lib/chatStorage';
 import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
 import { formatRelativeTime } from '../lib/relativeTime';
 import { filterRecentSessions } from '../lib/sessionFilter';
+import { nextSessionIndex, sessionNavDirection } from '../lib/sessionListNav';
 import {
   nextEditingIdAfterSessionsChange,
   nextFilterQueryAfterSessionsChange,
@@ -125,6 +127,7 @@ export default function Sidebar({
   const sidebarRef = useRef<HTMLElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const sessionListRef = useRef<HTMLUListElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [filterQuery, setFilterQuery] = useState('');
@@ -196,6 +199,24 @@ export default function Sidebar({
     return () => sidebar.removeEventListener('keydown', trapFocus);
   }, [isMobile, open]);
 
+  // P132: ArrowUp/ArrowDown between .recent-chat-item buttons in the
+  // currently rendered (filtered, day-grouped) order; clamps at the ends.
+  const handleSessionItemKeyDown = (
+    e: KeyboardEvent<HTMLButtonElement>,
+  ) => {
+    const direction = sessionNavDirection(e.key);
+    if (direction === null) return;
+    const items = sessionListRef.current?.querySelectorAll<HTMLElement>(
+      '.recent-chat-item',
+    );
+    if (!items || items.length === 0) return;
+    const current = Array.prototype.indexOf.call(items, e.currentTarget);
+    const next = nextSessionIndex(current, items.length, direction);
+    if (next < 0) return;
+    e.preventDefault();
+    items[next]?.focus();
+  };
+
   return (
     <aside
       ref={sidebarRef}
@@ -253,10 +274,22 @@ export default function Sidebar({
               if (shouldHandleEscape(e)) {
                 setFilterQuery('');
                 e.currentTarget.blur();
+                return;
+              }
+              // P132: ArrowDown from the filter moves into the first row.
+              if (e.key === 'ArrowDown') {
+                const first =
+                  sessionListRef.current?.querySelector<HTMLElement>(
+                    '.recent-chat-item',
+                  );
+                if (first) {
+                  e.preventDefault();
+                  first.focus();
+                }
               }
             }}
           />
-          <ul className="recent-chat-list">
+          <ul className="recent-chat-list" ref={sessionListRef}>
             {visibleSessions.length === 0 && (
               <li className="recent-chat-empty" aria-live="polite">
                 无匹配对话
@@ -299,6 +332,7 @@ export default function Sidebar({
                             type="button"
                             className={`recent-chat-item${s.id === activeSessionId ? ' active' : ''}`}
                             onClick={() => onSelectChat?.(s.id)}
+                            onKeyDown={handleSessionItemKeyDown}
                             disabled={busy}
                             aria-disabled={busy || undefined}
                             title={s.title}

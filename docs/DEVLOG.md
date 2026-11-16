@@ -110,3 +110,4 @@
 2026-11-16 06:45 | P146 | send X-Accel-Buffering: no on /api/chat/stream so reverse proxies (nginx proxy_buffering) stream SSE token-by-token; one res.setHeader beside existing SSE headers, no payload/behaviour change; backend/test/stream-no-buffering.test.ts asserts the header
 2026-11-16 07:05 | P147 | global X-Frame-Options: DENY on all responses (static + SPA + API)
 2026-11-16 07:15 | P134 | @media print rules in frontend/src/print.css (imported once in main.tsx) hide sidebar/composer/header actions/footer/toasts/overlays and unclip .messages/.chat-window scroll containers for a clean transcript; frontend/test/print-styles.test.ts
+2026-11-16 07:30 | P132 | ArrowUp/ArrowDown focus navigation across 最近对话 session rows (clamped, filter-aware), ArrowDown from filter input focuses first row
