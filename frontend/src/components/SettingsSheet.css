@@ -170,6 +170,19 @@
   outline-offset: 2px;
 }
 
+/* P259 — on phones the close button measured 32×32 and each segmented
+   option 34px tall; raise every settings-path control to ≥36px. */
+@media (max-width: 768px) {
+  .settings-close {
+    width: 36px;
+    height: 36px;
+  }
+
+  .settings-segment {
+    min-height: 36px;
+  }
+}
+
 /* F15 — entrance animations are decoration; reduced-motion users get a snap-in. */
 @media (prefers-reduced-motion: reduce) {
   .settings-overlay,

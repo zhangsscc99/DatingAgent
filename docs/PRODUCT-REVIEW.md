@@ -1831,3 +1831,19 @@ header 一排，气泡工具行这一处漏了；文案语义没问题，等下�
 - I sent 「她三天没回我消息了，我是不是把关系搞砸了」 as this round's anxious-tone message. This time the model did not invoke a tool: the bubble carried no 「聊天指导」 badge, the meta line read `约 2.7 秒`, and the whole round finished in about 2.7 s. Last round the same style of message paid for a tool round at 9.8–19.1 s, so P257's thinking-off fix removed the worst of the wait — and the tool badge is now conditional rather than automatic.
 - The vague `本次思考较久` string only ever appeared on slow tool replies, which made the inconsistency P258 describes even more visible: the same product was speaking in two different voices depending on how fast it happened to be.
 - The settings entry button in the drawer is still 64×29 px at 390×844, and 「清空全部历史对话」 is 56×19 px — still the narrowest touch targets on the site (P259 remains open).
+
+## Round 61 — 16:28 UTC (390x844 / 1440x900)
+
+- Three toned messages at 390x844: the happy one —「今天约会超顺利，我们聊了三个小时还不想走，怎么把这种感觉延续下去？」— ran a tool round (约会规划) with meta `约 6.8 秒`; the anxious one —「她三天没回我消息了，我是不是说错话了」— took no tool, meta `约 4.9 秒`; the dry 「哦。」 came back in `约 1.8 秒`. Replies still open with the feeling, then hand the turn back to me (5/5 quality), but a plain no-tool reply at 4.9 s still feels like waiting.
+- Refresh restored all 6 bubbles with all three meta lines intact. Sidebar filter `zzz没有这条` → 「没有匹配…/清除筛选」, `约会` → hit 1. In-chat search `约会` → 「1 / 2 条匹配」 with one highlight — and that search stayed active across 清空全部 + 撤销, which made the chat look like it had lost 4 messages until I noticed the search bar. That is the single most confusing moment of the round.
+- 清空全部 → confirm dialog (取消 64x38 / 清空全部 90x38) → 37 px undo toast with 撤销 restoring all 6 bubbles: good.
+- Forgot-what-I-wanted notes: settings path touch targets 29/34/32 px; 「清空全部」 56x19; profile-prompt × 21x21.
+
+### Scores (1-5)
+
+| Dimension | Score | One-line reason |
+|---|---|---|
+| responsiveness | **3** | 1.8 s when the model just answers, 6.8 s when a tool runs, 4.9 s on a plain reply. |
+| conversational quality | 5 | Opens with the feeling, hands the turn back, three tones all land. |
+| state consistency | 5 | Refresh keeps 6 bubbles + meta; search surviving 清空/撤销 is consistent to a fault. |
+| discoverability | 4 | Settings path still holds the narrowest controls on the site. |

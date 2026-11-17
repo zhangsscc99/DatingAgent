@@ -675,6 +675,16 @@
   .tool-item {
     color: var(--text-secondary);
   }
+
+  /* P259 — settings-path touch targets were 19–29px tall on phones;
+     every interactive control here must be ≥36px (P227's rule). */
+  .settings-open-btn {
+    min-height: 36px;
+  }
+
+  .recent-chat-clear-all {
+    min-height: 36px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
