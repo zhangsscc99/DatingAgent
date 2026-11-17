@@ -20,3 +20,24 @@ export function stripStageDirections(text: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
+
+// P279: any Extended_Pictographic emoji at line start counts, except the
+// ASCII keycap bases (0-9, #, *) — those are EP code points too but a
+// leading digit is a numbered item, not decoration.
+const LEADING_EMOJI = new RegExp('^[\\p{Extended_Pictographic}--[0-9#*]]+[ \\t]*', 'v');
+const MANUAL_LABEL = /^(?:解析|避坑指南)[：:][ \t]*/;
+
+/**
+ * P279 — strips manual-style scaffolding the model sometimes wraps advice
+ * in: a leading emoji on a line (「💡 避坑指南：…」) and the literal labels
+ * 「解析：」「避坑指南：」. The text after a label is kept. Runs of 3+
+ * newlines are folded to one blank line. Replies with none of this are
+ * returned byte-identical.
+ */
+export function stripManualLabels(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => line.replace(LEADING_EMOJI, '').replace(MANUAL_LABEL, ''))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n');
+}

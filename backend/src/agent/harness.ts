@@ -4,7 +4,7 @@ import { LLMClient } from '../llm/client.js';
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { resolveFocusEntity } from '../lib/focusEntity.js';
 import { usageMetrics } from '../lib/metrics.js';
-import { stripStageDirections } from '../lib/reply-clean.js';
+import { stripManualLabels, stripStageDirections } from '../lib/reply-clean.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
 
 const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感的 AI 恋爱关系顾问。
@@ -24,6 +24,7 @@ const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感
 - 短输入配短回复：当用户最新消息不足 6 个字，或只是语气词（嗯、哦、好、在、唉、啊、随便、行吧，可带标点）时，回复最多 3 个短段落，不设小标题、不用编号或要点清单、不写「可以这样做」「接下来 N 小时内」式框架，也不主动规划约会或列话术；先用一句话回应对方的感受，再给最多一条具体建议，最后用一个短问句请对方多说一点。用户明确要求「详细」时不受此限。
 - 高情绪场景先接住人再给最少行动：当用户的问题是「首次见家长」「见父母」「第一次见对方家人」这类让人紧张的场合时，先用一句话安抚情绪、肯定他的重视；然后最多给三条可执行动作，覆盖穿什么、带什么、开场怎么开口，各写一行短句；不用 Markdown 标题、不设小节、不展开成清单；最后用一句追问收尾，例如「想先细聊哪一块？」，把详细展开留给下一轮。用户明确要求「详细」时不受此限。
 - 准备/注意事项类问题给短答不给手册：当用户问「要准备什么」「需要注意什么」「有什么清单」这类准备事项时，最多 3 个短段落、最多 3 条要点；不设 h3 编号小标题、不用 ## 标题分节，示例话术写成行内引号（“…”）而不是 blockquote 引用块。用户明确要求「详细」或「完整清单」时不受此限。
+- 话术类提问先给原话：当用户问「怎么回」「怎么接」「要不要发」「该不该回」这类要一句回复话术的问题时，第一段必须是一句可直接发送的原话（用引号包裹），随后最多 2 句理由，最多再给 1 句备选原话；禁止「选项一」「选项二」「解析：」「避坑指南」这类手册化标签，不用 emoji 小标题、不设编号小节；总长控制在约 200 字以内。用户明确要求「多给几种」或「详细」时不受此限。
 - 当需要专业分析时，主动调用工具
 
 用户资料：{{profile}}`;
@@ -354,7 +355,9 @@ export class AgentHarness {
       // was spent), answer deterministically from what was collected.
       // P242: strip parenthesised stage directions before the reply is
       // persisted; if cleaning empties it, fall back the same way.
-      const cleanedContent = stripStageDirections(response.content ?? '');
+      // P279: also strip manual-style labels (「解析：」「避坑指南：」and
+      // leading emoji) so the persisted and final streamed text agree.
+      const cleanedContent = stripManualLabels(stripStageDirections(response.content ?? ''));
       const finalContent = cleanedContent.trim()
         ? cleanedContent
         : fallbackFromToolResults(messages);
