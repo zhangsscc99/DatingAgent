@@ -195,6 +195,81 @@
   }
 }
 
+/* P227: narrow-header「更多操作」popover — below the desktop breakpoint the
+   three export/copy buttons collapse into this trigger + panel so the
+   390px row keeps ≤5 controls at ≥36px hit areas. The component only
+   mounts this markup when collapsed, so these rules never affect ≥768px. */
+.more-menu {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.more-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-family: inherit;
+  line-height: 1;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.more-menu-trigger:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.more-menu-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.more-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 110;
+  min-width: 172px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+}
+
+/* The actions keep their desktop markup; inside the popover they become
+   full-width rows so the labels stay readable (the ≤768px .btn-label
+   display:none only describes the old inline icon look). */
+.more-menu-panel .export-btn,
+.more-menu-panel .export-json-btn,
+.more-menu-panel .copy-export-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 12px;
+  text-align: left;
+}
+
+.more-menu-panel .btn-label {
+  display: inline;
+}
+
 .theme-icon {
   display: block;
   transform: translateY(0.5px);
@@ -318,6 +393,88 @@
   background: var(--warning);
 }
 
+/* P227: narrow-header「更多操作」popover — the wrapper and trigger only
+   mount below the ≤768px breakpoint (HeaderMoreMenu passes the same three
+   buttons through untouched on desktop), so these rules never affect the
+   wide header. */
+.more-menu {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.more-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-family: inherit;
+  line-height: 1;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.more-menu-trigger:hover,
+.more-menu-trigger[aria-expanded="true"] {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.more-menu-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.more-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 176px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+}
+
+/* Menu rows: full-width, ≥36px tall, label visible again (the ≤768px
+   block hides .btn-label for icon-only inline use — it never applied to a
+   menu context). .export-btn stays the last selector so the density
+   contract stays greppable per-item. */
+.more-menu-panel .export-json-btn,
+.more-menu-panel .copy-export-btn,
+.more-menu-panel .export-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 13px;
+  text-align: left;
+}
+
+.more-menu-panel .btn-icon {
+  flex-shrink: 0;
+}
+
+.more-menu-panel .btn-label {
+  display: inline;
+}
+
 .menu-btn {
   display: flex;
   align-items: center;
@@ -414,9 +571,10 @@
     gap: 6px;
   }
 
+  /* P227: every header button gets a ≥36px hit area on narrow screens. */
   .theme-btn {
-    width: 30px;
-    height: 30px;
+    width: 36px;
+    height: 36px;
     font-size: 14px;
   }
 
@@ -441,8 +599,11 @@
     line-height: 1;
   }
 
+  /* P227: the reply-language select needs a ≥32px tap target — the wrapper
+     grows to fit the 32px-tall select plus its 1px border. */
   .lang-select {
-    height: 30px;
+    height: auto;
+    min-height: 34px;
     padding: 0 4px;
   }
 
@@ -452,6 +613,7 @@
 
   .lang-select-input {
     font-size: 11px;
+    min-height: 32px;
   }
 }
 

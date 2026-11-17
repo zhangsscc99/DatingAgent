@@ -12,6 +12,7 @@ import ChatWindow, { type ChatWindowHandle } from './components/ChatWindow';
 import ServiceBanner from './components/ServiceBanner';
 import Sidebar from './components/Sidebar';
 import ConfirmDialog from './components/ConfirmDialog';
+import HeaderMoreMenu from './components/HeaderMoreMenu';
 import ProfileOnboarding from './components/ProfileOnboarding';
 import SettingsSheet from './components/SettingsSheet';
 import SystemStatusFooter from './components/SystemStatusFooter';
@@ -185,6 +186,12 @@ export default function App() {
     readReplyLengthPreference(),
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // P227: open state for the narrow-header「更多操作」popover that holds the
+  // three export/copy actions below the desktop breakpoint.
+  const [moreOpen, setMoreOpen] = useState(false);
+  // Stable identity: HeaderMoreMenu's dismiss effect depends on it, and a
+  // fresh closure every render would refocus the first item mid-menu.
+  const closeMoreMenu = useCallback(() => setMoreOpen(false), []);
   // P228: both destructive entries (sidebar 清空全部 / 删除对话 and the
   // settings 清空全部对话) funnel through this one confirm request.
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(
@@ -280,7 +287,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isMobile) setSidebarOpen(false);
+    if (!isMobile) {
+      setSidebarOpen(false);
+      setMoreOpen(false);
+    }
   }, [isMobile]);
 
   useEffect(() => {
@@ -1408,161 +1418,172 @@ export default function App() {
                 </svg>
               </button>
             )}
-            <button
-              type="button"
-              className={`export-btn${exportState === 'done' ? ' done' : ''}${
-                exportState === 'failed' ? ' failed' : ''
-              }`}
-              onClick={handleExport}
-              disabled={!canExport}
-              aria-label={
-                exportState === 'done'
-                  ? '已导出'
-                  : exportState === 'failed'
-                    ? '导出失败'
-                    : '导出 Markdown'
-              }
-              title={
-                canExport
-                  ? '把当前对话导出为 Markdown 文件'
-                  : exportState === 'failed'
-                    ? '导出失败，请稍后重试'
-                    : '暂无内容可导出'
-              }
+            {/* P227: below the desktop breakpoint the three low-frequency
+                export/copy actions collapse into one「更多操作」popover,
+                keeping the 390px row at <=5 controls with >=36px hit areas;
+                >=768px still renders the same labelled buttons inline. */}
+            <HeaderMoreMenu
+              collapsed={isMobile}
+              open={moreOpen}
+              onToggle={() => setMoreOpen((v) => !v)}
+              onClose={closeMoreMenu}
             >
-              <span className="btn-icon" aria-hidden="true">
-                {exportState === 'done' ? (
-                  '✓'
-                ) : (
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <path d="M7 10l5 5 5-5" />
-                    <path d="M12 15V3" />
-                  </svg>
-                )}
-              </span>
-              <span className="btn-label">
-                {exportState === 'done'
-                  ? '已导出'
-                  : exportState === 'failed'
-                    ? '导出失败'
-                    : '导出 Markdown'}
-              </span>
-            </button>
-            <button
-              type="button"
-              className={`export-json-btn${jsonExportState === 'done' ? ' done' : ''}${
-                jsonExportState === 'failed' ? ' failed' : ''
-              }`}
-              onClick={handleExportJson}
-              disabled={!canExport}
-              aria-label={
-                jsonExportState === 'done'
-                  ? '已导出'
-                  : jsonExportState === 'failed'
-                    ? '导出失败'
-                    : '导出 JSON'
-              }
-              title={
-                canExport
-                  ? '把当前对话导出为 JSON 文件'
-                  : jsonExportState === 'failed'
-                    ? '导出失败，请稍后重试'
-                    : '暂无内容可导出'
-              }
-            >
-              <span className="btn-icon" aria-hidden="true">
-                {jsonExportState === 'done' ? (
-                  '✓'
-                ) : (
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <path d="M7 10l5 5 5-5" />
-                    <path d="M12 15V3" />
-                  </svg>
-                )}
-              </span>
-              <span className="btn-label">
-                {jsonExportState === 'done'
-                  ? '已导出'
-                  : jsonExportState === 'failed'
-                    ? '导出失败'
-                    : '导出 JSON'}
-              </span>
-            </button>
-            <button
-              type="button"
-              data-testid="copy-markdown"
-              className={`copy-export-btn${copyExportState === 'done' ? ' done' : ''}${
-                copyExportState === 'failed' ? ' failed' : ''
-              }`}
-              onClick={() => {
-                void handleCopyMarkdown();
-              }}
-              disabled={!canExport}
-              aria-label={
-                copyExportState === 'done'
-                  ? '已复制'
-                  : copyExportState === 'failed'
-                    ? '复制失败'
-                    : '复制 Markdown'
-              }
-              title={
-                canExport
-                  ? '把当前对话以 Markdown 格式复制到剪贴板'
-                  : copyExportState === 'failed'
-                    ? '复制失败，请稍后重试'
-                    : '暂无内容可复制'
-              }
-            >
-              <span className="btn-icon" aria-hidden="true">
-                {copyExportState === 'done' ? (
-                  '✓'
-                ) : (
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                  </svg>
-                )}
-              </span>
-              <span className="btn-label">
-                {copyExportState === 'done'
-                  ? '已复制'
-                  : copyExportState === 'failed'
-                    ? '复制失败'
-                    : '复制 Markdown'}
-              </span>
-            </button>
+              <button
+                type="button"
+                className={`export-btn${exportState === 'done' ? ' done' : ''}${
+                  exportState === 'failed' ? ' failed' : ''
+                }`}
+                onClick={handleExport}
+                disabled={!canExport}
+                aria-label={
+                  exportState === 'done'
+                    ? '已导出'
+                    : exportState === 'failed'
+                      ? '导出失败'
+                      : '导出 Markdown'
+                }
+                title={
+                  canExport
+                    ? '把当前对话导出为 Markdown 文件'
+                    : exportState === 'failed'
+                      ? '导出失败，请稍后重试'
+                      : '暂无内容可导出'
+                }
+              >
+                <span className="btn-icon" aria-hidden="true">
+                  {exportState === 'done' ? (
+                    '✓'
+                  ) : (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <path d="M7 10l5 5 5-5" />
+                      <path d="M12 15V3" />
+                    </svg>
+                  )}
+                </span>
+                <span className="btn-label">
+                  {exportState === 'done'
+                    ? '已导出'
+                    : exportState === 'failed'
+                      ? '导出失败'
+                      : '导出 Markdown'}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`export-json-btn${jsonExportState === 'done' ? ' done' : ''}${
+                  jsonExportState === 'failed' ? ' failed' : ''
+                }`}
+                onClick={handleExportJson}
+                disabled={!canExport}
+                aria-label={
+                  jsonExportState === 'done'
+                    ? '已导出'
+                    : jsonExportState === 'failed'
+                      ? '导出失败'
+                      : '导出 JSON'
+                }
+                title={
+                  canExport
+                    ? '把当前对话导出为 JSON 文件'
+                    : jsonExportState === 'failed'
+                      ? '导出失败，请稍后重试'
+                      : '暂无内容可导出'
+                }
+              >
+                <span className="btn-icon" aria-hidden="true">
+                  {jsonExportState === 'done' ? (
+                    '✓'
+                  ) : (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <path d="M7 10l5 5 5-5" />
+                      <path d="M12 15V3" />
+                    </svg>
+                  )}
+                </span>
+                <span className="btn-label">
+                  {jsonExportState === 'done'
+                    ? '已导出'
+                    : jsonExportState === 'failed'
+                      ? '导出失败'
+                      : '导出 JSON'}
+                </span>
+              </button>
+              <button
+                type="button"
+                data-testid="copy-markdown"
+                className={`copy-export-btn${copyExportState === 'done' ? ' done' : ''}${
+                  copyExportState === 'failed' ? ' failed' : ''
+                }`}
+                onClick={() => {
+                  void handleCopyMarkdown();
+                }}
+                disabled={!canExport}
+                aria-label={
+                  copyExportState === 'done'
+                    ? '已复制'
+                    : copyExportState === 'failed'
+                      ? '复制失败'
+                      : '复制 Markdown'
+                }
+                title={
+                  canExport
+                    ? '把当前对话以 Markdown 格式复制到剪贴板'
+                    : copyExportState === 'failed'
+                      ? '复制失败，请稍后重试'
+                      : '暂无内容可复制'
+                }
+              >
+                <span className="btn-icon" aria-hidden="true">
+                  {copyExportState === 'done' ? (
+                    '✓'
+                  ) : (
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                  )}
+                </span>
+                <span className="btn-label">
+                  {copyExportState === 'done'
+                    ? '已复制'
+                    : copyExportState === 'failed'
+                      ? '复制失败'
+                      : '复制 Markdown'}
+                </span>
+              </button>
+            </HeaderMoreMenu>
             <span className="export-status" role="status" aria-live="polite">
               {copyExportState === 'done'
                 ? '已复制到剪贴板'
