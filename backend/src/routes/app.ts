@@ -89,6 +89,10 @@ function isLoopback(req: express.Request): boolean {
 /**
  * Resolve the session for one chat turn. A pinned `language` sticks to the
  * session so later turns keep the same reply language without resending it.
+ * P253: an unknown but client-issued sessionId is adopted (the same
+ * convention /api/session/restore already follows), so the frontend can
+ * mint the session id at send time and persist the user's message under it
+ * before the turn finishes.
  */
 function resolveChatSession(
   sessionId: string | undefined,
@@ -102,6 +106,7 @@ function resolveChatSession(
     return existing;
   }
   const created = createSession(profile ?? {}, language ?? 'auto');
+  if (sessionId?.trim()) created.sessionId = sessionId;
   putSession(created);
   return created;
 }

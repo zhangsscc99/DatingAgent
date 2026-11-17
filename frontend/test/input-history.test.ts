@@ -81,9 +81,11 @@ describe('P168 · per-session input history', () => {
       const app = read('App.tsx');
       expect(app).toContain("import { pushInputHistory } from './lib/inputHistory'");
       // P244: the send path runs through runSend (queue head drains through
-      // the same body), so history recording lives there.
+      // the same body), so history recording lives there. P253: `sid` is the
+      // effective session id — minted up front for a brand-new chat so the
+      // message can persist immediately.
       const send = app.slice(app.indexOf('const runSend'));
-      expect(send).toContain('pushInputHistory(sessionId, prompt)');
+      expect(send).toContain('pushInputHistory(sid, prompt)');
     });
 
     it('purges history alongside drafts in delete / clear-all / cap eviction', () => {

@@ -25,6 +25,8 @@ import {
   deleteChatSession,
   getRecentSessions,
   loadChatState,
+  newSessionId,
+  remapChatSessionId,
   renameChatSession,
   sameConversation,
   sameRecentSessions,
@@ -294,6 +296,15 @@ export default function App() {
     loadingRef.current = loading;
   }, [loading]);
 
+  // P253: runSend persists the just-sent message the moment it goes out,
+  // before React commits the appended bubbles — a ref is the only way the
+  // callback (which must not depend on `messages`) can read the settled
+  // conversation to persist.
+  const messagesRef = useRef<ChatMessage[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   // P156: a write to the chat-history key from another tab fires `storage`
   // here — reload so the sidebar list and the open conversation match the
   // shared store. An in-flight stream is never interrupted; the refresh is
@@ -332,9 +343,16 @@ export default function App() {
    * Stream one assistant reply into `assistantId`. The caller owns the user
    * bubble and the loading flag, so a retry can re-run the turn without
    * appending a second copy of the same user message.
+   * P253: `requestSessionId` pins which backend session the turn targets —
+   * runSend passes the id it just persisted under, which can be newer than
+   * the `sessionId` this callback closed over.
    */
   const streamReply = useCallback(
-    async (prompt: string, assistantId: string): Promise<StreamOutcome> => {
+    async (
+      prompt: string,
+      assistantId: string,
+      requestSessionId: string | null = sessionId,
+    ): Promise<StreamOutcome> => {
       const toolEvents: ToolEvent[] = [];
       let finalContent = '';
       // P11: the response status feeds the outage classifier when the turn
@@ -355,7 +373,7 @@ export default function App() {
           // P196: replyLength is omitted entirely at 默认 so an untouched
           // install sends byte-identical bodies.
           body: buildChatRequestBody({
-            sessionId,
+            sessionId: requestSessionId,
             message: prompt,
             profile: profile ?? undefined,
             language,
@@ -500,7 +518,15 @@ export default function App() {
                 tokens?: number;
                 latencyMs?: number;
               };
-              if (d.sessionId) setSessionId(d.sessionId);
+              if (d.sessionId) {
+                // P253: the turn was persisted under requestSessionId at
+                // send time — if the backend ever reports a different id,
+                // move the stored entry so the conversation keeps one id.
+                if (requestSessionId && d.sessionId !== requestSessionId) {
+                  remapChatSessionId(requestSessionId, d.sessionId);
+                }
+                setSessionId(d.sessionId);
+              }
               // F21: only attach a badge when the provider reported token usage.
               if (typeof d.tokens === 'number') {
                 patchAssistant({
@@ -616,13 +642,26 @@ export default function App() {
       const now = Date.now();
       const assistantId = `a-${now}`;
 
+      // P253: a brand-new chat used to have no session id until `done`
+      // named one — too late to persist the user's own words. Mint the id
+      // here (the backend adopts it) so the message lands in localStorage
+      // at send time.
+      const sid = sessionId ?? newSessionId();
+      if (sessionId === null) setSessionId(sid);
+
       // P06/P168: the composer draft is already cleared; remember the message
       // for ArrowUp recall under this session's history (purely client-side,
       // best-effort localStorage).
-      pushInputHistory(sessionId, prompt);
+      pushInputHistory(sid, prompt);
+      const userMessage: ChatMessage = {
+        id: `u-${now}`,
+        role: 'user',
+        content: prompt,
+        createdAt: now,
+      };
       setMessages((prev) => [
         ...prev,
-        { id: `u-${now}`, role: 'user', content: prompt, createdAt: now },
+        userMessage,
         {
           id: assistantId,
           role: 'assistant',
@@ -632,11 +671,16 @@ export default function App() {
           streamPhase: 'thinking',
         },
       ]);
+      // P253: persist NOW, before the turn finishes — a refresh during
+      // generation keeps the message. The streaming placeholder is never
+      // part of the persisted list (serializeMessages drops it anyway).
+      saveChatSession(sid, [...messagesRef.current, userMessage]);
+      setRecentSessions(getRecentSessions());
       replyInFlightRef.current = true;
       setLoading(true);
 
       try {
-        const outcome = await streamReply(prompt, assistantId);
+        const outcome = await streamReply(prompt, assistantId, sid);
         noteStreamOutcome(outcome);
       } finally {
         replyInFlightRef.current = false;

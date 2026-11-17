@@ -407,6 +407,44 @@ export function setActiveSessionId(sessionId: string | null): void {
   persistState(state);
 }
 
+/**
+ * P253 — mint a session id on the client. The backend adopts it (same
+ * convention as /api/session/restore), so the just-sent user message can be
+ * persisted under the real session id at send time instead of waiting for
+ * the `done` event to name the conversation.
+ */
+export function newSessionId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // Fall through to the manual id below.
+  }
+  return `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * P253 — defensive id reconciliation: if a `done` event ever names the turn
+ * differently from the id the conversation was persisted under, move the
+ * stored entry (and the active pointer) so one conversation keeps one id
+ * instead of splitting into a truncated phantom entry plus a full one.
+ * A pre-existing entry under `newId` is dropped in favour of the live
+ * conversation's messages. No-op when either id is missing or they match.
+ */
+export function remapChatSessionId(oldId: string, newId: string): void {
+  if (!oldId || !newId || oldId === newId) return;
+  const state = loadChatState();
+  const from = state.sessions.find((s) => s.id === oldId);
+  if (!from) return;
+  const remapped: StoredChatSession = { ...from, id: newId };
+  state.sessions = state.sessions
+    .filter((s) => s.id !== newId)
+    .map((s) => (s.id === oldId ? remapped : s));
+  if (state.activeSessionId === oldId) state.activeSessionId = newId;
+  persistState(state);
+}
+
 export function getRecentSessions(): StoredChatSession[] {
   return [...loadChatState().sessions]
     .sort((a, b) => b.updatedAt - a.updatedAt)

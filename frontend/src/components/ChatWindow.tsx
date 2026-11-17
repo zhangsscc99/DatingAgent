@@ -422,21 +422,22 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
             />
           ))}
 
-        {/* P161: an interrupted stream leaves a persisted user bubble with
-            no reply; offer to finish the turn without retyping. Hidden the
+        {/* P161/P253: an interrupted stream leaves a persisted user bubble
+            with no reply; offer to resend it without retyping. Hidden the
             moment any assistant row (streaming or error) trails it, and
             while the filtered search view is active. */}
         {!restoring && !searching && onGenerateReply && needsReply(messages) && (
           <div className="pending-reply-row">
+            <span className="pending-reply-note">这次没等到回复</span>
             <button
               type="button"
               className="pending-reply-btn"
               onClick={onGenerateReply}
               disabled={!canGenerateReply(messages, loading)}
-              aria-label="生成回复"
-              title="上次回复被中断，点击为这条消息生成回复"
+              aria-label="重新发送"
+              title="上次没等到回复，点击重新发送这条消息"
             >
-              ↻ 生成回复
+              ↻ 重新发送
             </button>
           </div>
         )}

@@ -216,12 +216,21 @@
   text-align: center;
 }
 
-/* P161: dim 「生成回复」 action pinned under a trailing user bubble whose
- * streamed reply was lost; the negative margin tucks it into the bubble's
- * own row gap so it reads as attached to that message. */
+/* P161/P253: dim 「重新发送」 action pinned under a trailing user bubble
+ * whose streamed reply was lost; the negative margin tucks it into the
+ * bubble's own row gap so it reads as attached to that message. */
 .pending-reply-row {
   align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: -8px;
+}
+
+.pending-reply-note {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .pending-reply-btn {
