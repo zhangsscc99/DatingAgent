@@ -1,4 +1,4 @@
-import type { ChatMessage, UserProfile } from '../types';
+import type { ChatMessage, ReplyMeta, UserProfile } from '../types';
 import { purgeDraft, purgeDrafts } from './chatDrafts';
 import {
   purgeAllInputHistories,
@@ -34,6 +34,45 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const NORMALIZED_TITLE_FALLBACK = '未命名对话';
 
+/** P243: a stored token count past this is corrupt data, not a real reply. */
+const MAX_STORED_META_TOKENS = 1_000_000;
+
+/**
+ * P243 — the reply meta line (tool name + 「约 N 秒」) now rides the storage
+ * round trip, so the same gate runs on write and on read: keep only a
+ * well-formed `meta` (non-empty string tool, finite non-negative latencyMs,
+ * finite token count within a sane bound). Any other field, a non-object
+ * meta, or a meta with no surviving field is dropped silently — never
+ * throws, never renders garbage after a reload.
+ */
+export function normalizeReplyMeta(raw: unknown): ReplyMeta | undefined {
+  if (!isRecord(raw)) return undefined;
+  const meta: ReplyMeta = {};
+  if (typeof raw.tool === 'string' && raw.tool.trim().length > 0) {
+    meta.tool = raw.tool;
+  }
+  if (
+    typeof raw.latencyMs === 'number' &&
+    Number.isFinite(raw.latencyMs) &&
+    raw.latencyMs >= 0
+  ) {
+    meta.latencyMs = raw.latencyMs;
+  }
+  if (
+    typeof raw.tokens === 'number' &&
+    Number.isFinite(raw.tokens) &&
+    raw.tokens >= 0 &&
+    raw.tokens <= MAX_STORED_META_TOKENS
+  ) {
+    meta.tokens = raw.tokens;
+  }
+  return meta.tool !== undefined ||
+    meta.latencyMs !== undefined ||
+    meta.tokens !== undefined
+    ? meta
+    : undefined;
+}
+
 /**
  * P158 — self-heal stored session entries. One corrupted record (written by
  * an older version or hand-edited) used to white-screen the app at
@@ -63,6 +102,15 @@ export function normalizeStoredSessions(raw: unknown): StoredChatSession[] {
               m.role !== 'assistant' ||
               (typeof m.content === 'string' && m.content.trim().length > 0),
           )
+          // P243: a malformed persisted meta (hand-edited or written by an
+          // older build) must not reach the bubble — a well-formed one is
+          // kept verbatim, anything else loses the field entirely.
+          .map((m): Record<string, unknown> => {
+            if (!('meta' in m)) return m;
+            const meta = normalizeReplyMeta(m.meta);
+            const { meta: _dropped, ...rest } = m;
+            return meta ? { ...rest, meta } : rest;
+          })
       : [];
     const updatedAt =
       typeof entry.updatedAt === 'number' && Number.isFinite(entry.updatedAt)
@@ -72,7 +120,7 @@ export function normalizeStoredSessions(raw: unknown): StoredChatSession[] {
       id,
       title,
       updatedAt,
-      messages: messages as ChatMessage[],
+      messages: messages as unknown as ChatMessage[],
       ...(entry.customTitle === true ? { customTitle: true } : {}),
     });
   }
@@ -176,21 +224,38 @@ export function sessionTitle(messages: ChatMessage[]): string {
  * stopped flag on a reply aborted mid-stream (the bubble keeps its 「已停止」
  * note after a refresh) and never persist a whitespace-only assistant bubble —
  * an abort before the first token must leave the trailing user message last
- * so 「生成回复」 can re-offer a reply instead of a blank bubble. */
+ * so 「生成回复」 can re-offer a reply instead of a blank bubble.
+ * P243: keep a well-formed meta so the tool/latency line survives a reload —
+ * normalizeReplyMeta is the single gate for both write and read, so only
+ * data the loader would keep is ever written. */
 export function serializeMessages(messages: ChatMessage[]): ChatMessage[] {
   return messages
     .filter((m) => !m.streaming)
     .filter((m) => m.role !== 'assistant' || m.content.trim().length > 0)
     .map(
-      ({ id, role, content, createdAt, toolEvents, error, retryPrompt, stopped }) => ({
+      ({
         id,
         role,
         content,
         createdAt,
-        toolEvents: toolEvents?.map((t) => ({ ...t, status: 'done' as const })),
-        ...(error ? { error: true as const, retryPrompt } : {}),
-        ...(stopped ? { stopped: true as const } : {}),
-      }),
+        toolEvents,
+        error,
+        retryPrompt,
+        stopped,
+        meta,
+      }) => {
+        const cleanMeta = normalizeReplyMeta(meta);
+        return {
+          id,
+          role,
+          content,
+          createdAt,
+          toolEvents: toolEvents?.map((t) => ({ ...t, status: 'done' as const })),
+          ...(cleanMeta ? { meta: cleanMeta } : {}),
+          ...(error ? { error: true as const, retryPrompt } : {}),
+          ...(stopped ? { stopped: true as const } : {}),
+        };
+      },
     );
 }
 
