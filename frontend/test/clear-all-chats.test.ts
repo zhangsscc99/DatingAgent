@@ -10,15 +10,14 @@ import {
   setActiveSessionId,
 } from '../src/lib/chatStorage';
 import type { ChatStorageState } from '../src/lib/chatStorage';
-import { confirmClearAllChats } from '../src/components/Sidebar';
 import type { ChatMessage } from '../src/types';
 
 /**
  * P155 — bulk clear of 最近对话. Source-level guards (same approach as
  * delete-session.test.ts) lock in the header button wiring; the behavioural
- * blocks exercise clearAllChatSessions against a stubbed localStorage and the
- * exported confirm gate with a stubbed window.confirm (vitest runs in node,
- * no DOM renderer).
+ * blocks exercise clearAllChatSessions against a stubbed localStorage.
+ * P228 moved the confirm step into the app's own ConfirmDialog (covered by
+ * confirm-dialog.test.ts) — the sidebar button now only requests the clear.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -46,24 +45,25 @@ describe('P155 · clear all history chats', () => {
       );
     });
 
-    it('confirms first, does nothing on cancel, and disables while busy or empty', () => {
+    it('requests the clear through the in-app dialog and disables while busy or empty', () => {
       const sidebar = read('components/Sidebar.tsx');
-      expect(sidebar).toContain("window.confirm('确定清空全部历史对话？')");
-      const confirmIdx = sidebar.indexOf('确定清空全部历史对话？');
-      const runIdx = sidebar.indexOf('onClearAll?.()');
-      // The callback only runs inside the confirm's true branch.
-      expect(runIdx).toBeGreaterThan(confirmIdx);
+      // P228: no native confirm anywhere — the button only asks App to open
+      // the ConfirmDialog, which keeps the original copy.
+      expect(sidebar).not.toContain('confirm(');
       const btn = sidebar.slice(
         sidebar.indexOf('recent-chat-clear-all'),
         sidebar.indexOf('recent-chat-filter'),
       );
       expect(btn).toContain('disabled={busy || recentSessions.length === 0}');
-      expect(btn).toContain('confirmClearAllChats(onClearAllChats)');
+      expect(btn).toContain('onClearAllChats?.()');
     });
 
-    it('wires App to clear the store and reset the chat surface', () => {
+    it('wires App to confirm first, then clear the store and reset the chat surface', () => {
       const app = read('App.tsx');
-      expect(app).toContain('onClearAllChats={handleClearAllChats}');
+      expect(app).not.toContain('window.confirm');
+      expect(app).toContain('确定清空全部历史对话？');
+      expect(app).toContain('onClearAllChats={requestClearAllChats}');
+      expect(app).toContain('onClearAll={requestClearAllChats}');
       const handler = app.slice(app.indexOf('const handleClearAllChats'));
       expect(handler).toContain('clearAllChatSessions()');
       expect(handler).toContain('setRecentSessions([])');
@@ -123,22 +123,18 @@ describe('P155 · clear all history chats', () => {
   });
 
   describe('confirm gate', () => {
-    afterEach(() => vi.unstubAllGlobals());
-
-    it('confirm → the clear callback runs', () => {
-      const confirmSpy = vi.fn(() => true);
-      vi.stubGlobal('window', { confirm: confirmSpy });
-      const run = vi.fn();
-      confirmClearAllChats(run);
-      expect(confirmSpy).toHaveBeenCalledTimes(1);
-      expect(run).toHaveBeenCalledTimes(1);
-    });
-
-    it('cancel → nothing runs at all', () => {
-      vi.stubGlobal('window', { confirm: vi.fn(() => false) });
-      const run = vi.fn();
-      confirmClearAllChats(run);
-      expect(run).not.toHaveBeenCalled();
+    it('the danger button is the only path that reaches handleClearAllChats', () => {
+      const app = read('App.tsx');
+      // The request handler only opens the dialog — no clearing inside it.
+      const request = app.slice(
+        app.indexOf('const requestClearAllChats'),
+        app.indexOf('const handleClearAllChats'),
+      );
+      expect(request).not.toContain('clearAllChatSessions()');
+      // …and the clear itself is invoked from ConfirmDialog's onConfirm.
+      expect(app).toContain('<ConfirmDialog');
+      const onConfirm = app.slice(app.indexOf('onConfirm={'));
+      expect(onConfirm).toContain('handleClearAllChats()');
     });
   });
 });

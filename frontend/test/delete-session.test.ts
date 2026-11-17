@@ -37,11 +37,19 @@ describe('P148 · delete history session', () => {
     expect(deleteBtn).toBeGreaterThan(switchClose);
   });
 
-  it('confirms, deletes locally, fires a best-effort backend DELETE, and resets an active chat', () => {
+  it('confirms via the in-app dialog, then deletes locally, fires a best-effort backend DELETE, and resets an active chat', () => {
     const app = read('App.tsx');
     expect(app).toContain('onDeleteChat={handleDeleteChat}');
-    const handler = app.slice(app.indexOf('const handleDeleteChat'));
-    expect(handler).toContain('window.confirm');
+    expect(app).not.toContain('window.confirm');
+    // P228: the row button only opens the ConfirmDialog with the session title.
+    const request = app.slice(
+      app.indexOf('const handleDeleteChat'),
+      app.indexOf('const performDeleteChat'),
+    );
+    expect(request).toContain('setConfirmRequest');
+    expect(request).not.toContain('deleteChatSession(id)');
+    // The confirmed path keeps the exact P148 behaviour.
+    const handler = app.slice(app.indexOf('const performDeleteChat'));
     expect(handler).toContain('deleteChatSession(id)');
     expect(handler).toContain('encodeURIComponent(id)');
     expect(handler).toContain("method: 'DELETE'");

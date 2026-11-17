@@ -9,7 +9,8 @@ import type {
 } from './types';
 import ChatWindow, { type ChatWindowHandle } from './components/ChatWindow';
 import ServiceBanner from './components/ServiceBanner';
-import Sidebar, { confirmClearAllChats } from './components/Sidebar';
+import Sidebar from './components/Sidebar';
+import ConfirmDialog from './components/ConfirmDialog';
 import ProfileOnboarding from './components/ProfileOnboarding';
 import SettingsSheet from './components/SettingsSheet';
 import SystemStatusFooter from './components/SystemStatusFooter';
@@ -113,6 +114,11 @@ async function describeChatError(res: Response): Promise<string> {
   return `HTTP ${res.status}`;
 }
 
+/** P228: a pending destructive action awaiting the in-app confirm dialog. */
+type ConfirmRequest =
+  | { kind: 'clear-all' }
+  | { kind: 'delete'; sessionId: string; title: string };
+
 /** Result of one streamed reply; P26 uses it to restore a failed regeneration. */
 type StreamOutcome =
   | { status: 'ok' }
@@ -167,6 +173,11 @@ export default function App() {
     readReplyLengthPreference(),
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // P228: both destructive entries (sidebar 清空全部 / 删除对话 and the
+  // settings 清空全部对话) funnel through this one confirm request.
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(
+    null,
+  );
   // P07: last known per-IP request budget, from chat response headers; stays
   // null until the first response so nothing is fabricated at startup.
   const [rateLimit, setRateLimit] = useState<RateLimitBudget | null>(null);
@@ -896,15 +907,19 @@ export default function App() {
     closeSidebar();
   };
 
+  /** P228: the per-row delete only opens the confirm dialog; the deletion
+   * itself happens in performDeleteChat after the danger button is pressed. */
+  const handleDeleteChat = (id: string) => {
+    const title = recentSessions.find((s) => s.id === id)?.title ?? id;
+    setConfirmRequest({ kind: 'delete', sessionId: id, title });
+  };
+
   /**
    * P148: delete one stored session. The backend DELETE is fire-and-forget —
    * the local copy is the source of truth for the list, and a dropped request
    * only leaves an idle backend session that the F01 TTL reaps anyway.
    */
-  const handleDeleteChat = (id: string) => {
-    const title = recentSessions.find((s) => s.id === id)?.title ?? id;
-    if (!window.confirm(`删除对话「${title}」？`)) return;
-
+  const performDeleteChat = (id: string) => {
     deleteChatSession(id);
     setRecentSessions(getRecentSessions());
 
@@ -923,9 +938,13 @@ export default function App() {
     }
   };
 
+  /** P228: both 清空全部 triggers open the confirm dialog; the danger button
+   * calls handleClearAllChats. */
+  const requestClearAllChats = () => setConfirmRequest({ kind: 'clear-all' });
+
   /**
-   * P155: wipe every stored session and reset the chat surface. The sidebar
-   * button already confirmed, so reaching here always clears — messages, the
+   * P155: wipe every stored session and reset the chat surface. The dialog
+   * already confirmed, so reaching here always clears — messages, the
    * active id, and any stale banner/toast all reset to a clean empty chat.
    */
   const handleClearAllChats = () => {
@@ -973,7 +992,7 @@ export default function App() {
         onSelectChat={handleSelectChat}
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}
-        onClearAllChats={handleClearAllChats}
+        onClearAllChats={requestClearAllChats}
         busy={loading}
         onEditProfile={() => {
           setEditingProfile(true);
@@ -1011,7 +1030,7 @@ export default function App() {
         busy={loading}
         onExportMarkdown={handleExport}
         onExportJson={handleExportJson}
-        onClearAll={() => confirmClearAllChats(handleClearAllChats)}
+        onClearAll={requestClearAllChats}
         llmModel={health?.llmModel}
       />
       <main className="main" id="main-content" tabIndex={-1}>
@@ -1367,6 +1386,26 @@ export default function App() {
         />
         <SystemStatusFooter />
       </main>
+      {confirmRequest && (
+        <ConfirmDialog
+          title={
+            confirmRequest.kind === 'clear-all' ? '清空全部历史对话' : '删除对话'
+          }
+          description={
+            confirmRequest.kind === 'clear-all'
+              ? '确定清空全部历史对话？'
+              : `删除对话「${confirmRequest.title}」？`
+          }
+          confirmLabel={confirmRequest.kind === 'clear-all' ? '清空全部' : '删除'}
+          onCancel={() => setConfirmRequest(null)}
+          onConfirm={() => {
+            const request = confirmRequest;
+            setConfirmRequest(null);
+            if (request.kind === 'clear-all') handleClearAllChats();
+            else performDeleteChat(request.sessionId);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -41,12 +41,6 @@ interface Props {
   busy?: boolean;
 }
 
-/** P155: gate the bulk clear behind a confirm dialog — a cancelled confirm
- * runs nothing at all. */
-export function confirmClearAllChats(onClearAll?: () => void): void {
-  if (window.confirm('确定清空全部历史对话？')) onClearAll?.();
-}
-
 /** Label the persisted message count on a session row. Pure: treats
  * undefined/null/non-array input as 0, never throws, never mutates. */
 export function formatMessageCount(messages: unknown): string {
@@ -324,7 +318,8 @@ export default function Sidebar({
             <button
               type="button"
               className="recent-chat-clear-all"
-              onClick={() => confirmClearAllChats(onClearAllChats)}
+              // P228: App owns the in-app confirm dialog; this only asks.
+              onClick={() => onClearAllChats?.()}
               disabled={busy || recentSessions.length === 0}
               aria-label="清空全部历史对话"
               title="清空全部历史对话"
