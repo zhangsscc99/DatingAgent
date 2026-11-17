@@ -27,8 +27,8 @@ export interface HeaderReader {
 
 /** At or below this many remaining requests the indicator turns warning colour. */
 export const RATE_LIMIT_WARN_THRESHOLD = 5;
-/** Above this many remaining requests the indicator drops to a dim style. */
-export const RATE_LIMIT_DIM_THRESHOLD = 10;
+/** At or above this many remaining requests nothing is shown at all. */
+export const RATE_LIMIT_HIDE_THRESHOLD = 10;
 
 function parseCount(raw: string | null): number | null {
   if (raw === null) return null;
@@ -61,23 +61,22 @@ export function rateLimitWarning(budget: RateLimitBudget): boolean {
   return budget.remaining <= RATE_LIMIT_WARN_THRESHOLD;
 }
 
-/** True when the budget is comfortable enough to stay out of the way. */
-export function rateLimitDim(budget: RateLimitBudget): boolean {
-  return budget.remaining > RATE_LIMIT_DIM_THRESHOLD && !rateLimitWarning(budget);
-}
-
 /**
- * Self-explanatory chip copy — names the window and the unit, and shows the
- * countdown while a Retry-After window is active. e.g. `本分钟还可提问 27 次`,
- * `本分钟额度已用完，45 秒后可再问`.
+ * P256 — the countdown meter only created run-out anxiety about a budget
+ * that resets every minute. Nothing renders while the minute is comfortable
+ * (≥ RATE_LIMIT_HIDE_THRESHOLD left — nearly every turn, the clean landing
+ * screen, and every post-refresh state where the budget is simply unknown).
+ * Below that the hint is one human sentence, and an exhausted window states
+ * the real recovery time instead of a bare count. Returns null whenever
+ * nothing should be shown.
  */
-export function formatRateLimit(budget: RateLimitBudget): string {
-  if (
-    budget.remaining === 0 &&
-    budget.retryAfterSec !== undefined &&
-    budget.retryAfterSec > 0
-  ) {
-    return `本分钟额度已用完，${budget.retryAfterSec} 秒后可再问`;
+export function rateLimitHint(budget: RateLimitBudget): string | null {
+  if (budget.remaining >= RATE_LIMIT_HIDE_THRESHOLD) return null;
+  if (budget.remaining === 0) {
+    if (budget.retryAfterSec !== undefined && budget.retryAfterSec > 0) {
+      return `这一分钟到上限了，约 ${budget.retryAfterSec} 秒后可以再问`;
+    }
+    return '这一分钟到上限了，稍等一下再问';
   }
-  return `本分钟还可提问 ${budget.remaining} 次`;
+  return '这一分钟快到上限了，稍等几秒再问';
 }

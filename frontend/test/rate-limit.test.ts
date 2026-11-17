@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  formatRateLimit,
   parseRateLimit,
+  rateLimitHint,
   rateLimitWarning,
   RATE_LIMIT_WARN_THRESHOLD,
   type HeaderReader,
@@ -54,14 +54,17 @@ describe('P07 · parseRateLimit', () => {
   });
 });
 
-describe('P07 · rateLimitWarning / formatRateLimit', () => {
+describe('P07 · rateLimitWarning / rateLimitHint', () => {
   it('warns at or below the threshold', () => {
     expect(rateLimitWarning({ remaining: RATE_LIMIT_WARN_THRESHOLD, limit: 30 })).toBe(true);
     expect(rateLimitWarning({ remaining: RATE_LIMIT_WARN_THRESHOLD + 1, limit: 30 })).toBe(false);
     expect(rateLimitWarning({ remaining: 0, limit: 30 })).toBe(true);
   });
 
-  it('formats the indicator label', () => {
-    expect(formatRateLimit({ remaining: 27, limit: 30 })).toBe('本分钟还可提问 27 次');
+  it('stays silent while the minute is comfortable, speaks when it is nearly spent', () => {
+    expect(rateLimitHint({ remaining: 27, limit: 30 })).toBeNull();
+    expect(rateLimitHint({ remaining: 4, limit: 30 })).toBe(
+      '这一分钟快到上限了，稍等几秒再问',
+    );
   });
 });

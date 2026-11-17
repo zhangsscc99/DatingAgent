@@ -4,19 +4,20 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
-  formatRateLimit,
   parseRateLimit,
-  rateLimitDim,
+  rateLimitHint,
   rateLimitWarning,
   type HeaderReader,
 } from '../src/lib/rateLimitStatus';
 
 /**
- * P190 — the old 「剩余请求 29/30」 chip was jargon: nothing said the window was
- * a minute or when it reset. The copy must name the window and unit, the
- * tooltip/aria must explain the per-minute reset, and a Retry-After window
- * must surface its countdown. These tests lock the copy at the pure-function
- * level plus source-level checks on the chip markup (no DOM renderer here).
+ * P190 named the window and unit on the old 「剩余请求 29/30」 chip; P256 went
+ * further after a real walkthrough showed the 「本分钟还可提问 N 次」 countdown
+ * only made the budget feel like it was running out. The meter is gone: a
+ * comfortable minute renders nothing, a nearly-spent one gets a human
+ * sentence, and an exhausted window states its recovery time. These tests
+ * lock that contract at the pure-function level plus source-level checks on
+ * the chip markup (no DOM renderer here).
  */
 
 const headers = (pairs: Record<string, string>): HeaderReader => ({
@@ -27,41 +28,51 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const inputBarTsx = readFileSync(join(SRC, 'components', 'InputBar.tsx'), 'utf8');
 const inputBarCss = readFileSync(join(SRC, 'components', 'InputBar.css'), 'utf8');
 
-describe('P190 · chip copy is self-explanatory', () => {
-  it('names the window and the unit', () => {
-    const copy = formatRateLimit({ remaining: 29, limit: 30 });
-    expect(copy).toBe('本分钟还可提问 29 次');
-    expect(copy).toContain('本分钟');
-    expect(copy).toContain('次');
+describe('P190/P256 · the hint speaks only when the minute is nearly spent', () => {
+  it('renders nothing while the budget is comfortable', () => {
+    expect(rateLimitHint({ remaining: 29, limit: 30 })).toBeNull();
+    expect(rateLimitHint({ remaining: 10, limit: 30 })).toBeNull();
   });
 
-  it('shows the countdown while a Retry-After window is active', () => {
-    const copy = formatRateLimit({ remaining: 0, limit: 30, retryAfterSec: 42 });
-    expect(copy).toContain('额度已用完');
-    expect(copy).toContain('42 秒');
-    expect(copy).not.toBe(formatRateLimit({ remaining: 0, limit: 30 }));
+  it('reads as a human sentence below 10, never a count', () => {
+    for (const remaining of [9, 5, 1]) {
+      const hint = rateLimitHint({ remaining, limit: 30 });
+      expect(hint).not.toBeNull();
+      expect(hint).not.toContain('次');
+      expect(hint).not.toContain('还可提问');
+      expect(hint).not.toMatch(/\d/);
+    }
   });
 
-  it('keeps the plain copy when retry-after is absent or irrelevant', () => {
-    expect(formatRateLimit({ remaining: 0, limit: 30 })).toBe('本分钟还可提问 0 次');
-    // A stray retry-after on a non-exhausted budget must not lie.
-    expect(formatRateLimit({ remaining: 12, limit: 30, retryAfterSec: 5 })).toBe(
-      '本分钟还可提问 12 次',
+  it('states the real recovery time while a Retry-After window is active', () => {
+    const hint = rateLimitHint({ remaining: 0, limit: 30, retryAfterSec: 42 });
+    expect(hint).toContain('42');
+    expect(hint).toContain('秒');
+    expect(hint).not.toBe('本分钟还可提问 0 次');
+    expect(hint).not.toBe(rateLimitHint({ remaining: 0, limit: 30 }));
+  });
+
+  it('still speaks when exhausted without a retry window, and a stray '
+    + 'retry-after on a healthy budget stays silent', () => {
+    expect(rateLimitHint({ remaining: 0, limit: 30 })).toBe(
+      '这一分钟到上限了，稍等一下再问',
     );
+    expect(rateLimitHint({ remaining: 12, limit: 30, retryAfterSec: 5 })).toBeNull();
   });
 });
 
-describe('P190 · warn/dim tiers', () => {
+describe('P190/P256 · warn tier and visibility', () => {
   it('warns only at low budget (≤ 5)', () => {
     expect(rateLimitWarning({ remaining: 5, limit: 30 })).toBe(true);
     expect(rateLimitWarning({ remaining: 6, limit: 30 })).toBe(false);
     expect(rateLimitWarning({ remaining: 30, limit: 30 })).toBe(false);
   });
 
-  it('dims only above 10 remaining, and never when warning', () => {
-    expect(rateLimitDim({ remaining: 11, limit: 30 })).toBe(true);
-    expect(rateLimitDim({ remaining: 10, limit: 30 })).toBe(false);
-    expect(rateLimitDim({ remaining: 3, limit: 30 })).toBe(false);
+  it('visibility is all-or-nothing: ≥ 10 hidden, < 10 shown', () => {
+    expect(rateLimitHint({ remaining: 11, limit: 30 })).toBeNull();
+    expect(rateLimitHint({ remaining: 10, limit: 30 })).toBeNull();
+    expect(rateLimitHint({ remaining: 9, limit: 30 })).not.toBeNull();
+    expect(rateLimitHint({ remaining: 3, limit: 30 })).not.toBeNull();
   });
 });
 
@@ -102,23 +113,26 @@ describe('P190 · retry-after parsing stays tolerant', () => {
   });
 });
 
-describe('P190 · chip markup explains itself', () => {
-  it('renders nothing when the budget is unknown', () => {
-    expect(inputBarTsx).toContain('{rateLimit !== null && (');
+describe('P256 · chip markup only exists while a hint is shown', () => {
+  it('renders nothing at all when the hint is null', () => {
+    expect(inputBarTsx).toContain('{rateHint !== null && (');
   });
 
-  it('mentions the per-minute reset in title and aria-label', () => {
-    const chipStart = inputBarTsx.indexOf('{rateLimit !== null && (');
+  it('keeps the per-minute reset explanation on the visible chip', () => {
+    const chipStart = inputBarTsx.indexOf('{rateHint !== null && (');
     const chipEnd = inputBarTsx.indexOf('</span>', chipStart);
     const chip = inputBarTsx.slice(chipStart, chipEnd);
     expect(chip).toContain('每分钟重置');
-    expect(chip).toContain('title={`每分钟最多提问 ${rateLimit.limit} 次，每分钟重置`}');
-    expect(chip).toContain('aria-label={`${formatRateLimit(rateLimit)}，每分钟重置`}');
+    expect(chip).toContain('title="每分钟重置"');
+    expect(chip).toContain('aria-label={`${rateHint}，每分钟重置`}');
+    expect(chip).toContain('{rateHint}');
   });
 
-  it('applies warn only via rateLimitWarning and dim via rateLimitDim', () => {
-    expect(inputBarTsx).toContain("rateLimitWarning(rateLimit) ? 'warn' : ''");
-    expect(inputBarTsx).toContain("rateLimitDim(rateLimit) ? 'dim' : ''");
+  it('applies warn via rateLimitWarning and drops the old meter machinery', () => {
+    expect(inputBarTsx).toContain('rateLimitWarning(rateLimit)');
+    expect(inputBarTsx).not.toContain('rateLimitDim');
+    expect(inputBarTsx).not.toContain('formatRateLimit');
+    expect(inputBarTsx).not.toContain('还可提问');
   });
 
   it('keeps the chip on one line so a 390px viewport never wraps it', () => {

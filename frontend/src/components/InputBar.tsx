@@ -16,8 +16,7 @@ import {
 import { shouldSubmitOnEnter, type KeyEventLike } from '../lib/ime';
 import { loadInputHistory } from '../lib/inputHistory';
 import {
-  formatRateLimit,
-  rateLimitDim,
+  rateLimitHint,
   rateLimitWarning,
   type RateLimitBudget,
 } from '../lib/rateLimitStatus';
@@ -305,9 +304,14 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   const sendBlocked = Boolean(disabled) && !streaming;
   const composerDisabled = sendBlocked;
   const showCounter = text.length >= COUNTER_THRESHOLD;
+  // P07/P256: the budget readout only speaks once the minute is nearly
+  // spent — a comfortable budget (or an unknown one) renders nothing at
+  // all, so no element is left carrying the count for a screen reader.
+  const rateHint = rateLimit !== null ? rateLimitHint(rateLimit) : null;
+  const rateWarn = rateLimit !== null && rateLimitWarning(rateLimit);
   // P07: the rate-limit readout sits beside the counter inside the field, so
   // reserve the same bottom padding whenever either is visible.
-  const showRateLimit = rateLimit !== null;
+  const showRateLimit = rateHint !== null;
   const fieldClass =
     showCounter || showRateLimit ? 'input-field has-counter' : 'input-field';
 
@@ -346,19 +350,15 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           aria-describedby={showCounter ? 'chat-input-counter' : undefined}
           title={`Enter 发送 · Shift+Enter 换行 · ${MOD_KEY}+Enter 发送 · ↑ 历史消息 · Esc 收起输入`}
         />
-        {rateLimit !== null && (
+        {rateHint !== null && (
           <span
-            className={[
-              'rate-limit-indicator',
-              rateLimitWarning(rateLimit) ? 'warn' : '',
-              rateLimitDim(rateLimit) ? 'dim' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            title={`每分钟最多提问 ${rateLimit.limit} 次，每分钟重置`}
-            aria-label={`${formatRateLimit(rateLimit)}，每分钟重置`}
+            className={
+              rateWarn ? 'rate-limit-indicator warn' : 'rate-limit-indicator'
+            }
+            title="每分钟重置"
+            aria-label={`${rateHint}，每分钟重置`}
           >
-            {formatRateLimit(rateLimit)}
+            {rateHint}
           </span>
         )}
         {showCounter && (

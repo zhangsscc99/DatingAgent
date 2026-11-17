@@ -84,9 +84,10 @@
   font-weight: 600;
 }
 
-/* P07/P190: per-IP request-budget readout, mirrored on the counter's row.
-   Base colour is normal text (mid budget); .dim hides it away when the budget
-   is comfortable, .warn highlights only when nearly exhausted. */
+/* P07/P256: per-IP request-budget readout, mirrored on the counter's row.
+   Nothing renders while the minute's budget is comfortable — the chip only
+   appears under 10 requests left, and .warn highlights it once nearly
+   exhausted. */
 .rate-limit-indicator {
   position: absolute;
   left: 12px;
@@ -101,10 +102,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: calc(100% - 96px);
-}
-
-.rate-limit-indicator.dim {
-  color: var(--muted, #8a8a92);
 }
 
 .rate-limit-indicator.warn {
