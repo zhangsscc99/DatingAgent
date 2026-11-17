@@ -46,6 +46,29 @@ export function toolPhaseLabel(
 }
 
 /**
+ * P240 — while the stream still has no body token, a bare label can't say
+ * what the hold-up is. Once the wait passes MODEL_WAIT_HINT_AFTER_MS the
+ * wait copy gains a trailing 「在等模型开始写，最多再等一会儿」 clause. It
+ * is skipped while a tool call is still running ('calling') — the named
+ * tool label already explains that window — and it disappears the moment
+ * the first delta/message lands, because the caller drops the whole wait
+ * label as soon as content exists.
+ */
+export const MODEL_WAIT_HINT = '在等模型开始写，最多再等一会儿';
+export const MODEL_WAIT_HINT_AFTER_MS = 8_000;
+
+export function appendModelWaitHint(
+  label: string,
+  elapsedMs: number,
+  toolPhase?: ToolPhaseKind,
+): string {
+  if (!label || elapsedMs < MODEL_WAIT_HINT_AFTER_MS || toolPhase === 'calling') {
+    return label;
+  }
+  return `${label}，${MODEL_WAIT_HINT}`;
+}
+
+/**
  * Live-region text for the current stream phase. `undefined` means no
  * stream is in flight and announces nothing. The returned string must
  * never contain 「正在生成」 twice.

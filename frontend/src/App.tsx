@@ -67,10 +67,11 @@ import {
 } from './lib/replyLength';
 import { formatWaitingLabel, startWaitingTicker, tickIntervalMs } from './lib/thinkingTimer';
 import {
+  appendModelWaitHint,
   streamAnnouncement as buildStreamAnnouncement,
   toolPhaseLabel,
 } from './lib/streamAnnouncement';
-import { TOOL_LABELS } from './lib/toolLabels';
+import { TOOL_LABELS, toolDisplayName } from './lib/toolLabels';
 import './App.css';
 
 /** Reply-language preference, persisted so it survives reloads. */
@@ -440,7 +441,10 @@ export default function App() {
               if (folded !== null) {
                 finalContent = folded;
                 streamPhase = 'generating';
-                patchAssistant({ content: finalContent, streamPhase, streaming: true });
+                // P240: body text is arriving — drop the tool-named phase so
+                // the wait copy returns to the generic generating label.
+                toolPhase = undefined;
+                patchAssistant({ content: finalContent, streamPhase, streaming: true, toolPhase });
               }
             }
 
@@ -449,10 +453,12 @@ export default function App() {
               if (folded !== null) {
                 finalContent = folded;
                 streamPhase = 'generating';
+                toolPhase = undefined;
                 patchAssistant({
                   content: finalContent,
                   streamPhase,
                   streaming: true,
+                  toolPhase,
                   toolEvents: toolEvents.length ? [...toolEvents] : undefined,
                 });
               }
@@ -841,19 +847,31 @@ export default function App() {
   const streamingMessage = messages.find((m) => m.streaming);
   const streamingPhase = streamingMessage?.streamPhase;
   const streamingToolPhase = streamingMessage?.toolPhase;
+  // P240: the wait copy names the tool through the same P239 map — an
+  // unmapped id falls back to the generic label, never the raw id.
+  const runningToolName = streamingMessage?.toolEvents
+    ?.filter((t) => t.status === 'running')
+    .at(-1)?.name;
   const currentToolLabel =
-    streamingMessage?.toolEvents?.filter((t) => t.status === 'running').at(-1)?.label ??
+    (runningToolName ? toolDisplayName(runningToolName) : undefined) ??
     // P231: while a finished tool's result is being written up there is no
     // running entry left — fall back to the last tool's label so the copy
     // keeps naming it.
     (streamingToolPhase === 'summarizing'
-      ? streamingMessage?.toolEvents?.at(-1)?.label
+      ? toolDisplayName(streamingMessage?.toolEvents?.at(-1)?.name ?? '')
       : undefined);
 
+  // P240: past 8 s without a first body token the wait copy gains a
+  // trailing 「在等模型开始写…」 clause — except while a tool call is still
+  // running, whose named label already says what the wait is.
   const waitingLabel = waitingForFirstToken
-    ? ((streamingPhase === 'tool' || streamingToolPhase === 'summarizing')
-        ? toolPhaseLabel(currentToolLabel, waitingElapsedMs, streamingToolPhase)
-        : undefined) ?? formatWaitingLabel(waitingElapsedMs)
+    ? appendModelWaitHint(
+        ((streamingPhase === 'tool' || streamingToolPhase === 'summarizing')
+          ? toolPhaseLabel(currentToolLabel, waitingElapsedMs, streamingToolPhase)
+          : undefined) ?? formatWaitingLabel(waitingElapsedMs),
+        waitingElapsedMs,
+        streamingToolPhase,
+      )
     : undefined;
 
   const canExport = exportableMessages(messages).length > 0;
@@ -915,7 +933,11 @@ export default function App() {
 
   const closeSidebar = () => setSidebarOpen(false);
 
-  const streamAnnouncement = buildStreamAnnouncement(streamingPhase, waitingElapsedMs, currentToolLabel, streamingToolPhase);
+  const streamAnnouncement = appendModelWaitHint(
+    buildStreamAnnouncement(streamingPhase, waitingElapsedMs, currentToolLabel, streamingToolPhase),
+    waitingElapsedMs,
+    streamingToolPhase,
+  );
 
   const handleNewChat = () => {
     abortRef.current?.abort();
