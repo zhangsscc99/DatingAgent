@@ -44,6 +44,24 @@ function normalizeModel(raw: string | undefined, fallback: string): string {
   return value;
 }
 
+/** P257 — generous reply cap so long answers aren't truncated. */
+export const DEFAULT_LLM_MAX_TOKENS = 1600;
+
+/**
+ * P257 — provider-side "thinking" costs several seconds per upstream call and
+ * a tool turn pays it twice. Off unless LLM_ENABLE_THINKING is "1"/"true".
+ */
+export function parseLlmEnableThinking(raw: string | undefined): boolean {
+  const value = raw?.trim().toLowerCase();
+  return value === '1' || value === 'true';
+}
+
+/** Non-positive or non-numeric values fall back to the default. */
+export function parseLlmMaxTokens(raw: string | undefined): number {
+  const value = Math.floor(Number(raw));
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_LLM_MAX_TOKENS;
+}
+
 /** Validate env on startup and emit clear, actionable logs. */
 export function loadAndValidateEnv(): ServerConfig {
   const port = parsePort(process.env.PORT);

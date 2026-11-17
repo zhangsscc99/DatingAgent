@@ -1,4 +1,5 @@
 import type { LLMResponse, Message, ToolCall, ToolDefinition } from '../agent/types.js';
+import { parseLlmEnableThinking, parseLlmMaxTokens } from '../config/env.js';
 
 interface ChatCompletionUsage {
   prompt_tokens?: number;
@@ -86,11 +87,15 @@ export class LLMClient {
   private apiKey: string;
   private baseUrl: string;
   private model: string;
+  private enableThinking: boolean;
+  private maxTokens: number;
 
   constructor() {
     this.apiKey = process.env.OPENAI_API_KEY ?? '';
     this.baseUrl = process.env.LLM_BASE_URL ?? 'https://api.openai.com/v1';
     this.model = process.env.LLM_MODEL ?? 'gpt-4o-mini';
+    this.enableThinking = parseLlmEnableThinking(process.env.LLM_ENABLE_THINKING);
+    this.maxTokens = parseLlmMaxTokens(process.env.LLM_MAX_TOKENS);
   }
 
   get isConfigured(): boolean {
@@ -187,6 +192,10 @@ export class LLMClient {
         },
       })),
       tool_choice: 'auto',
+      // P257 — a tool turn runs two upstream calls; thinking tax applies to
+      // both, so it stays off unless LLM_ENABLE_THINKING opts back in.
+      enable_thinking: this.enableThinking,
+      max_tokens: this.maxTokens,
     };
   }
 
