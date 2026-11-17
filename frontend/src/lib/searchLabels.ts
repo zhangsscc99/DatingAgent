@@ -4,7 +4,7 @@
  * 筛选对话), so a user hunting for an old conversation kept clicking the
  * wrong one. The find entry now says 在本对话内查找 everywhere and the
  * sidebar keeps 筛选对话, plus a muted scope line under its empty state
- * that says only recent titles are filtered. Both string sets live here so
+ * that says both titles and message bodies are searched. Both string sets live here so
  * components and tests reference one source of truth.
  */
 
@@ -26,5 +26,6 @@ export const FIND_IN_CONVERSATION_CLOSE_LABEL = '关闭查找';
 /** Accessible name and placeholder of the sidebar session filter input. */
 export const FILTER_SESSIONS_LABEL = '筛选对话';
 
-/** Muted scope line under the filter empty state. */
-export const FILTER_SESSIONS_HINT = '只筛选最近对话标题';
+/** Muted scope line under the filter empty state: the filter matches both
+ * session titles and message bodies (filterRecentSessions → matchSessionMessage). */
+export const FILTER_SESSIONS_HINT = '标题和对话内容都搜';

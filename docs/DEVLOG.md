@@ -208,3 +208,4 @@
 2026-11-17 21:32 | P275 | 修复回归：.filter-empty-hint-text 改回 flex: 1 1 100% 独占首行（390px 下从 38px 窄缝恢复整行），说明+按钮同排第二行；recent-chat-empty-filter.test.ts 增加 CSS 源码断言防再次塌缩
 2026-11-17 21:56 | P276 | 换一个不再丢上一版：regen 前把当前回复存入 previousVersion，气泡新增「恢复上一版/查看新版」双向切换（复用 .regen-btn），槽位不落盘；新增 lib/replyVersions.ts + bubble-regen-undo.test.ts（15 例）
 2026-11-17 22:17 | P279 | 话术类提问先给一句可直接发送的原话，清洗手册化标签
+2026-11-17 22:47 | P278 | 侧栏筛选范围文案改为「标题和对话内容都搜」，与正文匹配行为一致

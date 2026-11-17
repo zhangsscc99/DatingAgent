@@ -42,9 +42,10 @@ describe('P271 · find-in-conversation vs session-filter labels', () => {
     expect(FIND_IN_CONVERSATION_PLACEHOLDER).toContain('本对话内');
   });
 
-  it('the sidebar filter keeps 筛选 and the hint scopes it to 标题', () => {
+  it('the sidebar filter keeps 筛选 and the hint honestly scopes it to 标题 + 内容', () => {
     expect(FILTER_SESSIONS_LABEL).toContain('筛选');
     expect(FILTER_SESSIONS_HINT).toContain('标题');
+    expect(FILTER_SESSIONS_HINT).toContain('内容');
   });
 
   it('every render site imports the shared constants — no duplicated literals', () => {

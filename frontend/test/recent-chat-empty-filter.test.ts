@@ -67,6 +67,24 @@ describe('P187 · sidebar filter empty-state hint', () => {
       );
     });
 
+    it('copy matches behaviour: a body-only hit is found, and the hint says so (P278)', () => {
+      const bodyOnly: StoredChatSession = {
+        id: 's9',
+        title: '我今天很顺利约到她周末一起去看展了，开心…',
+        updatedAt: 1,
+        messages: [
+          {
+            id: 's9-u',
+            role: 'user',
+            content: '她两条消息都没回我了，心里很难受，睡不着。',
+          },
+        ],
+      };
+      const visible = filterRecentSessions([bodyOnly], '睡不着');
+      expect(visible).toHaveLength(1);
+      expect(FILTER_SESSIONS_HINT).toContain('内容');
+    });
+
     it('clearing the query restores the full list and hides the hint', () => {
       const restored = filterRecentSessions(sessions, '');
       expect(restored).toHaveLength(3);
@@ -109,13 +127,16 @@ describe('P187 · sidebar filter empty-state hint', () => {
       expect(li.indexOf('filter-empty-clear')).toBeGreaterThan(
         li.indexOf('filter-empty-hint-scope'),
       );
-      // The scope explanation sits inside the first sentence and names 标题.
+      // The scope explanation sits inside the first sentence and honestly
+      // names the real scope: titles AND message bodies (P278).
       const scope = li.slice(
         li.indexOf('filter-empty-hint-scope'),
         li.indexOf('filter-empty-clear'),
       );
       expect(scope).toContain('FILTER_SESSIONS_HINT');
       expect(FILTER_SESSIONS_HINT).toContain('标题');
+      expect(FILTER_SESSIONS_HINT).toContain('对话内容');
+      expect(FILTER_SESSIONS_HINT).not.toContain('只筛选最近对话标题');
     });
 
     it('renders a labelled 清除筛选 secondary button next to the hint', () => {
