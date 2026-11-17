@@ -15,6 +15,14 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 
+# Re-bake build-info from the CURRENT head (updates backend/src/generated AND
+# the compiled backend/dist/generated copy) so even the baked fallback layer
+# reports this commit — then restart so the process re-resolves HEAD at start.
+if ! node scripts/gen-build-info.mjs; then
+  echo "[refresh-version] gen-build-info failed"
+  exit 1
+fi
+
 pm2 restart dating-agent --update-env >/tmp/da-pm2.log 2>&1 || {
   echo "[refresh-version] pm2 restart failed"
   cat /tmp/da-pm2.log

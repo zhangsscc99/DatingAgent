@@ -75,4 +75,19 @@ export const BUILD_INFO: BuildInfo = {
 fs.mkdirSync(outDir, { recursive: true });
 fs.writeFileSync(outFile, body, 'utf8');
 
+// Also refresh the compiled copy when a build already exists, so
+// scripts/refresh-version.sh can re-bake the CURRENT head into dist/ without a
+// full `tsc` rebuild — the baked fallback layer then agrees with the repo read.
+const distFile = path.join(repoRoot, 'backend', 'dist', 'generated', 'build-info.js');
+if (fs.existsSync(path.dirname(distFile))) {
+  const jsBody = `${banner}export const BUILD_INFO = {
+    version: ${JSON.stringify(version)},
+    gitSha: ${JSON.stringify(gitSha)},
+    buildTime: ${JSON.stringify(buildTime)},
+};
+`;
+  fs.writeFileSync(distFile, jsBody, 'utf8');
+  console.log(`[build-info] dist copy refreshed -> ${path.relative(repoRoot, distFile)}`);
+}
+
 console.log(`[build-info] ${version} @ ${gitSha} (${buildTime}) -> ${path.relative(repoRoot, outFile)}`);
