@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CLEAR_ALL_LABEL } from '../lib/copy';
+import { shouldShowClearAll } from '../lib/sidebarListState';
 import { startDialogDismiss } from '../lib/dialogDismiss';
 import type { ReplyLengthPreference } from '../lib/replyLength';
 import type { Theme } from '../hooks/useTheme';
@@ -204,16 +205,19 @@ export default function SettingsSheet({
             >
               导出 JSON
             </button>
-            <button
-              type="button"
-              className="settings-data-btn danger"
-              onClick={onClearAll}
-              disabled={busy || !hasSessions}
-              aria-label={CLEAR_ALL_LABEL}
-              title={CLEAR_ALL_LABEL}
-            >
-              {CLEAR_ALL_LABEL}
-            </button>
+            {/* P270: zero conversations → no destructive no-op control. */}
+            {shouldShowClearAll(hasSessions) && (
+              <button
+                type="button"
+                className="settings-data-btn danger"
+                onClick={onClearAll}
+                disabled={busy}
+                aria-label={CLEAR_ALL_LABEL}
+                title={CLEAR_ALL_LABEL}
+              >
+                {CLEAR_ALL_LABEL}
+              </button>
+            )}
           </div>
         </section>
 

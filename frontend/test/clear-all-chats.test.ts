@@ -46,16 +46,20 @@ describe('P155 · clear all history chats', () => {
       );
     });
 
-    it('requests the clear through the in-app dialog and disables while busy or empty', () => {
+    it('requests the clear through the in-app dialog and only renders with sessions', () => {
       const sidebar = read('components/Sidebar.tsx');
       // P228: no native confirm anywhere — the button only asks App to open
       // the ConfirmDialog, which keeps the original copy.
       expect(sidebar).not.toContain('confirm(');
+      // P270: at zero sessions the button is not rendered at all (a
+      // 「清空 0 段对话」confirm is a destructive no-op); while busy it
+      // still disables.
+      expect(sidebar).toMatch(/shouldShowClearAll\(recentSessions\)\s*&&/);
       const btn = sidebar.slice(
         sidebar.indexOf('recent-chat-clear-all'),
         sidebar.indexOf('recent-chat-filter'),
       );
-      expect(btn).toContain('disabled={busy || recentSessions.length === 0}');
+      expect(btn).toContain('disabled={busy}');
       expect(btn).toContain('onClearAllChats?.()');
     });
 

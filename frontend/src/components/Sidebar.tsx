@@ -13,6 +13,7 @@ import { nextSessionIndex, sessionNavDirection } from '../lib/sessionListNav';
 import {
   nextEditingIdAfterSessionsChange,
   nextFilterQueryAfterSessionsChange,
+  shouldShowClearAll,
   shouldShowEvictionNotice,
   shouldShowFilterEmptyHint,
   shouldShowTrashEntry,
@@ -334,17 +335,21 @@ export default function Sidebar({
       <section className="sidebar-section recent-chats" aria-label="最近对话">
         <div className="recent-chats-header">
           <h3>最近对话</h3>
-          <button
-            type="button"
-            className="recent-chat-clear-all"
-            // P228: App owns the in-app confirm dialog; this only asks.
-            onClick={() => onClearAllChats?.()}
-            disabled={busy || recentSessions.length === 0}
-            aria-label={CLEAR_ALL_LABEL}
-            title={CLEAR_ALL_LABEL}
-          >
-            {CLEAR_ALL_LABEL}
-          </button>
+          {/* P270: with an empty history the button would open a「清空 0 段
+              对话」no-op confirm — hide it until a session exists again. */}
+          {shouldShowClearAll(recentSessions) && (
+            <button
+              type="button"
+              className="recent-chat-clear-all"
+              // P228: App owns the in-app confirm dialog; this only asks.
+              onClick={() => onClearAllChats?.()}
+              disabled={busy}
+              aria-label={CLEAR_ALL_LABEL}
+              title={CLEAR_ALL_LABEL}
+            >
+              {CLEAR_ALL_LABEL}
+            </button>
+          )}
         </div>
         <input
           type="text"

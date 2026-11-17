@@ -118,8 +118,14 @@ describe('P196 · settings sheet', () => {
       // fires under SSR, so the loading copy is what markup shows).
       expect(html).toContain('导出 Markdown');
       expect(html).toContain('导出 JSON');
-      expect(html).toContain('清空全部对话');
       expect(html).toContain('版本');
+    });
+
+    it('renders the clear-all action only when conversations exist', () => {
+      // P270: at zero sessions the destructive control is a no-op confirm —
+      // it must not render; with sessions it appears again.
+      expect(renderSheet(true)).not.toContain('清空全部对话');
+      expect(renderSheet(true, { hasSessions: true })).toContain('清空全部对话');
     });
 
     it('renders nothing when closed', () => {

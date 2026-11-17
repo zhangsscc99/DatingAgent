@@ -58,6 +58,21 @@ export function shouldShowTrashEntry(
 }
 
 /**
+ * P270: the 清空全部对话 control is destructive, so it must only render when
+ * there is at least one stored session to destroy — otherwise its confirm
+ * dialog reports 「将清空 0 段对话，共 0 条消息」, a no-op. Accepts the
+ * session list, a count, or a boolean so both surfaces (Sidebar's
+ * recentSessions and SettingsSheet's hasSessions) share one rule.
+ */
+export function shouldShowClearAll(
+  sessions: readonly unknown[] | number | boolean,
+): boolean {
+  if (typeof sessions === 'boolean') return sessions;
+  const count = typeof sessions === 'number' ? sessions : sessions.length;
+  return count > 0;
+}
+
+/**
  * Keep an in-progress rename only while its row still exists. A vanished row
  * (deleted in this tab or removed by a cross-tab sync) drops the id so a stale
  * editingValue can never commit onto a wrong or absent row.
