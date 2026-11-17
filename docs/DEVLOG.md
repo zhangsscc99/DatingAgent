@@ -195,3 +195,4 @@
 2026-11-17 16:47 | P260 | .profile-nudge-btn 「完善资料」chip raised to min-height:36px (inline-flex centered, pill shape kept) inside @media (max-width:768px) only in ChatWindow.css; desktop rule untouched; settings-touch-targets.test.ts extended (7 green); ci-deploy exit 0
 2026-11-17 17:02 | P263 | 手机端气泡复制/换一个按钮抬到 ≥36px 触控目标
 2026-11-17 17:41 | P265 | 删除/清空对话进回收站，7 天可恢复
+2026-11-17 18:02 | F07 | P266 confirm dialogs now state message counts and recovery

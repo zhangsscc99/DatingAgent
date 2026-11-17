@@ -66,6 +66,12 @@ import {
   createClearAllUndo,
   type ClearAllUndoToastState,
 } from './lib/clearAllUndo';
+import {
+  clearAllConfirmRequest,
+  deleteConfirmRequest,
+  describeConfirm,
+  type ConfirmRequest,
+} from './lib/confirmCopy';
 import { pushInputHistory } from './lib/inputHistory';
 import { regeneratePromptFor } from './lib/regenerate';
 import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
@@ -124,11 +130,6 @@ async function describeChatError(res: Response): Promise<string> {
   }
   return `HTTP ${res.status}`;
 }
-
-/** P228: a pending destructive action awaiting the in-app confirm dialog. */
-type ConfirmRequest =
-  | { kind: 'clear-all' }
-  | { kind: 'delete'; sessionId: string; title: string };
 
 /** Result of one streamed reply; P26 uses it to restore a failed regeneration. */
 type StreamOutcome =
@@ -1136,7 +1137,9 @@ export default function App() {
     // the two undo windows share one visual slot.
     clearAllUndoCtl.dismiss();
     const title = recentSessions.find((s) => s.id === id)?.title ?? id;
-    setConfirmRequest({ kind: 'delete', sessionId: id, title });
+    // P266: the message count is read from the store now so the dialog copy
+    // cannot drift while it waits for an answer.
+    setConfirmRequest(deleteConfirmRequest(loadChatState(), id, title));
   };
 
   /**
@@ -1211,7 +1214,9 @@ export default function App() {
 
   /** P228: both 清空全部 triggers open the confirm dialog; the danger button
    * calls handleClearAllChats. */
-  const requestClearAllChats = () => setConfirmRequest({ kind: 'clear-all' });
+  const requestClearAllChats = () =>
+    // P266: same count-at-request-time capture as the single delete.
+    setConfirmRequest(clearAllConfirmRequest(loadChatState()));
 
   /**
    * P247: the undo path — write the pre-clear snapshot back verbatim (same
@@ -1739,11 +1744,7 @@ export default function App() {
           title={
             confirmRequest.kind === 'clear-all' ? '清空全部历史对话' : '删除对话'
           }
-          description={
-            confirmRequest.kind === 'clear-all'
-              ? '确定清空全部历史对话？'
-              : `删除对话「${confirmRequest.title}」？`
-          }
+          description={describeConfirm(confirmRequest)}
           confirmLabel={confirmRequest.kind === 'clear-all' ? '清空全部' : '删除'}
           onCancel={() => setConfirmRequest(null)}
           onConfirm={() => {
