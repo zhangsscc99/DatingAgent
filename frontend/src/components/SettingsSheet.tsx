@@ -42,7 +42,7 @@ interface Props {
   onExportMarkdown: () => void;
   onExportJson: () => void;
   onClearAll: () => void;
-  /** Model name already held by the health poll; the line is omitted without it. */
+  /** Model name already held by the health poll; folded into the 关于 title when present. */
   llmModel?: string;
 }
 
@@ -218,14 +218,23 @@ export default function SettingsSheet({
 
         <section className="settings-section" aria-label="关于">
           <h3>关于</h3>
-          <p className="settings-about">
+          <p
+            className="settings-about"
+            title={
+              version.status === 'ok'
+                ? `版本 ${version.version} · 构建 ${version.gitSha}${llmModel ? ` · 模型 ${llmModel}` : ''}`
+                : undefined
+            }
+          >
             {version.status === 'ok'
-              ? `版本 ${version.version} · 构建 ${version.gitSha}`
+              ? `DatingAgent ${version.version}`
               : version.status === 'error'
                 ? '版本未知'
                 : '版本加载中…'}
           </p>
-          {llmModel && <p className="settings-about muted">模型 {llmModel}</p>}
+          <p className="settings-about muted">
+            由 AI 顾问驱动，随时可以调整回复长度与语言。
+          </p>
         </section>
       </div>
     </div>

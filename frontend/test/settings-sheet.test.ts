@@ -126,9 +126,12 @@ describe('P196 · settings sheet', () => {
       expect(renderSheet(false)).toBe('');
     });
 
-    it('renders the model line only when llmModel is supplied', () => {
-      expect(renderSheet(true)).not.toContain('模型 ');
-      expect(renderSheet(true, { llmModel: 'qwen3.8-flash' })).toContain('模型 qwen3.8-flash');
+    it('keeps the model name out of the markup — it lives in the 关于 title once loaded', () => {
+      // Under SSR the version fetch never resolves, so the title (which is the
+      // only place the model/sha can appear) is absent too.
+      const html = renderSheet(true, { llmModel: 'qwen3.8-flash' });
+      expect(html).not.toContain('qwen');
+      expect(html).not.toContain('模型 ');
     });
 
     it('is a labelled modal dialog', () => {
