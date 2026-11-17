@@ -633,7 +633,12 @@ export default function Sidebar({
         open={trashOpen}
         entries={trashEntries}
         onClose={() => setTrashOpen(false)}
-        onRestore={(id) => onRestoreTrash?.(id)}
+        onRestore={(id) => {
+          // P268: the restored chat opens in the main pane — the sheet must
+          // not stay floating over it (the desktop sidebar never unmounts).
+          setTrashOpen(false);
+          onRestoreTrash?.(id);
+        }}
         onClearAll={() => onClearTrash?.()}
       />
 

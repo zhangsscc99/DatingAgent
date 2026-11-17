@@ -1200,11 +1200,30 @@ export default function App() {
     }
   };
 
-  /** P265: the 回收站 panel's per-row 恢复 — the session rejoins 最近对话. */
+  /** P265: the 回收站 panel's per-row 恢复 — the session rejoins 最近对话.
+   * P268: restoring means 「接着聊」, so the restored conversation becomes the
+   * active one and the mobile drawer folds away (ChatWindow's messages effect
+   * scrolls the list to the latest bubble). */
   const handleRestoreTrash = (id: string) => {
-    restoreChatSession(id);
+    const session = restoreChatSession(id);
     setRecentSessions(getRecentSessions());
     setTrashEntries(loadTrash());
+    if (!session) return;
+    abortRef.current?.abort();
+    toastCtl.dismiss();
+    setSessionId(session.id);
+    setMessages(session.messages);
+    setActiveSessionId(session.id);
+    setLoading(false);
+    setRestoringSession(true);
+    void syncSessionWithBackend(
+      session.id,
+      session.messages,
+      profile,
+    ).finally(() => {
+      setRestoringSession(false);
+    });
+    closeSidebar();
   };
 
   /** P265: 清空回收站 — confirmed in-app, then the whole bin goes. */
