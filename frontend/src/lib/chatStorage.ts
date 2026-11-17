@@ -528,6 +528,21 @@ export function clearAllChatSessions(): void {
   persistState({ activeSessionId: null, sessions: [] });
 }
 
+/**
+ * P247 — write a pre-clear snapshot back verbatim (the 清空全部 undo path):
+ * same session ids, titles, messages and active pointer, in a single write.
+ * Bypasses saveChatSession on purpose — the P250 tombstone would refuse
+ * these messages (they all predate the wipe), which is right for stale
+ * in-flight copies but wrong for the authoritative snapshot. The tombstone
+ * is left standing so the stale-save guard keeps working afterwards.
+ */
+export function restoreChatState(state: ChatStorageState): void {
+  persistState({
+    activeSessionId: state.activeSessionId,
+    sessions: state.sessions,
+  });
+}
+
 export function getSession(sessionId: string): StoredChatSession | undefined {
   return loadChatState().sessions.find((s) => s.id === sessionId);
 }

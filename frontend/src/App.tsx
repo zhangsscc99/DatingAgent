@@ -15,6 +15,7 @@ import ConfirmDialog from './components/ConfirmDialog';
 import ProfileOnboarding from './components/ProfileOnboarding';
 import SettingsSheet from './components/SettingsSheet';
 import SystemStatusFooter from './components/SystemStatusFooter';
+import UndoToast from './components/UndoToast';
 import { useMediaQuery } from './hooks/useMediaQuery';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { useTheme } from './hooks/useTheme';
@@ -28,6 +29,7 @@ import {
   newSessionId,
   remapChatSessionId,
   renameChatSession,
+  restoreChatState,
   sameConversation,
   sameRecentSessions,
   saveChatSession,
@@ -36,6 +38,7 @@ import {
   syncSessionWithBackend,
   watchChatStorage,
 } from './lib/chatStorage';
+import type { ChatStorageState } from './lib/chatStorage';
 import { DEFAULT_DRAFT_ID, sweepOrphanDrafts } from './lib/chatDrafts';
 import {
   isOnboardingComplete,
@@ -55,6 +58,10 @@ import {
 import { copyText } from './lib/clipboard';
 import { buildChatRequestBody } from './lib/chatRequest';
 import { createErrorToast, type ErrorToastState } from './lib/errorToast';
+import {
+  createClearAllUndo,
+  type ClearAllUndoToastState,
+} from './lib/clearAllUndo';
 import { pushInputHistory } from './lib/inputHistory';
 import { regeneratePromptFor } from './lib/regenerate';
 import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
@@ -189,6 +196,13 @@ export default function App() {
   // the 8 s auto-dismiss window.
   const [errorToast, setErrorToast] = useState<ErrorToastState | null>(null);
   const [toastCtl] = useState(() => createErrorToast(setErrorToast));
+  // P247: 清空全部 keeps a 6 s undo window — the snapshot lives in the
+  // controller and the toast carries 撤销 back to storage if pressed in time.
+  const [clearAllUndoToast, setClearAllUndoToast] =
+    useState<ClearAllUndoToastState | null>(null);
+  const [clearAllUndoCtl] = useState(() =>
+    createClearAllUndo(setClearAllUndoToast),
+  );
   const [restoringSession, setRestoringSession] = useState(() => {
     const { activeSessionId, sessions } = loadChatState();
     const session = sessions.find((s) => s.id === activeSessionId);
@@ -285,8 +299,9 @@ export default function App() {
       if (copyExportTimer.current !== null) window.clearTimeout(copyExportTimer.current);
       if (jsonExportTimer.current !== null) window.clearTimeout(jsonExportTimer.current);
       toastCtl.destroy();
+      clearAllUndoCtl.destroy();
     },
-    [toastCtl],
+    [toastCtl, clearAllUndoCtl],
   );
 
   // P156: the storage watcher below binds once on mount, so it reads the
@@ -1111,21 +1126,54 @@ export default function App() {
   const requestClearAllChats = () => setConfirmRequest({ kind: 'clear-all' });
 
   /**
+   * P247: the undo path — write the pre-clear snapshot back verbatim (same
+   * session ids, titles, messages, active pointer) and point the chat
+   * surface at the restored active conversation. The backend copies were
+   * fire-and-forget deleted during the wipe, so the active session is
+   * re-synced the same way handleSelectChat heals a missing one.
+   */
+  const restoreClearedChats = (snapshot: ChatStorageState) => {
+    restoreChatState(snapshot);
+    setRecentSessions(getRecentSessions());
+    const active = activeChatFromState(snapshot);
+    setSessionId(active.sessionId);
+    setMessages(active.messages);
+    if (active.sessionId) {
+      setRestoringSession(true);
+      void syncSessionWithBackend(
+        active.sessionId,
+        active.messages,
+        profile,
+      ).finally(() => {
+        setRestoringSession(false);
+      });
+    }
+  };
+
+  /**
    * P155: wipe every stored session and reset the chat surface. The dialog
    * already confirmed, so reaching here always clears — messages, the
    * active id, and any stale banner/toast all reset to a clean empty chat.
+   * P247: the controller snapshots the state being wiped first and arms
+   * the 6 s undo toast, so the confirmation is no longer silent or final.
    */
   const handleClearAllChats = () => {
-    clearAllChatSessions();
-    setRecentSessions([]);
-    abortRef.current?.abort();
-    toastCtl.dismiss();
-    setServiceDownBanner(false);
-    setMessages([]);
-    setSessionId(null);
-    setLoading(false);
-    setRestoringSession(false);
-    closeSidebar();
+    clearAllUndoCtl.confirm({
+      takeSnapshot: loadChatState,
+      wipe: () => {
+        clearAllChatSessions();
+        setRecentSessions([]);
+        abortRef.current?.abort();
+        toastCtl.dismiss();
+        setServiceDownBanner(false);
+        setMessages([]);
+        setSessionId(null);
+        setLoading(false);
+        setRestoringSession(false);
+        closeSidebar();
+      },
+      restore: restoreClearedChats,
+    });
   };
 
   /** P149: rename a stored session. Purely local — never touches the active
@@ -1556,6 +1604,14 @@ export default function App() {
         />
         <SystemStatusFooter />
       </main>
+      {clearAllUndoToast && (
+        <UndoToast
+          text={clearAllUndoToast.message}
+          actionLabel={clearAllUndoToast.actionLabel}
+          onAction={clearAllUndoCtl.undo}
+          onDismiss={clearAllUndoCtl.dismiss}
+        />
+      )}
       {confirmRequest && (
         <ConfirmDialog
           title={

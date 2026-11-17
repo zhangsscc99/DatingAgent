@@ -311,49 +311,57 @@ export default function Sidebar({
         + 新对话
       </button>
 
-      {recentSessions.length > 0 && (
-        <section className="sidebar-section recent-chats" aria-label="最近对话">
-          <div className="recent-chats-header">
-            <h3>最近对话</h3>
-            <button
-              type="button"
-              className="recent-chat-clear-all"
-              // P228: App owns the in-app confirm dialog; this only asks.
-              onClick={() => onClearAllChats?.()}
-              disabled={busy || recentSessions.length === 0}
-              aria-label="清空全部历史对话"
-              title="清空全部历史对话"
-            >
-              清空全部
-            </button>
-          </div>
-          <input
-            type="text"
-            className="recent-chat-filter"
-            value={filterQuery}
-            placeholder="筛选对话"
-            aria-label="筛选对话"
-            onChange={(e) => setFilterQuery(e.target.value)}
-            onKeyDown={(e) => {
-              // P167: a composing Escape cancels the IME, not the filter.
-              if (shouldHandleEscape(e)) {
-                setFilterQuery('');
-                e.currentTarget.blur();
-                return;
+      <section className="sidebar-section recent-chats" aria-label="最近对话">
+        <div className="recent-chats-header">
+          <h3>最近对话</h3>
+          <button
+            type="button"
+            className="recent-chat-clear-all"
+            // P228: App owns the in-app confirm dialog; this only asks.
+            onClick={() => onClearAllChats?.()}
+            disabled={busy || recentSessions.length === 0}
+            aria-label="清空全部历史对话"
+            title="清空全部历史对话"
+          >
+            清空全部
+          </button>
+        </div>
+        <input
+          type="text"
+          className="recent-chat-filter"
+          value={filterQuery}
+          placeholder="筛选对话"
+          aria-label="筛选对话"
+          onChange={(e) => setFilterQuery(e.target.value)}
+          onKeyDown={(e) => {
+            // P167: a composing Escape cancels the IME, not the filter.
+            if (shouldHandleEscape(e)) {
+              setFilterQuery('');
+              e.currentTarget.blur();
+              return;
+            }
+            // P132: ArrowDown from the filter moves into the first row.
+            if (e.key === 'ArrowDown') {
+              const first =
+                sessionListRef.current?.querySelector<HTMLElement>(
+                  '.recent-chat-item',
+                );
+              if (first) {
+                e.preventDefault();
+                first.focus();
               }
-              // P132: ArrowDown from the filter moves into the first row.
-              if (e.key === 'ArrowDown') {
-                const first =
-                  sessionListRef.current?.querySelector<HTMLElement>(
-                    '.recent-chat-item',
-                  );
-                if (first) {
-                  e.preventDefault();
-                  first.focus();
-                }
-              }
-            }}
-          />
+            }
+          }}
+        />
+        {/* P247: a cleared/fresh history used to vanish the whole section —
+            keep the heading and fill the list slot with one dim line instead
+            of blank space. */}
+        {recentSessions.length === 0 && (
+          <p className="recent-chat-empty" role="status">
+            还没有对话，问第一个问题吧
+          </p>
+        )}
+        {recentSessions.length > 0 && (
           <ul className="recent-chat-list" ref={sessionListRef}>
             {shouldShowFilterEmptyHint(
               recentSessions.length,
@@ -480,38 +488,38 @@ export default function Sidebar({
               </Fragment>
             ))}
           </ul>
-          {/* P230: announce how many conversations the filter matched, at
-              most once per query change; blank while the box is empty so
-              mounting the section never announces a count. P245: a zero-match
-              query is already announced by the filter-empty-hint li's own
-              aria-live, so this region stays silent there instead of doubling
-              the empty-state copy with a second generic message. */}
-          <span className="sr-only" role="status" aria-live="polite">
-            {filterQuery.trim() && visibleSessions.length > 0
-              ? `找到 ${visibleSessions.length} 段对话`
-              : ''}
-          </span>
-          {/* P188: an empty history can never legitimately show the notice,
-              even if some other path left the module state set. */}
-          {shouldShowEvictionNotice(evictionNotice, recentSessions.length) && (
-            <div className="recent-chat-eviction" role="status">
-              <span className="recent-chat-eviction-text">{evictionNotice}</span>
-              <button
-                type="button"
-                className="recent-chat-eviction-close"
-                aria-label="关闭提示"
-                title="关闭提示"
-                onClick={() => {
-                  clearLastEvictionNotice();
-                  setEvictionTick((n) => n + 1);
-                }}
-              >
-                <span aria-hidden="true">×</span>
-              </button>
-            </div>
-          )}
-        </section>
-      )}
+        )}
+        {/* P230: announce how many conversations the filter matched, at
+            most once per query change; blank while the box is empty so
+            mounting the section never announces a count. P245: a zero-match
+            query is already announced by the filter-empty-hint li's own
+            aria-live, so this region stays silent there instead of doubling
+            the empty-state copy with a second generic message. */}
+        <span className="sr-only" role="status" aria-live="polite">
+          {filterQuery.trim() && visibleSessions.length > 0
+            ? `找到 ${visibleSessions.length} 段对话`
+            : ''}
+        </span>
+        {/* P188: an empty history can never legitimately show the notice,
+            even if some other path left the module state set. */}
+        {shouldShowEvictionNotice(evictionNotice, recentSessions.length) && (
+          <div className="recent-chat-eviction" role="status">
+            <span className="recent-chat-eviction-text">{evictionNotice}</span>
+            <button
+              type="button"
+              className="recent-chat-eviction-close"
+              aria-label="关闭提示"
+              title="关闭提示"
+              onClick={() => {
+                clearLastEvictionNotice();
+                setEvictionTick((n) => n + 1);
+              }}
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+        )}
+      </section>
 
       {profile?.name && (
         <section className="sidebar-section profile-card" aria-label="我的资料">

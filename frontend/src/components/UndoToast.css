@@ -1,0 +1,95 @@
+/* P247 — floating undo toast pinned to the bottom centre of the viewport.
+   position:fixed so it never shifts layout, and above the overlay layers
+   (ConfirmDialog 120, SettingsSheet 110) so it stays reachable when the
+   clear was confirmed from inside the settings sheet. Neutral surface —
+   the action already succeeded. */
+.undo-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 64px);
+  padding: 8px 10px 8px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
+  font-size: 13px;
+  color: var(--text);
+  z-index: 130;
+}
+
+.undo-toast-text {
+  overflow-wrap: anywhere;
+}
+
+.undo-toast-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.undo-toast-action {
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 2px 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.undo-toast-action:hover {
+  background: var(--surface-hover);
+}
+
+.undo-toast-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.undo-toast-close:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.undo-toast-action:focus-visible,
+.undo-toast-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .undo-toast {
+    font-size: 12px;
+    bottom: 16px;
+    max-width: calc(100% - 32px);
+    padding: 6px 8px 6px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .undo-toast-action,
+  .undo-toast-close {
+    transition: none;
+  }
+}
