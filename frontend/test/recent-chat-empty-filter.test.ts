@@ -138,6 +138,28 @@ describe('P187 · sidebar filter empty-state hint', () => {
       expect(sidebar).toContain('{recentSessions.length > 0 && (');
     });
 
+    it('guarantees the hint text a full-width row so it can never collapse to a sliver', () => {
+      const css = read('components/Sidebar.css');
+      const textBlock = css.slice(
+        css.indexOf('.filter-empty-hint-text'),
+        css.indexOf('}', css.indexOf('.filter-empty-hint-text')),
+      );
+      // Regression guard (P275 fix): the text span must claim the whole first
+      // row of the wrapped flex container — either via flex-basis: 100% /
+      // width: 100% here, or by the container being flex-direction: column.
+      // A plain `flex: 1` sibling of the button collapses to ~10px at 320px.
+      const containerBlock = css.slice(
+        css.indexOf('.filter-empty-hint {'),
+        css.indexOf('}', css.indexOf('.filter-empty-hint {')),
+      );
+      const ownsFullRow =
+        /flex-basis:\s*100%|width:\s*100%|flex:\s*1\s+1\s+100%/.test(textBlock);
+      const isColumn = /flex-direction:\s*column/.test(containerBlock);
+      expect(ownsFullRow || isColumn).toBe(true);
+      expect(textBlock).not.toMatch(/flex:\s*1\s*;/);
+      expect(textBlock).not.toMatch(/flex:\s*1\s+1\s+0%/);
+    });
+
     it('keeps the dim empty-row styling and the clear button styles', () => {
       expect(listBlock).toContain('recent-chat-empty');
       const css = read('components/Sidebar.css');

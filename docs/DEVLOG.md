@@ -205,3 +205,4 @@
 2026-11-17 20:43 | P273 | 撤销清空全部时同步回退回收站，恢复会话按 id 幂等
 2026-11-17 21:12 | P274 | 顶栏窄屏硬化：.header column-gap 8px + .header-title-text min-width:0/overflow:hidden + h1 省略号截断；320/360 gap 0→8px，1440 不变
 2026-11-17 21:28 | P275 | 侧栏筛选空态：「只筛选最近对话标题」并进首句（——{FILTER_SESSIONS_HINT} 紧跟 没有匹配 文案），清除筛选按钮移至末尾，DOM 顺序 提示→说明→按钮；.filter-empty-hint-scope 去掉整行 flex-basis，无布局位移
+2026-11-17 21:32 | P275 | 修复回归：.filter-empty-hint-text 改回 flex: 1 1 100% 独占首行（390px 下从 38px 窄缝恢复整行），说明+按钮同排第二行；recent-chat-empty-filter.test.ts 增加 CSS 源码断言防再次塌缩
