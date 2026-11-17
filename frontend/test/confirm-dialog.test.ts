@@ -104,7 +104,6 @@ describe('P228 · in-app confirm dialog', () => {
 
   it(
     'confirms delete and clear-all through the app dialog, never window.confirm',
-    { timeout: 20000 },
     async () => {
     const { saveChatSession, setActiveSessionId, loadChatState } =
       await import('../src/lib/chatStorage');

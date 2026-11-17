@@ -158,3 +158,4 @@
 2026-11-17 00:43 | P219 | user-bubble copy action is now named 复制我的消息 (aria-label + title) while assistant bubbles keep 复制回复; same copyText payload, 1.5s copied feedback and inline SVG icon; P184 test updated to the role-aware expression; new bubble-copy-role-copy.test.ts mounts both roles on the fake DOM and spies navigator.clipboard.writeText (759 green x2); ci-deploy exit 0
 2026-11-17 01:10 | P220 | sidebar quick entries renamed to intent-shaped sentences (帮我优化资料 / 她这样回我怎么接 / 帮我规划第一次约会 / 我们合不合适) so no label collides with Agent 工具 names; tool-list empty-data fallback now uses real capability names via TOOL_FALLBACK instead of quick-prompt labels; new sidebar-ia-dedupe.test.ts + sidebar-no-emoji label assertion updated (765 green); ci-deploy exit 0
 2026-11-17 01:20 | F30 | P228 custom confirm dialog replaces window.confirm
+2026-11-17 01:52 | F30b | deterministic vitest timeouts/pool sizing; 3x npm test green
