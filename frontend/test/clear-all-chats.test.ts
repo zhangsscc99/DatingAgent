@@ -114,9 +114,11 @@ describe('P155 · clear all history chats', () => {
         clear: () => {},
       });
       clearAllChatSessions();
-      expect(setSpy).toHaveBeenCalledTimes(1);
-      expect(setSpy).toHaveBeenCalledWith(
-        STORAGE_KEY,
+      // P250: the clear still persists the empty state with one write to the
+      // history key (a sibling tombstone key also records the clear time).
+      const historyWrites = setSpy.mock.calls.filter(([k]) => k === STORAGE_KEY);
+      expect(historyWrites).toHaveLength(1);
+      expect(historyWrites[0][1]).toBe(
         JSON.stringify({ activeSessionId: null, sessions: [] }),
       );
     });

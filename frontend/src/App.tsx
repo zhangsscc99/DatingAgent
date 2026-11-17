@@ -26,6 +26,8 @@ import {
   getRecentSessions,
   loadChatState,
   renameChatSession,
+  sameConversation,
+  sameRecentSessions,
   saveChatSession,
   sessionTitle,
   setActiveSessionId,
@@ -296,14 +298,24 @@ export default function App() {
   // here — reload so the sidebar list and the open conversation match the
   // shared store. An in-flight stream is never interrupted; the refresh is
   // skipped instead of aborting the reply.
+  // P250: the reload used to hand React a brand-new array on every event,
+  // which re-fired the save effect and made two tabs write each other back
+  // forever (~120 setItem/s). Each setter below now keeps its current
+  // identity when the stored content is unchanged, so the loop has no
+  // state change to feed on.
   useEffect(
     () =>
       watchChatStorage(() => {
         if (loadingRef.current) return;
-        setRecentSessions(getRecentSessions());
         const next = activeChatFromState(loadChatState());
-        setSessionId(next.sessionId);
-        setMessages(next.messages);
+        const nextRecent = getRecentSessions();
+        setRecentSessions((prev) =>
+          sameRecentSessions(prev, nextRecent) ? prev : nextRecent,
+        );
+        setSessionId((prev) => (prev === next.sessionId ? prev : next.sessionId));
+        setMessages((prev) =>
+          sameConversation(prev, next.messages) ? prev : next.messages,
+        );
       }),
     [],
   );

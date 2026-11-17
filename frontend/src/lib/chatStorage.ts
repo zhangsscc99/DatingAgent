@@ -9,6 +9,44 @@ import {
 const STORAGE_KEY = 'datingAgent.chatHistory';
 const MAX_SESSIONS = 20;
 
+/**
+ * P250 — timestamp (epoch ms) of the last 清空全部. Stored under its own key
+ * so the chat-history payload schema is untouched. saveChatSession refuses
+ * to persist a copy whose messages all predate this stamp: such a copy can
+ * only be stale in-memory state from before the wipe (its real home was
+ * already deleted), and writing it back was what resurrected cleared history
+ * milliseconds after the user confirmed.
+ */
+const CLEARED_AT_KEY = 'datingAgent.chatClearedAt';
+
+function readClearedAt(): number | null {
+  try {
+    const raw = localStorage.getItem(CLEARED_AT_KEY);
+    if (raw === null) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeClearedAt(timestamp: number): void {
+  try {
+    localStorage.setItem(CLEARED_AT_KEY, String(timestamp));
+  } catch {
+    // Storage unavailable — the empty-state write below still runs.
+  }
+}
+
+/**
+ * P250 — the exact JSON this tab last wrote to STORAGE_KEY. A `storage`
+ * event carrying the same `newValue` carries nothing new: either a
+ * same-window echo (non-standard, but seen in instrumented/headless
+ * browsers) or a foreign write byte-identical to our own — syncing from it
+ * would only feed the save → watch → setState → save loop.
+ */
+let lastPersistedJson: string | null = null;
+
 export interface StoredChatSession {
   id: string;
   title: string;
@@ -202,7 +240,12 @@ export function persistWithQuotaFallback(
 function persistState(state: ChatStorageState): void {
   persistWithQuotaFallback(
     state,
-    (json) => localStorage.setItem(STORAGE_KEY, json),
+    (json) => {
+      localStorage.setItem(STORAGE_KEY, json);
+      // P250: remember the bytes only after the write actually landed — a
+      // quota/private-mode throw must not mark content as ours.
+      lastPersistedJson = json;
+    },
     MAX_SESSIONS,
   );
 }
@@ -292,6 +335,21 @@ export function saveChatSession(sessionId: string, messages: ChatMessage[]): voi
   const serialized = serializeMessages(messages);
   if (serialized.length === 0) return;
 
+  // P250: after 清空全部, a stale copy of the pre-clear conversation can
+  // still sit in this tab's (or another tab's) React state and reach here
+  // via the save effect or a queued write. If every message predates the
+  // clear, this write has no business existing — drop it so the wipe wins.
+  // A genuinely new message (createdAt after the clear) always passes.
+  const clearedAt = readClearedAt();
+  if (
+    clearedAt !== null &&
+    !serialized.some(
+      (m) => typeof m.createdAt === 'number' && m.createdAt > clearedAt,
+    )
+  ) {
+    return;
+  }
+
   const state = loadChatState();
   const existingIndex = state.sessions.findIndex((s) => s.id === sessionId);
   const existing = existingIndex >= 0 ? state.sessions[existingIndex] : undefined;
@@ -302,6 +360,19 @@ export function saveChatSession(sessionId: string, messages: ChatMessage[]): voi
     messages: serialized,
     ...(existing?.customTitle ? { customTitle: true } : {}),
   };
+
+  // P250: the store already shows exactly this conversation on top — writing
+  // again would only bump updatedAt and fan the write → storage-event →
+  // re-save ping-pong between tabs for zero information.
+  if (
+    existingIndex === 0 &&
+    existing !== undefined &&
+    state.activeSessionId === sessionId &&
+    existing.title === entry.title &&
+    JSON.stringify(existing.messages) === JSON.stringify(serialized)
+  ) {
+    return;
+  }
 
   if (existingIndex >= 0) {
     state.sessions[existingIndex] = entry;
@@ -412,6 +483,10 @@ export function clearAllChatSessions(): void {
   purgeInputHistories(ids);
   purgeAllInputHistories();
   clearLastEvictionNotice();
+  // P250: stamp the tombstone BEFORE the empty-state write so any stale
+  // saveChatSession landing between the two already sees it. Every message
+  // in a pre-clear copy has createdAt ≤ this stamp and is refused.
+  writeClearedAt(Date.now());
   persistState({ activeSessionId: null, sessions: [] });
 }
 
@@ -436,17 +511,65 @@ export function activeChatFromState(state: ChatStorageState): {
 }
 
 /**
+ * P250 — true when `live` would persist to exactly `stored`: the live list
+ * run through serializeMessages (streaming placeholders dropped, tool
+ * events closed, meta normalized) matches the stored entries field for
+ * field. The storage watcher uses it to keep the current array identity
+ * when a foreign write carries nothing new, so the save effect does not
+ * re-fire and write the same bytes back.
+ */
+export function sameConversation(
+  live: ChatMessage[],
+  stored: ChatMessage[],
+): boolean {
+  if (live === stored) return true;
+  return JSON.stringify(serializeMessages(live)) === JSON.stringify(stored);
+}
+
+/** P250 — shallow list equality for the sidebar's 最近对话 rows: same ids
+ * in the same order with the same title, timestamp and message count. */
+export function sameRecentSessions(
+  a: StoredChatSession[],
+  b: StoredChatSession[],
+): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every(
+    (s, i) =>
+      s.id === b[i].id &&
+      s.title === b[i].title &&
+      s.updatedAt === b[i].updatedAt &&
+      s.messages.length === b[i].messages.length &&
+      s.customTitle === b[i].customTitle,
+  );
+}
+
+/**
  * P156 — cross-tab session sync. Writes to the chat-history key in another
  * tab fire a `storage` event on this window; `key === null` reports a full
  * `localStorage.clear()`. Returns the unsubscribe used as effect cleanup.
  * Guarded inside the call so SSR/tests without a window get a no-op.
+ *
+ * P250 — an event whose `newValue` is byte-identical to what this tab last
+ * persisted is dropped: it is our own write echoing back (non-standard,
+ * but instrumented/headless browsers do fire `storage` same-window) or a
+ * foreign write that adds no information. Foreign writes with different
+ * bytes still sync — the P156 contract is unchanged.
  */
 export function watchChatStorage(onChange: () => void): () => void {
   if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
     return () => {};
   }
   const listener = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) onChange();
+    if (event.key !== STORAGE_KEY && event.key !== null) return;
+    if (
+      event.key === STORAGE_KEY &&
+      typeof event.newValue === 'string' &&
+      event.newValue === lastPersistedJson
+    ) {
+      return;
+    }
+    onChange();
   };
   window.addEventListener('storage', listener);
   return () => window.removeEventListener('storage', listener);

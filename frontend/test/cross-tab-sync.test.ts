@@ -110,12 +110,19 @@ describe('P156 · cross-tab session sync', () => {
       const app = read('App.tsx');
       const watcher = app.indexOf('watchChatStorage(');
       expect(watcher).toBeGreaterThan(-1);
-      const effect = app.slice(app.lastIndexOf('useEffect(', watcher), watcher + 600);
+      const effect = app.slice(app.lastIndexOf('useEffect(', watcher), watcher + 800);
       expect(effect).toContain('loadChatState()');
-      expect(effect).toContain('setRecentSessions(getRecentSessions())');
+      expect(effect).toContain('getRecentSessions()');
       expect(effect).toContain('activeChatFromState(');
-      expect(effect).toContain('setSessionId(next.sessionId)');
-      expect(effect).toContain('setMessages(next.messages)');
+      expect(effect).toContain('setRecentSessions(');
+      expect(effect).toContain('next.sessionId');
+      expect(effect).toContain('setSessionId(');
+      expect(effect).toContain('next.messages');
+      expect(effect).toContain('setMessages(');
+      // P250: the reload must short-circuit on identical content — a fresh
+      // array identity per event was what fed the save→watch→save loop.
+      expect(effect).toContain('sameRecentSessions(');
+      expect(effect).toContain('sameConversation(');
       // The watcher's return value is the effect cleanup (removeEventListener).
       expect(effect).toMatch(/useEffect\(\s*\(\)\s*=>/);
       expect(app.slice(watcher)).toContain('[]');
