@@ -27,6 +27,7 @@ import {
   replyLengthToggleAriaLabel,
   type ReplyLengthPreference,
 } from '../lib/replyLength';
+import { queueHintText, restoreQueuedDraft } from '../lib/sendQueue';
 import './InputBar.css';
 
 export interface InputBarHandle {
@@ -50,6 +51,10 @@ interface Props {
   replyLength?: ReplyLengthPreference;
   /** P205: cycles the preference — the same setter the settings sheet uses. */
   onReplyLengthChange?: (next: ReplyLengthPreference) => void;
+  /** P244: drafts already queued to auto-send when the current reply ends. */
+  queuedCount?: number;
+  /** P244: drop the queued drafts; returns their text so the composer can restore it. */
+  onCancelQueue?: () => string[];
 }
 
 /** Must match MAX_MESSAGE_CHARS in backend/src/lib/guardrails.ts (413 above it). */
@@ -73,76 +78,22 @@ const MOD_KEY =
     ? '⌘'
     : 'Ctrl';
 
-/** P203: hint shown briefly when Enter is pressed while a reply streams. */
-export const BUSY_ENTER_HINT_TEXT = '回复生成中，完成后可发送';
-export const BUSY_ENTER_HINT_MS = 2000;
-
-export interface BusyEnterHint {
-  /** Show the hint and (re)start the auto-hide timer. */
-  flash: () => void;
-  /** Hide now and cancel the timer (streaming end, unmount). */
-  clear: () => void;
-  /** Current visibility — for tests. */
-  visible: () => boolean;
-}
-
 /**
- * P203 — visibility + auto-hide timer for the Enter-while-busy hint.
- * React-free so the timing contract is testable in the node env.
- */
-export function createBusyEnterHint(
-  onChange: (visible: boolean) => void,
-  timeoutMs = BUSY_ENTER_HINT_MS,
-): BusyEnterHint {
-  let isVisible = false;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const set = (next: boolean) => {
-    if (isVisible === next) return;
-    isVisible = next;
-    onChange(next);
-  };
-  const cancel = () => {
-    if (timer === null) return;
-    clearTimeout(timer);
-    timer = null;
-  };
-  return {
-    flash() {
-      cancel();
-      set(true);
-      timer = setTimeout(() => {
-        timer = null;
-        set(false);
-      }, timeoutMs);
-    },
-    clear() {
-      cancel();
-      set(false);
-    },
-    visible: () => isVisible,
-  };
-}
-
-/**
- * P203 — one composer Enter keystroke's outcome. A real Enter (the same
- * condition `shouldSubmitOnEnter` uses — Shift+Enter and IME composition
- * untouched) is always consumed; while a reply is streaming it flashes the
- * busy hint instead of submitting, so the key is no longer swallowed
- * silently. Keys the textarea should keep (Shift+Enter newline, IME
- * candidate select) return untouched — no preventDefault, no action.
+ * P203/P244 — one composer Enter keystroke's outcome. A real Enter (the
+ * same condition `shouldSubmitOnEnter` uses — Shift+Enter and IME
+ * composition untouched) is always consumed and submitted; while a reply
+ * is streaming the submit lands in the pending queue (App decides), so
+ * the key is never swallowed silently. Keys the textarea should keep
+ * (Shift+Enter newline, IME candidate select) return untouched — no
+ * preventDefault, no action.
  */
 export function runComposerEnter(
   e: KeyEventLike & { preventDefault: () => void },
-  streaming: boolean,
-  actions: { submit: () => void; flashBusyHint: () => void },
+  submit: () => void,
 ): void {
   if (!shouldSubmitOnEnter(e)) return;
   e.preventDefault();
-  if (streaming) {
-    actions.flashBusyHint();
-  } else {
-    actions.submit();
-  }
+  submit();
 }
 
 const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
@@ -155,6 +106,8 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
     rateLimit = null,
     replyLength = 'default',
     onReplyLengthChange,
+    queuedCount = 0,
+    onCancelQueue,
   },
   ref,
 ) {
@@ -194,20 +147,6 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   const historyRef = useRef<string[]>([]);
   const browseDraftRef = useRef('');
   const [historyAnnouncement, setHistoryAnnouncement] = useState('');
-
-  // P203: while streaming the composer stays editable so the next message
-  // can be drafted; Enter only flashes this hint instead of sending.
-  const [busyHintVisible, setBusyHintVisible] = useState(false);
-  const busyHintRef = useRef<ReturnType<typeof createBusyEnterHint> | null>(null);
-  busyHintRef.current ??= createBusyEnterHint(setBusyHintVisible);
-  const busyHint = busyHintRef.current;
-
-  // Cancel the pending auto-hide on unmount, and drop the hint as soon as
-  // the stream ends — a finished reply makes the notice stale.
-  useEffect(() => () => busyHint.clear(), [busyHint]);
-  useEffect(() => {
-    if (!streaming) busyHint.clear();
-  }, [streaming, busyHint]);
 
   // Session switch: load that session's draft (the old one is already
   // persisted) and drop the previous conversation's recall state — ArrowUp
@@ -253,15 +192,24 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   }));
 
   const submit = () => {
-    // P224: a second turn must never start while one is in flight — the
-    // stream could otherwise be aborted mid-write and the typed message
-    // lost. The button is rendered disabled during streaming, and this
-    // guard is the behaviour-level backstop for any click/Enter path that
-    // still reaches submit.
-    if (!text.trim() || disabled || streaming) return;
+    // P224/P244: a second turn must never *start* while one is in flight,
+    // but the typed message is no longer dropped — while `streaming` the
+    // submit reaches onSend and App parks it in the pending queue. Only a
+    // non-streaming disable (session restore) still blocks submission.
+    if (!text.trim() || (disabled && !streaming)) return;
     historyPosRef.current = null;
     onSend(text);
     setText('');
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  };
+
+  /** P244: 「取消排队」 — App drops the pending queue; its text comes back
+   * here and rejoins the box ahead of anything typed since. */
+  const cancelQueue = () => {
+    const restored = onCancelQueue?.() ?? [];
+    if (restored.length === 0) return;
+    historyPosRef.current = null;
+    setText((prev) => restoreQueuedDraft(restored, prev));
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
@@ -344,22 +292,18 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
     // P167: only a real Enter is handled. Shift+Enter keeps the default
     // newline behaviour, and a composing Enter is left for the IME — no
     // preventDefault, no action (all inside runComposerEnter).
-    // P203: while a reply streams, the same keystroke flashes the busy
-    // hint instead of silently dropping the send.
-    runComposerEnter(e, streaming, {
-      submit,
-      flashBusyHint: busyHint.flash,
-    });
+    // P244: while a reply streams, the same keystroke queues the draft for
+    // auto-send instead of silently dropping it.
+    runComposerEnter(e, submit);
   };
 
-  // P203: keep the composer editable while a reply streams — the send path
-  // is blocked (disabled send button + Enter hint), and Enter shows the
-  // busy hint.
-  // P224: the send button stays visible but disabled during streaming so a
-  // second message can't be sent — the button reads as "send is blocked",
-  // while 停止 remains a separate explicit stop.
-  const sendBlocked = Boolean(disabled) || streaming;
-  const composerDisabled = Boolean(disabled) && !streaming;
+  // P203: keep the composer editable while a reply streams — the next
+  // message can be drafted and queued while the current one generates.
+  // P224: the send button never leaves the DOM; during streaming it stays
+  // enabled and queues the draft (P244), while 停止 remains a separate
+  // explicit stop. Only a non-streaming disable (restoring) blocks it.
+  const sendBlocked = Boolean(disabled) && !streaming;
+  const composerDisabled = sendBlocked;
   const showCounter = text.length >= COUNTER_THRESHOLD;
   // P07: the rate-limit readout sits beside the counter inside the field, so
   // reserve the same bottom padding whenever either is visible.
@@ -539,12 +483,22 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           </button>
         )}
       </div>
-      {/* P203/P224: fixed-height row under the composer — empty while idle
+      {/* P203/P244: fixed-height row under the composer — empty while idle
           so the hint never shifts the textarea, send button, or message
-          list. While a reply streams it stays visible to explain why send
-          is blocked; an Enter attempt also flashes it on top of that. */}
+          list. While a reply streams it promises the queued auto-send and
+          counts the waiting drafts; 「取消排队」 hands them back. */}
       <div className="busy-enter-hint" role="status" aria-live="polite">
-        {streaming || busyHintVisible ? BUSY_ENTER_HINT_TEXT : ''}
+        {streaming ? queueHintText(queuedCount) : ''}
+        {streaming && queuedCount > 0 && onCancelQueue && (
+          <button
+            type="button"
+            className="queue-cancel-btn"
+            onClick={cancelQueue}
+            aria-label="取消排队，文字放回输入框"
+          >
+            取消排队
+          </button>
+        )}
       </div>
     </div>
   );

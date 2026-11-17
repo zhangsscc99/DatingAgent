@@ -4,26 +4,21 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import InputBar, {
-  BUSY_ENTER_HINT_MS,
-  BUSY_ENTER_HINT_TEXT,
-  createBusyEnterHint,
-  runComposerEnter,
-} from '../src/components/InputBar';
+import { describe, expect, it, vi } from 'vitest';
+import InputBar, { runComposerEnter } from '../src/components/InputBar';
+import { STREAMING_QUEUE_HINT } from '../src/lib/sendQueue';
 
 /**
- * P203 — Enter pressed while a reply is still streaming was silently
- * swallowed: the send button is replaced by 「停止生成」, the keydown
- * returned without sending, and the typed text just sat there. The same
- * Enter now flashes a dim hint under the composer (~2 s, auto-hide)
- * instead of sending, and the composer stays editable while streaming so
- * the next message can be drafted.
+ * P203 → P244 — Enter pressed while a reply is streaming is no longer a
+ * silent no-op (P203 flashed a hint and dropped the send; P244 turns the
+ * same keystroke into a queued draft that auto-sends when the turn ends).
+ * The composer stays editable while streaming, the queue hint names the
+ * auto-send plus the waiting count, and 「取消排队」 hands queued drafts
+ * back. Shift+Enter and IME-composing Enters still belong to the textarea.
  *
- * Vitest runs in node: markup assertions go through renderToStaticMarkup,
- * the keystroke path is exercised through the real `runComposerEnter` the
- * component delegates to, and the auto-hide contract through the real
- * `createBusyEnterHint` controller under fake timers.
+ * Vitest runs in node: markup assertions go through renderToStaticMarkup
+ * and the keystroke path is exercised through the real `runComposerEnter`
+ * the component delegates to.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -36,102 +31,39 @@ const enterEvent = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-describe('P203 · Enter while a reply is streaming', () => {
-  it('(a) streaming Enter does not call onSend — the hint becomes present', () => {
-    const onSend = vi.fn();
-    const hint = createBusyEnterHint(noop);
+describe('P244 · Enter while a reply is streaming queues the draft', () => {
+  it('(a) a real Enter always submits — while streaming it lands in the queue', () => {
+    const submit = vi.fn();
     const ev = enterEvent();
 
-    runComposerEnter(ev, true, {
-      submit: () => onSend('打好的下一句'),
-      flashBusyHint: hint.flash,
-    });
+    runComposerEnter(ev, submit);
 
     expect(ev.preventDefault).toHaveBeenCalledTimes(1);
-    expect(onSend).not.toHaveBeenCalled();
-    expect(hint.visible()).toBe(true);
-    expect(BUSY_ENTER_HINT_TEXT).toBe('回复生成中，完成后可发送');
+    expect(submit).toHaveBeenCalledTimes(1);
   });
 
-  it('(b) the hint auto-hides after ~2 s, and clears when streaming ends', () => {
-    vi.useFakeTimers();
-    const hint = createBusyEnterHint(noop);
-    runComposerEnter(enterEvent(), true, {
-      submit: noop,
-      flashBusyHint: hint.flash,
-    });
-    expect(hint.visible()).toBe(true);
-
-    vi.advanceTimersByTime(BUSY_ENTER_HINT_MS - 1);
-    expect(hint.visible()).toBe(true);
-    vi.advanceTimersByTime(1);
-    expect(hint.visible()).toBe(false);
-
-    // A second flash followed by clear() (streaming end / unmount) hides
-    // immediately and cancels the pending auto-hide for good.
-    runComposerEnter(enterEvent(), true, {
-      submit: noop,
-      flashBusyHint: hint.flash,
-    });
-    expect(hint.visible()).toBe(true);
-    hint.clear();
-    expect(hint.visible()).toBe(false);
-    vi.advanceTimersByTime(10 * BUSY_ENTER_HINT_MS);
-    expect(hint.visible()).toBe(false);
-  });
-
-  it('(c) with streaming false, Enter still sends exactly once with the typed text', () => {
-    const sent: string[] = [];
-    const hint = createBusyEnterHint(noop);
-
-    const ev = enterEvent();
-    runComposerEnter(ev, false, {
-      submit: () => sent.push('她问周末干嘛，怎么回'),
-      flashBusyHint: hint.flash,
-    });
-
-    expect(ev.preventDefault).toHaveBeenCalledTimes(1);
-    expect(sent).toEqual(['她问周末干嘛，怎么回']);
-    expect(hint.visible()).toBe(false);
-  });
-
-  it('(d) Shift+Enter while streaming neither sends nor shows the hint', () => {
-    const onSend = vi.fn();
-    const hint = createBusyEnterHint(noop);
+  it('(b) Shift+Enter is left to the textarea (newline), not submitted', () => {
+    const submit = vi.fn();
     const ev = enterEvent({ shiftKey: true });
 
-    runComposerEnter(ev, true, {
-      submit: onSend,
-      flashBusyHint: hint.flash,
-    });
+    runComposerEnter(ev, submit);
 
-    // The key is left to the textarea: default not prevented → newline.
     expect(ev.preventDefault).not.toHaveBeenCalled();
-    expect(onSend).not.toHaveBeenCalled();
-    expect(hint.visible()).toBe(false);
+    expect(submit).not.toHaveBeenCalled();
   });
 
-  it('a composing Enter while streaming is left to the IME entirely', () => {
-    const onSend = vi.fn();
-    const hint = createBusyEnterHint(noop);
+  it('(c) a composing Enter is left to the IME entirely', () => {
+    const submit = vi.fn();
     const ev = enterEvent({ nativeEvent: { isComposing: true } });
 
-    runComposerEnter(ev, true, {
-      submit: onSend,
-      flashBusyHint: hint.flash,
-    });
+    runComposerEnter(ev, submit);
 
     expect(ev.preventDefault).not.toHaveBeenCalled();
-    expect(onSend).not.toHaveBeenCalled();
-    expect(hint.visible()).toBe(false);
+    expect(submit).not.toHaveBeenCalled();
   });
 
   describe('rendered markup (renderToStaticMarkup)', () => {
-    it('keeps the textarea editable while streaming, stop button intact', () => {
+    it('keeps the textarea editable while streaming and shows the queue copy', () => {
       const markup = renderToStaticMarkup(
         createElement(InputBar, { onSend: noop, streaming: true, onStop: noop }),
       );
@@ -140,10 +72,26 @@ describe('P203 · Enter while a reply is streaming', () => {
       expect(taTag).not.toContain(' disabled');
       expect(taTag).toContain('aria-disabled="false"');
       expect(markup).toContain('aria-label="停止生成"');
-      // Reserved hint row exists; P224 keeps the hint visible while a reply
-      // streams so the blocked send is never a mystery.
+      // P244: the reserved hint row names the auto-send instead of a shrug.
       expect(markup).toContain('class="busy-enter-hint"');
-      expect(markup).toContain(BUSY_ENTER_HINT_TEXT);
+      expect(markup).toContain(STREAMING_QUEUE_HINT);
+      expect(markup).not.toContain('条待发');
+      expect(markup).not.toContain('取消排队');
+    });
+
+    it('counts the waiting drafts and offers 取消排队 once anything is queued', () => {
+      const markup = renderToStaticMarkup(
+        createElement(InputBar, {
+          onSend: noop,
+          streaming: true,
+          onStop: noop,
+          queuedCount: 2,
+          onCancelQueue: () => ['a', 'b'],
+        }),
+      );
+      expect(markup).toContain('还有 2 条待发');
+      expect(markup).toContain('queue-cancel-btn');
+      expect(markup).toContain('取消排队');
     });
 
     it('leaves the hint row empty when idle (not streaming)', () => {
@@ -151,25 +99,8 @@ describe('P203 · Enter while a reply is streaming', () => {
         createElement(InputBar, { onSend: noop }),
       );
       expect(markup).toContain('class="busy-enter-hint"');
-      expect(markup).not.toContain(BUSY_ENTER_HINT_TEXT);
-    });
-
-    it('renders the send button disabled during streaming, beside the stop button', () => {
-      const markup = renderToStaticMarkup(
-        createElement(InputBar, { onSend: noop, streaming: true, onStop: noop }),
-      );
-      // Both controls are present: the disabled send first, then 停止.
-      // ('class="input-send"' is exact — the stop button is 'input-send
-      // input-stop', and aria-label="发送消息" also marks the .input-bar div.)
-      const sendIdx = markup.indexOf('class="input-send"');
-      const stopIdx = markup.indexOf('class="input-send input-stop"');
-      expect(sendIdx).toBeGreaterThan(-1);
-      expect(stopIdx).toBeGreaterThan(sendIdx);
-      const sendTag = markup.slice(
-        markup.lastIndexOf('<button', sendIdx),
-        markup.indexOf('>', sendIdx),
-      );
-      expect(sendTag).toContain('disabled=""');
+      expect(markup).not.toContain(STREAMING_QUEUE_HINT);
+      expect(markup).not.toContain('取消排队');
     });
 
     it('still disables the textarea when disabled and not streaming', () => {
@@ -186,21 +117,13 @@ describe('P203 · Enter while a reply is streaming', () => {
   describe('source guards', () => {
     const bar = read('components/InputBar.tsx');
 
-    it('routes the composer Enter through runComposerEnter with streaming', () => {
-      expect(bar).toContain('runComposerEnter(e, streaming');
-      // Inside runComposerEnter: real-Enter guard → flash or submit.
+    it('routes the composer Enter through runComposerEnter → submit', () => {
+      expect(bar).toContain('runComposerEnter(e, submit)');
+      // Inside runComposerEnter: real-Enter guard → preventDefault → submit.
       const guardIdx = bar.indexOf('if (!shouldSubmitOnEnter(e)) return;');
-      const flashIdx = bar.indexOf('actions.flashBusyHint();');
-      const submitIdx = bar.indexOf('actions.submit();');
+      const submitIdx = bar.indexOf('submit();', guardIdx);
       expect(guardIdx).toBeGreaterThan(-1);
-      expect(flashIdx).toBeGreaterThan(guardIdx);
-      expect(submitIdx).toBeGreaterThan(flashIdx);
-      // The hint branch returns without reaching the submit path.
-      const streamBranch = bar.slice(
-        bar.indexOf('if (streaming)'),
-        flashIdx,
-      );
-      expect(streamBranch).not.toContain('submit');
+      expect(submitIdx).toBeGreaterThan(guardIdx);
     });
 
     it('keeps mid-stream drafts across the fresh-chat session-id swap', () => {
@@ -216,12 +139,12 @@ describe('P203 · Enter while a reply is streaming', () => {
       );
     });
 
-    it('renders the hint line as a live region bound to hint visibility', () => {
+    it('renders the hint line as a live region bound to the queue copy', () => {
       expect(bar).toContain('className="busy-enter-hint"');
       expect(bar).toContain('role="status"');
-      expect(bar).toContain('busyHintVisible ? BUSY_ENTER_HINT_TEXT');
-      // Timer cleared on unmount and when streaming ends.
-      expect(bar).toContain('busyHint.clear()');
+      expect(bar).toContain('queueHintText(queuedCount)');
+      expect(bar).toContain('queue-cancel-btn');
+      expect(bar).not.toContain('BUSY_ENTER_HINT');
     });
 
     it('reserves the hint row height in CSS so show/hide causes no shift', () => {
@@ -231,6 +154,11 @@ describe('P203 · Enter while a reply is streaming', () => {
       expect(rule).toContain('flex-basis: 100%');
       expect(css.slice(0, css.indexOf('.busy-enter-hint'))).toContain(
         'flex-wrap: wrap',
+      );
+      // The 取消排队 button must stay clickable inside the click-through row.
+      expect(css).toContain('.queue-cancel-btn');
+      expect(css.slice(css.indexOf('.queue-cancel-btn'))).toContain(
+        'pointer-events: auto',
       );
     });
   });

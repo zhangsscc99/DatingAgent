@@ -197,6 +197,23 @@ export default function App() {
   // P161: covers the frame between a 「生成回复」 click and the loading state
   // flush — a second click landing there must be a no-op.
   const replyInFlightRef = useRef(false);
+  // P244: drafts submitted while a reply is in flight wait here and go out
+  // automatically (FIFO) once the turn ends. Memory-only — a refresh drops
+  // the queue rather than resurrecting a half-sent state.
+  const [pendingQueue, setPendingQueue] = useState<string[]>([]);
+  const pendingQueueRef = useRef<string[]>([]);
+  const enqueuePending = useCallback((prompt: string) => {
+    pendingQueueRef.current = [...pendingQueueRef.current, prompt];
+    setPendingQueue(pendingQueueRef.current);
+  }, []);
+  // 「取消排队」 drops the queue without sending; the texts are returned so
+  // the composer can restore them into the draft box.
+  const cancelPendingQueue = useCallback((): string[] => {
+    const dropped = pendingQueueRef.current;
+    pendingQueueRef.current = [];
+    setPendingQueue([]);
+    return dropped;
+  }, []);
   const restoredRef = useRef(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
   const { theme, toggle: toggleTheme, set: setTheme } = useTheme();
@@ -574,16 +591,16 @@ export default function App() {
     [toastCtl],
   );
 
-  const sendMessage = useCallback(
-    async (text: string) => {
-      // P224: `loading` only flips after React commits, so a second send
-      // landing in the same tick used to slip past this check, enter
-      // streamReply and abort() the in-flight stream (wiping both bubbles).
-      // The synchronous ref closes that window — a turn in flight can only
-      // be ended by the explicit 停止 button, never by another send.
-      if (!text.trim() || loading || replyInFlightRef.current) return;
+  /**
+   * Actually start a turn: append the user bubble + streaming placeholder
+   * and run streamReply to completion. Never called while a turn is in
+   * flight — the synchronous ref is the mutex (P224), so a queued drain or
+   * a rapid double-submit can still only produce one turn at a time.
+   */
+  const runSend = useCallback(
+    async (prompt: string) => {
+      if (!prompt || replyInFlightRef.current) return;
 
-      const prompt = text.trim();
       const now = Date.now();
       const assistantId = `a-${now}`;
 
@@ -614,8 +631,41 @@ export default function App() {
         setLoading(false);
       }
     },
-    [loading, streamReply, noteStreamOutcome],
+    [sessionId, streamReply, noteStreamOutcome],
   );
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const prompt = text.trim();
+      if (!prompt) return;
+      // P224: `loading` only flips after React commits, so a second send
+      // landing in the same tick used to slip past this check, enter
+      // streamReply and abort() the in-flight stream (wiping both bubbles).
+      // The synchronous ref closes that window — a turn in flight can only
+      // be ended by the explicit 停止 button, never by another send.
+      // P244: instead of dropping that send, park it in the pending queue —
+      // the composer promises 「完成后将自动发送」. Queueing while items are
+      // already waiting (even between turns) keeps strict FIFO order.
+      if (loading || replyInFlightRef.current || pendingQueueRef.current.length > 0) {
+        enqueuePending(prompt);
+        return;
+      }
+      await runSend(prompt);
+    },
+    [loading, runSend, enqueuePending],
+  );
+
+  // P244: a finished turn releases the next queued draft. The head is
+  // shifted before dispatch so it can never re-enqueue itself; each run
+  // drains exactly one item, so the queue always converges (no loop).
+  useEffect(() => {
+    if (loading || replyInFlightRef.current) return;
+    const head = pendingQueueRef.current[0];
+    if (head === undefined) return;
+    pendingQueueRef.current = pendingQueueRef.current.slice(1);
+    setPendingQueue(pendingQueueRef.current);
+    void runSend(head);
+  }, [loading, runSend]);
 
   /**
    * Re-run the failed turn. The user bubble is reused when it is still the one
@@ -1445,6 +1495,8 @@ export default function App() {
           onToastDismiss={toastCtl.dismiss}
           replyLength={replyLength}
           onReplyLengthChange={handleReplyLengthChange}
+          queuedCount={pendingQueue.length}
+          onCancelQueue={cancelPendingQueue}
         />
         <SystemStatusFooter />
       </main>

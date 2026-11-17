@@ -23,6 +23,26 @@
   pointer-events: none;
 }
 
+/* P244: 「取消排队」 lives inside the pointer-events:none hint row — the
+   button itself must stay clickable while the row stays click-through. */
+.busy-enter-hint .queue-cancel-btn {
+  pointer-events: auto;
+  margin-left: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.busy-enter-hint .queue-cancel-btn:hover,
+.busy-enter-hint .queue-cancel-btn:focus-visible {
+  color: var(--text);
+}
+
 .input-field {
   flex: 1;
   display: flex;

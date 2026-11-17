@@ -80,7 +80,9 @@ describe('P168 · per-session input history', () => {
     it('records each sent message under the active session in App.tsx', () => {
       const app = read('App.tsx');
       expect(app).toContain("import { pushInputHistory } from './lib/inputHistory'");
-      const send = app.slice(app.indexOf('const sendMessage'));
+      // P244: the send path runs through runSend (queue head drains through
+      // the same body), so history recording lives there.
+      const send = app.slice(app.indexOf('const runSend'));
       expect(send).toContain('pushInputHistory(sessionId, prompt)');
     });
 

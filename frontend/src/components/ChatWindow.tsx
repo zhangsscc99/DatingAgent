@@ -108,6 +108,10 @@ interface Props {
   replyLength?: ReplyLengthPreference;
   /** P205: the same setter the settings sheet uses — single source of truth. */
   onReplyLengthChange?: (next: ReplyLengthPreference) => void;
+  /** P244: drafts queued to auto-send when the current reply ends. */
+  queuedCount?: number;
+  /** P244: drop the queue; returns the queued texts for composer restore. */
+  onCancelQueue?: () => string[];
 }
 
 /** P206/P226: lets the header search toggle drive the in-conversation search
@@ -136,6 +140,8 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   onToastDismiss,
   replyLength = 'default',
   onReplyLengthChange,
+  queuedCount = 0,
+  onCancelQueue,
 }: Props, ref) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -465,6 +471,8 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
         rateLimit={rateLimit}
         replyLength={replyLength}
         onReplyLengthChange={onReplyLengthChange}
+        queuedCount={queuedCount}
+        onCancelQueue={onCancelQueue}
       />
     </div>
   );
