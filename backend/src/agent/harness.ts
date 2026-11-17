@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { AgentContext, AgentEvent, ChatResult, Message, ReplyLanguage, ReplyLength } from './types.js';
 import { LLMClient } from '../llm/client.js';
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
+import { resolveFocusEntity } from '../lib/focusEntity.js';
 import { usageMetrics } from '../lib/metrics.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
 
@@ -129,6 +130,17 @@ export function buildSystemPrompt(
   );
 }
 
+/**
+ * P233 — per-turn person-focus constraint appended to the system message.
+ * When the current message names someone (「她」) while the last turns only
+ * named somebody else (「我妈」), the model otherwise keeps writing about
+ * the stale person. Returns '' when there is nothing to constrain.
+ */
+export function buildFocusDirective(history: Message[], currentMessage: string): string {
+  const { directive } = resolveFocusEntity(history, currentMessage);
+  return directive ? '\n\n' + directive : '';
+}
+
 export class AgentHarness {
   private llm = new LLMClient();
   private maxTurns = 8;
@@ -142,7 +154,9 @@ export class AgentHarness {
     const messages: Message[] = [
       {
         role: 'system',
-        content: buildSystemPrompt(context.profile, context.language ?? 'auto', replyLength),
+        content:
+          buildSystemPrompt(context.profile, context.language ?? 'auto', replyLength) +
+          buildFocusDirective(context.conversationHistory, userMessage),
       },
       // P177: bound the prompt — keep the newest turns within the
       // HISTORY_MAX_MESSAGES / HISTORY_MAX_CHARS budget.
