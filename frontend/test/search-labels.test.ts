@@ -86,16 +86,16 @@ describe('P271 · find-in-conversation vs session-filter labels', () => {
     expect(html).not.toContain('搜索');
   });
 
-  it('the filter empty state renders the scope line on a second muted row', () => {
+  it('the filter empty state folds the scope note into the first sentence, before the button', () => {
     const hintAt = sidebarTsx.indexOf('filter-empty-hint');
     const li = sidebarTsx.slice(hintAt, sidebarTsx.indexOf('</li>', hintAt));
-    // Scope line sits below the 没有匹配 text and the 清除筛选 button.
+    // P275: 提示 → 说明 → 清除筛选 — the scope note is read before the action.
     expect(li.indexOf('filter-empty-hint-text')).toBeLessThan(
       li.indexOf('filter-empty-hint-scope'),
     );
-    expect(li.indexOf('filter-empty-clear')).toBeLessThan(
-      li.indexOf('filter-empty-hint-scope'),
+    expect(li.indexOf('filter-empty-hint-scope')).toBeLessThan(
+      li.indexOf('filter-empty-clear'),
     );
-    expect(sidebarCss).toMatch(/\.filter-empty-hint-scope\s*\{[^}]*flex-basis:\s*100%/);
+    expect(sidebarCss).toContain('.filter-empty-hint-scope');
   });
 });

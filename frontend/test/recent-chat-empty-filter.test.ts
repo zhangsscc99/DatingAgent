@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { FILTER_SESSIONS_HINT } from '../src/lib/searchLabels';
 import { shouldShowFilterEmptyHint } from '../src/lib/sidebarListState';
 import { filterRecentSessions } from '../src/lib/sessionFilter';
 import type { StoredChatSession } from '../src/lib/chatStorage';
@@ -96,6 +97,25 @@ describe('P187 · sidebar filter empty-state hint', () => {
       expect(hintBlock.match(/无匹配/g)).toHaveLength(1);
       expect(listBlock).not.toContain('无匹配对话：');
       expect(listBlock).not.toContain('sr-only');
+    });
+
+    it('orders the empty state 提示 → 说明 → 清除筛选, and the scope copy names 标题', () => {
+      const hintAt = listBlock.indexOf('filter-empty-hint');
+      const li = listBlock.slice(hintAt, listBlock.indexOf('</li>', hintAt));
+      expect(li.indexOf('filter-empty-hint-text')).toBeGreaterThanOrEqual(0);
+      expect(li.indexOf('filter-empty-hint-scope')).toBeGreaterThan(
+        li.indexOf('filter-empty-hint-text'),
+      );
+      expect(li.indexOf('filter-empty-clear')).toBeGreaterThan(
+        li.indexOf('filter-empty-hint-scope'),
+      );
+      // The scope explanation sits inside the first sentence and names 标题.
+      const scope = li.slice(
+        li.indexOf('filter-empty-hint-scope'),
+        li.indexOf('filter-empty-clear'),
+      );
+      expect(scope).toContain('FILTER_SESSIONS_HINT');
+      expect(FILTER_SESSIONS_HINT).toContain('标题');
     });
 
     it('renders a labelled 清除筛选 secondary button next to the hint', () => {

@@ -401,6 +401,12 @@ export default function Sidebar({
                 <span className="filter-empty-hint-text">
                   没有匹配「{filterQuery.trim()}」的对话
                 </span>
+                {/* P271/P275: the filter only matches recent titles — fold the
+                    scope note into the empty state's first sentence so it is
+                    read before the 清除筛选 action, not after it. */}
+                <span className="filter-empty-hint-scope">
+                  ——{FILTER_SESSIONS_HINT}
+                </span>
                 <button
                   type="button"
                   className="filter-empty-clear"
@@ -410,12 +416,6 @@ export default function Sidebar({
                 >
                   清除筛选
                 </button>
-                {/* P271: the filter only matches recent titles — say so on a
-                    second muted line so it stops reading like a history
-                    search next to 在本对话内查找 in the header. */}
-                <span className="filter-empty-hint-scope">
-                  {FILTER_SESSIONS_HINT}
-                </span>
               </li>
             )}
             {sessionGroups.map((group) => (
