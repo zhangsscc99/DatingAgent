@@ -62,7 +62,7 @@ describe('P210 · tool-phase progress copy', () => {
     expect(toolPhaseLabel('关系建议', 500, 'summarizing')).toBe('正在整理「关系建议」的建议…');
     // P248: past 20 s the summarizing label gains the exit hint.
     expect(toolPhaseLabel('关系建议', 75_000, 'summarizing')).toBe(
-      '正在整理「关系建议」的建议…（已等待 1 分 15 秒），这次有点慢，你可以先切走，回复会留在这里',
+      '正在整理「关系建议」的建议…（已等待 1 分 15 秒）。这次有点慢，你可以先切走，回复会留在这里',
     );
     // 'tool' stream phase carrying a summarizing tool phase uses it too.
     expect(streamAnnouncement('tool', 8_000, '约会规划', 'summarizing')).toBe(
@@ -71,7 +71,7 @@ describe('P210 · tool-phase progress copy', () => {
     // Even after the stream phase flips to 'generating', the post-tool wait
     // keeps naming the tool instead of falling back to the generic copy.
     expect(streamAnnouncement('generating', 20_000, '关系建议', 'summarizing')).toBe(
-      '正在整理「关系建议」的建议…（已等待 20 秒），这次有点慢，你可以先切走，回复会留在这里',
+      '正在整理「关系建议」的建议…（已等待 20 秒）。这次有点慢，你可以先切走，回复会留在这里',
     );
     // Ticks second by second and never doubles the 正在生成 prefix.
     expect(streamAnnouncement('generating', 20_000, '关系建议', 'summarizing')).not.toBe(

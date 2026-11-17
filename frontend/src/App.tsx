@@ -983,8 +983,8 @@ export default function App() {
       ? toolDisplayName(streamingMessage?.toolEvents?.at(-1)?.name ?? '')
       : undefined);
 
-  // P240: past 8 s without a first body token the wait copy gains a
-  // trailing 「在等模型开始写…」 clause — except while a tool call is still
+  // P240/P252: past 8 s without a first body token the wait copy gains a
+  // trailing 「还在等回复开始…」 clause — except while a tool call is still
   // running, whose named label already says what the wait is.
   const waitingLabel = waitingForFirstToken
     ? appendModelWaitHint(

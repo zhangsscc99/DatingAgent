@@ -58,7 +58,7 @@ export function toolPhaseLabel(
     }
   }
   if (phase === 'summarizing' && elapsedMs >= SUMMARIZING_EXIT_HINT_AFTER_MS) {
-    label = `${label}，${SUMMARIZING_EXIT_HINT}`;
+    label = `${label}。${SUMMARIZING_EXIT_HINT}`;
   }
   return label;
 }
@@ -66,14 +66,23 @@ export function toolPhaseLabel(
 /**
  * P240 — while the stream still has no body token, a bare label can't say
  * what the hold-up is. Once the wait passes MODEL_WAIT_HINT_AFTER_MS the
- * wait copy gains a trailing 「在等模型开始写，最多再等一会儿」 clause. It
- * is skipped while a tool call is still running ('calling') — the named
- * tool label already explains that window — and it disappears the moment
- * the first delta/message lands, because the caller drops the whole wait
- * label as soon as content exists.
+ * wait copy gains a trailing clause. It is skipped while a tool call is
+ * still running ('calling') — the named tool label already explains that
+ * window — and it disappears the moment the first delta/message lands,
+ * because the caller drops the whole wait label as soon as content exists.
+ *
+ * P252 — the clause is a human sentence that opens after a full stop
+ * (never a comma glued to the full-width bracket) and names no machinery.
+ * The expectation converges instead of staying vague: under
+ * MODEL_WAIT_BOUND_HINT_AFTER_MS it only says the reply usually starts
+ * within another ten-odd seconds; past it the copy names a concrete
+ * ceiling. When the P248 summarizing exit hint is already on the label it
+ * owns the trail — the two hints never stack.
  */
-export const MODEL_WAIT_HINT = '在等模型开始写，最多再等一会儿';
+export const MODEL_WAIT_HINT = '还在等回复开始，一般再等十几秒；等太久我会告诉你';
 export const MODEL_WAIT_HINT_AFTER_MS = 8_000;
+export const MODEL_WAIT_BOUND_HINT = '最多再等 30 秒，等不到我会先说明';
+export const MODEL_WAIT_BOUND_HINT_AFTER_MS = 15_000;
 
 export function appendModelWaitHint(
   label: string,
@@ -83,7 +92,12 @@ export function appendModelWaitHint(
   if (!label || elapsedMs < MODEL_WAIT_HINT_AFTER_MS || toolPhase === 'calling') {
     return label;
   }
-  return `${label}，${MODEL_WAIT_HINT}`;
+  if (label.includes(SUMMARIZING_EXIT_HINT)) return label;
+  const hint =
+    elapsedMs >= MODEL_WAIT_BOUND_HINT_AFTER_MS
+      ? `还在等回复开始，${MODEL_WAIT_BOUND_HINT}`
+      : MODEL_WAIT_HINT;
+  return `${label}。${hint}`;
 }
 
 /**

@@ -18,7 +18,7 @@ import { toolDisplayName } from '../src/lib/toolLabels';
  * 13 s wait read exactly like a hang. The wait copy now: (a) names the
  * tool as soon as `tool_start` arrives, (b) returns to the generic
  * generating label once the first body delta lands, and (c) past 8 s
- * without a first token gains a 「在等模型开始写，最多再等一会儿」 clause
+ * without a first token gains a 「还在等回复开始…」 clause
  * that disappears with the first token.
  */
 
@@ -66,8 +66,8 @@ describe('P240 · named wait phase before the first token', () => {
   it('(c) past 8 s without a first token the copy gains the model-wait clause', () => {
     const base = formatWaitingLabel(8_500);
     const hinted = appendModelWaitHint(base, 8_500, undefined);
-    expect(hinted).toBe(`${base}，${MODEL_WAIT_HINT}`);
-    expect(hinted).toContain('在等模型开始写');
+    expect(hinted).toBe(`${base}。${MODEL_WAIT_HINT}`);
+    expect(hinted).toContain('还在等回复开始');
     expect(appendModelWaitHint(formatWaitingLabel(9_000), 9_000, 'summarizing')).toContain(
       MODEL_WAIT_HINT,
     );
@@ -77,7 +77,7 @@ describe('P240 · named wait phase before the first token', () => {
     );
     expect(MODEL_WAIT_HINT_AFTER_MS).toBe(8_000);
     // While a tool call is still running the named label already explains
-    // the wait — no contradictory 「在等模型开始写」.
+    // the wait — no contradictory 「还在等回复开始」.
     const calling = toolPhaseLabel('聊天指导', 12_000, 'calling')!;
     expect(appendModelWaitHint(calling, 12_000, 'calling')).toBe(calling);
     // Empty/undefined-ish labels pass through untouched.

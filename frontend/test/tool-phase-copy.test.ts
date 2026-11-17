@@ -74,7 +74,7 @@ describe('P248 · tool-phase copy punctuation and exit hint', () => {
 
   it('the exit hint flows through streamAnnouncement in the summarizing window', () => {
     expect(streamAnnouncement('generating', 25_000, '约会规划', 'summarizing')).toBe(
-      `正在整理「约会规划」的建议…（已等待 25 秒），${SUMMARIZING_EXIT_HINT}`,
+      `正在整理「约会规划」的建议…（已等待 25 秒）。${SUMMARIZING_EXIT_HINT}`,
     );
     expect(streamAnnouncement('tool', 25_000, '约会规划', 'summarizing')).toContain(
       SUMMARIZING_EXIT_HINT,
