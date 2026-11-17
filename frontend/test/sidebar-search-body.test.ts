@@ -102,6 +102,58 @@ describe('P230 · sidebar filter matches message body', () => {
       );
     });
 
+    it('strips markdown markers before cutting the excerpt (P238)', () => {
+      const s = session('s-md', '标题', [
+        msg(
+          'u1',
+          'assistant',
+          '** - 确认好时间、地点、是否需要预约 - 稍微了解一下展览主题，但不必背下来',
+        ),
+      ]);
+      const hit = matchSessionMessage(s, '预约');
+      expect(hit).not.toBeNull();
+      expect(hit!.excerpt).toContain('预约');
+      expect(hit!.excerpt).not.toContain('**');
+      expect(hit!.excerpt).not.toContain('*');
+      expect(hit!.excerpt).not.toMatch(/^\s*-\s/);
+      expect(hit!.excerpt).not.toContain('#');
+      expect(hit!.excerpt).not.toContain('>');
+      expect(hit!.excerpt).not.toContain('`');
+    });
+
+    it('cleans headings, blockquotes, inline emphasis and code (P238)', () => {
+      const s = session('s-md2', '标题', [
+        msg(
+          'u1',
+          'assistant',
+          '前面铺垫\n## 约会清单\n> 记住这几件事\n- 确认是否需要预约，别忘带伞\n用 `calendar` 记录一下_重点_内容',
+        ),
+      ]);
+      const hit = matchSessionMessage(s, '预约');
+      expect(hit).not.toBeNull();
+      expect(hit!.excerpt).toContain('预约');
+      expect(hit!.excerpt).not.toMatch(/[#>*`_]/);
+      expect(hit!.excerpt).not.toMatch(/^\s*-\s/);
+      expect(hit!.excerpt.length).toBeLessThanOrEqual(44);
+    });
+
+    it('does not glue words where markers were stripped (P238)', () => {
+      const s = session('s-md3', '标题', [
+        msg('u1', 'assistant', '见面地点在**美术馆**门口,记得提前预约'),
+      ]);
+      const hit = matchSessionMessage(s, '预约');
+      expect(hit).not.toBeNull();
+      expect(hit!.excerpt).toContain('美术馆');
+      expect(hit!.excerpt).not.toContain('**');
+    });
+
+    it('keeps body filtering working on markdown content (P238)', () => {
+      const s = session('s-md4', '无关标题', [
+        msg('u1', 'assistant', '## 注意\n- 是否需要预约展览门票'),
+      ]);
+      expect(filterRecentSessions([s], '预约')).toEqual([s]);
+    });
+
     it('matches assistant messages too and reports their role', () => {
       const s = session('s-asst', '标题', [
         msg('u1', 'user', '没有这个词'),

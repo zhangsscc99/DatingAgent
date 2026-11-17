@@ -7,6 +7,18 @@ export interface SessionMessageMatch {
 
 const EXCERPT_MAX = 40;
 
+/** P238: reduce markdown markers to plain text so a body excerpt never
+ * leaks `**`, `*`, `__`, `_`, backticks or line-leading `- `/`#`/`>` into
+ * the sidebar. Each marker becomes a single space so words are not glued
+ * together; run before whitespace collapsing and the ~40-char cut. */
+function stripMarkdownMarkers(raw: string): string {
+  return raw
+    .replace(/\*\*|__|\*|_|`/g, ' ')
+    .replace(/^[ \t]*[-*+]\s+/gm, ' ')
+    .replace(/^[ \t]*#{1,6}[ \t]*/gm, ' ')
+    .replace(/^[ \t]*>[ \t]?/gm, ' ');
+}
+
 /** P230: first body hit inside a session's stored messages (user or
  * assistant), or null when no message contains the trimmed, case-folded
  * query. The excerpt is the whitespace-collapsed message text clipped to a
@@ -20,7 +32,9 @@ export function matchSessionMessage(
   if (!q || !Array.isArray(session.messages)) return null;
   for (const m of session.messages) {
     if (typeof m.content !== 'string') continue;
-    const text = m.content.replace(/\s+/g, ' ').trim();
+    const text = stripMarkdownMarkers(m.content)
+      .replace(/\s+/g, ' ')
+      .trim();
     const idx = text.toLowerCase().indexOf(q);
     if (idx < 0) continue;
     if (text.length <= EXCERPT_MAX) return { role: m.role, excerpt: text };
