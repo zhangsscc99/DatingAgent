@@ -110,7 +110,8 @@ describe('P192 · wiring guards', () => {
     const win = read('components/ChatWindow.tsx');
     expect(win).toContain('waitingLabel');
     const bubble = read('components/MessageBubble.tsx');
-    expect(bubble).toContain('label={waitingLabel}');
+    // P272 folds the progress copy into the same single label slot.
+    expect(bubble).toContain('waitingLabel && progressLabel');
     const indicator = read('components/StreamingIndicator.tsx');
     expect(indicator).toContain('label ?? PHASE_LABELS[phase]');
   });

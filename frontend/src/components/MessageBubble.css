@@ -272,6 +272,15 @@
   color: var(--text-muted);
 }
 
+/* P272: live 「已生成 N 字」 counter under a streaming bubble — same dim
+   footprint as .stopped-note, aria-hidden so the per-token change never
+   reaches the polite live region. */
+.generation-progress {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* P217: 「展开全文 / 收起」 affordance on collapsed long replies — same
    pill footprint as copy/regen but always visible since it gates content. */
 .collapse-toggle {

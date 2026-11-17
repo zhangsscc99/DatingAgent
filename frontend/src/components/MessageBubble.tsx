@@ -8,6 +8,7 @@ import { highlightSegments } from '../lib/messageSearch';
 import { normalizeMarkdownTables } from '../lib/markdownTables';
 import { shouldCollapseReply, visibleReplyContent } from '../lib/replyCollapse';
 import { formatLatencySeconds, formatReplyLatency } from '../lib/relativeTime';
+import { generationProgressLabel } from '../lib/generationProgress';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
 import './MessageBubble.css';
@@ -79,6 +80,9 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
   const showStreamingIndicator =
     !isUser && message.streaming && !message.content && message.streamPhase;
   const showCursor = !isUser && message.streaming && !!message.content && !message.error;
+  // P272: a quiet 「已生成 N 字」/「正在组织答案」 signal for the whole
+  // pending window — undefined the instant `streaming` flips off.
+  const progressLabel = generationProgressLabel(message.content.length, !isUser && !!message.streaming);
 
   const [copyState, setCopyState] = useState<CopyState>('idle');
   const resetTimer = useRef<number | null>(null);
@@ -182,7 +186,16 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
               message.content
             )
           ) : showStreamingIndicator ? (
-            <StreamingIndicator phase={message.streamPhase!} label={waitingLabel} />
+            <StreamingIndicator
+              phase={message.streamPhase!}
+              // P272: fold the progress copy into the single label slot so
+              // the placeholder never shows two overlapping thinking texts.
+              label={
+                waitingLabel && progressLabel
+                  ? `${progressLabel} · ${waitingLabel}`
+                  : (progressLabel ?? waitingLabel)
+              }
+            />
           ) : (
             <>
               {message.content && (
@@ -194,6 +207,11 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
             </>
           )}
         </div>
+        {progressLabel && message.content.length > 0 && (
+          <div className="generation-progress" aria-hidden="true">
+            {progressLabel}
+          </div>
+        )}
         {collapsible && (
           <button
             type="button"
