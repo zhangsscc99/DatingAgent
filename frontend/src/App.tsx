@@ -41,7 +41,7 @@ import {
 import type { ChatStorageState } from './lib/chatStorage';
 import { DEFAULT_DRAFT_ID, sweepOrphanDrafts } from './lib/chatDrafts';
 import {
-  isOnboardingComplete,
+  hasMinimalProfile,
   loadProfile,
   markOnboardingComplete,
   saveProfile,
@@ -168,7 +168,12 @@ export default function App() {
   const [tools, setTools] = useState<ToolInfo[]>([]);
   const [health, setHealth] = useState<{ llmConfigured: boolean; llmModel?: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(() => loadProfile());
-  const [showOnboarding, setShowOnboarding] = useState(() => !isOnboardingComplete());
+  // P255: the profile dialog is opt-in now — a first-time visitor lands on
+  // the chat surface with a usable composer instead of a form over it.
+  // 「完善资料」 entries (welcome CTA, sidebar, post-reply nudge) open the
+  // same dialog on demand: edit mode when a profile exists, the skippable
+  // onboarding mode otherwise.
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [exportState, setExportState] = useState<'idle' | 'done' | 'failed'>('idle');
@@ -917,6 +922,13 @@ export default function App() {
     setShowOnboarding(false);
   };
 
+  // P255: the one 「完善资料」 entry path — a saved profile opens the edit
+  // form, no profile opens the same dialog in its skippable onboarding mode.
+  const openProfileDialog = () => {
+    if (hasMinimalProfile(profile)) setEditingProfile(true);
+    else setShowOnboarding(true);
+  };
+
   const handleQuickPrompt = (prompt: string) => sendMessage(prompt);
 
   // P196: one setter shared by the header select and the settings sheet so
@@ -1214,7 +1226,7 @@ export default function App() {
         onClearAllChats={requestClearAllChats}
         busy={loading}
         onEditProfile={() => {
-          setEditingProfile(true);
+          openProfileDialog();
           closeSidebar();
         }}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -1600,7 +1612,7 @@ export default function App() {
           onRetry={handleRetry}
           onRegenerate={handleRegenerate}
           onGenerateReply={handleGenerateReply}
-          onSetupProfile={() => setEditingProfile(true)}
+          onSetupProfile={openProfileDialog}
           rateLimit={rateLimit}
           offline={!online}
           errorToast={errorToast}

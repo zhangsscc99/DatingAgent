@@ -21,6 +21,7 @@ import {
 } from '../lib/chatSearchState';
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
 import { canGenerateReply, needsReply } from '../lib/pendingReply';
+import { isOnboardingComplete } from '../lib/profileStorage';
 import { hasInteracted } from '../lib/interactionState';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
@@ -149,6 +150,25 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const wasRestoring = useRef(false);
   const wasLoading = useRef(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  // P255: the one-line profile nudge above the composer is session-scoped —
+  // dismissed once, it stays down until reload. Users who already saved or
+  // skipped the profile prompt (onboardingDone) never see it, and a saved
+  // profile removes it outright. Read in render like getLastEvictionNotice
+  // so an in-session 稍后再说 suppresses it immediately.
+  const [profileNudgeDismissed, setProfileNudgeDismissed] = useState(false);
+  const profileNudgeVisible =
+    !restoring &&
+    !profile?.name &&
+    !profileNudgeDismissed &&
+    !isOnboardingComplete() &&
+    messages.some(
+      (m) =>
+        m.role === 'assistant' &&
+        !m.streaming &&
+        !m.error &&
+        m.content.length > 0,
+    );
 
   // P19: client-side search over the rendered conversation.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -461,6 +481,34 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
         <p className="offline-note" role="status">
           网络已断开，恢复后会自动重连
         </p>
+      )}
+      {/* P255: a soft, single line after the first reply — normal flow, so
+          it can never cover or intercept #chat-input. Not a modal, not a
+          banner; opening the dialog or pressing × dismisses it for the
+          session. */}
+      {profileNudgeVisible && onSetupProfile && (
+        <div className="profile-nudge" role="status">
+          <span className="profile-nudge-text">想让我更懂你的处境？</span>
+          <button
+            type="button"
+            className="profile-nudge-btn"
+            onClick={() => {
+              setProfileNudgeDismissed(true);
+              onSetupProfile();
+            }}
+          >
+            完善资料
+          </button>
+          <button
+            type="button"
+            className="profile-nudge-dismiss"
+            aria-label="先不用"
+            title="先不用"
+            onClick={() => setProfileNudgeDismissed(true)}
+          >
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
       )}
       <InputBar
         ref={inputRef}

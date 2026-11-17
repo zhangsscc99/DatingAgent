@@ -74,6 +74,31 @@
   border-radius: 4px;
 }
 
+/* P255: the no-profile card collapses to one dashed 完善资料 entry —
+ * same visual language as the welcome CTA's dashed accent outline. */
+.profile-setup-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px dashed var(--accent);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.profile-setup-btn:hover {
+  background: var(--accent-soft);
+}
+
+.profile-setup-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .profile-name {
   font-size: 14px;
   font-weight: 600;

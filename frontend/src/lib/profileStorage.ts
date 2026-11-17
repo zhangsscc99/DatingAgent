@@ -79,7 +79,13 @@ export function saveProfile(profile: UserProfile): void {
 }
 
 export function isOnboardingComplete(): boolean {
-  return localStorage.getItem(ONBOARDING_KEY) === 'true';
+  try {
+    return localStorage.getItem(ONBOARDING_KEY) === 'true';
+  } catch {
+    // No storage (SSR/static markup): treat as settled so callers that
+    // gate prompts on this never fire where they cannot be dismissed.
+    return true;
+  }
 }
 
 export function markOnboardingComplete(): void {

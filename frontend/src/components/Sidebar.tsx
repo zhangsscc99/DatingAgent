@@ -521,7 +521,7 @@ export default function Sidebar({
         )}
       </section>
 
-      {profile?.name && (
+      {profile?.name ? (
         <section className="sidebar-section profile-card" aria-label="我的资料">
           <div className="profile-card-header">
             <h3>我的资料</h3>
@@ -545,6 +545,21 @@ export default function Sidebar({
             )}
           </div>
         </section>
+      ) : (
+        /* P255: no profile yet — the card keeps a 「完善资料」 entry so the
+         * dialog stays reachable mid-conversation, after the welcome CTA
+         * has scrolled away. */
+        onEditProfile && (
+          <section className="sidebar-section profile-card" aria-label="我的资料">
+            <button
+              type="button"
+              className="profile-setup-btn"
+              onClick={onEditProfile}
+            >
+              完善资料，获得更个性化建议
+            </button>
+          </section>
+        )
       )}
 
       <section className="sidebar-section" aria-label="快捷入口">
