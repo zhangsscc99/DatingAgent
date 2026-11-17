@@ -1113,7 +1113,7 @@ export default function App() {
               </span>
               <div>
                 <h1>DatingAgent</h1>
-                <p className="subtitle">AI 恋爱关系顾问 · Agent Harness</p>
+                <p className="subtitle">先听你说完，再给具体建议</p>
               </div>
             </div>
           </div>
