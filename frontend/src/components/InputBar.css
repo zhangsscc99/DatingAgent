@@ -309,3 +309,23 @@
     min-height: 88px;
   }
 }
+
+/* P241: the same two-line clip continues at 600–695 px — the composer tool
+   row still squeezes the textarea under the placeholder's one-line width
+   (measured scrollHeight 72 vs clientHeight 48) — so the band gets the
+   same 88 px min-height. 696–768 px fits the hint on one line. */
+@media (min-width: 600px) and (max-width: 695px) {
+  .input-bar textarea {
+    min-height: 88px;
+  }
+}
+
+/* P241: at 769–955 px the persistent 260 px sidebar squeezes the textarea
+   to ~250–425 px and the long placeholder wraps to two lines inside the
+   44 px box (measured scrollHeight 66 vs clientHeight 45) — grow the
+   textarea to the same 88 px; ≥956 px fits on one line. */
+@media (min-width: 769px) and (max-width: 955px) {
+  .input-bar textarea {
+    min-height: 88px;
+  }
+}
