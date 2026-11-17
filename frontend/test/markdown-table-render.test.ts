@@ -125,7 +125,7 @@ describe('P197 · MessageBubble wiring', () => {
   it('renders assistant content through normalizeMarkdownTables', () => {
     expect(bubbleTsx).toContain('normalizeMarkdownTables');
     expect(bubbleTsx).toMatch(
-      /<ReactMarkdown>\{markdownContent\}<\/ReactMarkdown>/,
+      /<ReactMarkdown components=\{markdownComponents\}>\{markdownContent\}<\/ReactMarkdown>/,
     );
   });
 });

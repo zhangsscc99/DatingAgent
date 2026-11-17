@@ -79,6 +79,20 @@
   font-size: 13px;
 }
 
+/* P235: a single-line `> quote` downgrades to a normal paragraph carrying a
+   quiet quote style — multi-line quotes keep the blockquote rendering. */
+.bubble-content .inline-quote {
+  color: var(--text-muted);
+}
+
+.bubble-content .inline-quote::before {
+  content: '「';
+}
+
+.bubble-content .inline-quote::after {
+  content: '」';
+}
+
 .tool-events {
   display: flex;
   flex-wrap: wrap;

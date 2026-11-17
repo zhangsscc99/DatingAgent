@@ -1,5 +1,7 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { Children, isValidElement, memo, useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
 import type { ChatMessage } from '../types';
 import { copyText } from '../lib/clipboard';
 import { highlightSegments } from '../lib/messageSearch';
@@ -26,6 +28,45 @@ interface Props {
 type CopyState = 'idle' | 'copied' | 'failed';
 
 const COPY_FEEDBACK_MS = 1500;
+
+/**
+ * P235 — the model wraps one-line sample phrasing in `> …`, and a full-width
+ * blockquote for a single sentence reads like a manual excerpt. A quote made
+ * of exactly one paragraph with no line break downgrades to a normal
+ * paragraph carrying the inline-quote style; multi-line quotes keep the
+ * blockquote rendering.
+ */
+function quoteText(node: ReactNode): string {
+  return Children.toArray(node)
+    .map((child) => {
+      if (typeof child === 'string' || typeof child === 'number') return String(child);
+      if (isValidElement<{ children?: ReactNode }>(child)) return quoteText(child.props.children);
+      return '';
+    })
+    .join('');
+}
+
+function singleLineQuoteParagraph(children: ReactNode): ReactElement<{ children?: ReactNode }> | null {
+  const blocks = Children.toArray(children).filter(
+    (child) => typeof child !== 'string' || child.trim() !== '',
+  );
+  if (blocks.length !== 1) return null;
+  const only = blocks[0];
+  if (!isValidElement<{ children?: ReactNode }>(only) || only.type !== 'p') return null;
+  if (quoteText(only.props.children).includes('\n')) return null;
+  return only;
+}
+
+const markdownComponents: Components = {
+  blockquote({ children }) {
+    const single = singleLineQuoteParagraph(children);
+    return single ? (
+      <p className="inline-quote">{single.props.children}</p>
+    ) : (
+      <blockquote>{children}</blockquote>
+    );
+  },
+};
 
 function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlightQuery, waitingLabel }: Props) {
   const isUser = message.role === 'user';
@@ -146,7 +187,7 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
             <>
               {message.content && (
                 <div className={message.streaming ? 'markdown-streaming' : undefined}>
-                  <ReactMarkdown>{markdownContent}</ReactMarkdown>
+                  <ReactMarkdown components={markdownComponents}>{markdownContent}</ReactMarkdown>
                 </div>
               )}
               {showCursor && <span className="stream-cursor" aria-hidden="true" />}
