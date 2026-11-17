@@ -557,8 +557,8 @@ export function restoreChatState(state: ChatStorageState): void {
 /**
  * P265 — move a trashed session back into the history list and persist it
  * through the same guarded write path as every other chat-history update.
- * Returns the restored session (its id may carry a `-restored` suffix when
- * the original id is taken again), or null when the entry is gone.
+ * Returns the restored session, or null when the entry is gone. P273: a
+ * same-id live session is overwritten by the trash copy, never duplicated.
  */
 export function restoreChatSession(
   sessionId: string,

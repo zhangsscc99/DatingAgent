@@ -136,7 +136,7 @@ describe('P265 · recycle bin', () => {
       expect(localStorage.getItem(TRASH_KEY)).toBe(JSON.stringify([]));
     });
 
-    it('a live session with the same id gets a -restored suffix, never overwritten', () => {
+    it('a live session with the same id is overwritten in place, never duplicated', () => {
       const state = {
         activeSessionId: 's1',
         sessions: [session('s1', [user('live copy')])],
@@ -153,16 +153,15 @@ describe('P265 · recycle bin', () => {
 
       const result = restoreTrash(state, 's1');
       expect(result).not.toBeNull();
-      expect(result!.session.id).toBe('s1-restored');
+      expect(result!.session.id).toBe('s1');
       expect(result!.session.messages.map((m) => m.content)).toEqual([
         'trashed copy',
       ]);
-      // The live session is untouched, the restored copy joins on top.
-      expect(result!.state.sessions.map((s) => s.id)).toEqual([
-        's1-restored',
-        's1',
-      ]);
-      expect(result!.state.sessions[1].messages[0].content).toBe('live copy');
+      // P273: still one row — the trash copy replaces the live entry.
+      expect(result!.state.sessions).toHaveLength(1);
+      expect(result!.state.sessions[0].messages[0].content).toBe(
+        'trashed copy',
+      );
       expect(loadTrash()).toHaveLength(0);
     });
 

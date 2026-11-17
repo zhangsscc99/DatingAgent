@@ -23,6 +23,13 @@ export interface ClearAllUndoOps {
   wipe(): void;
   /** Write the snapshot back verbatim — the undo path. */
   restore(snapshot: ChatStorageState): void;
+  /** P273: the wipe may also have moved the cleared sessions into the
+   * recycle bin (clearAllChatSessions pushes them). undo() passes the ids
+   * captured from the snapshot so the bin drops exactly this clear's
+   * entries — a later 恢复 must not resurrect a duplicate of a
+   * conversation the undo just brought back. Optional: when omitted,
+   * undo behaves exactly as it did before P273. */
+  removeTrash?(ids: string[]): void;
   /** P265: optional toast copy — defaults keep the 清空全部 wording so
    * other destructive actions (the single-row delete) can reuse the same
    * single-slot undo window with their own message. */
@@ -60,6 +67,8 @@ export function createClearAllUndo(
   let pending: {
     snapshot: ChatStorageState;
     restore: (snapshot: ChatStorageState) => void;
+    clearedIds: string[];
+    removeTrash?: (ids: string[]) => void;
   } | null = null;
   let current: ClearAllUndoToastState | null = null;
   let seq = 0;
@@ -86,7 +95,12 @@ export function createClearAllUndo(
     confirm(ops) {
       disarm();
       const snapshot = ops.takeSnapshot();
-      pending = { snapshot, restore: ops.restore };
+      pending = {
+        snapshot,
+        restore: ops.restore,
+        clearedIds: snapshot.sessions.map((s) => s.id),
+        removeTrash: ops.removeTrash,
+      };
       ops.wipe();
       seq += 1;
       emit({
@@ -103,10 +117,13 @@ export function createClearAllUndo(
     undo() {
       // Expired, dismissed, already used, or never armed — nothing to do.
       if (!pending) return;
-      const { snapshot, restore } = pending;
+      const { snapshot, restore, clearedIds, removeTrash } = pending;
       disarm();
       emit(null);
       restore(snapshot);
+      // P273: only after the snapshot is back in the store — a restore
+      // that threw leaves the trash entries as the last surviving copy.
+      removeTrash?.(clearedIds);
     },
     dismiss() {
       disarm();

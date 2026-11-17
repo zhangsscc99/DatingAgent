@@ -137,11 +137,26 @@ export function pushTrash(
 }
 
 /**
+ * P273 — drop the given session ids from a trash list. Pure: returns a new
+ * array, never mutates the input; the caller persists it with saveTrash.
+ * The 清空全部 undo uses it to retract exactly the entries that same clear
+ * pushed into the bin.
+ */
+export function removeTrashEntries(
+  state: TrashEntry[],
+  sessionIds: string[],
+): TrashEntry[] {
+  const doomed = new Set(sessionIds);
+  return state.filter((e) => !doomed.has(e.sessionId));
+}
+
+/**
  * Move one trash entry back into the chat-history state. The entry leaves
  * the trash (persisted via saveTrash); the restored session lands at the top
- * of the list with a fresh updatedAt. An id collision with a live session is
- * resolved by appending a `-restored` suffix (then `-restored-2`, …) so a
- * restore can never overwrite a conversation that exists again. Returns null
+ * of the list with a fresh updatedAt. P273: an id collision with a live
+ * session — e.g. the 清空全部 undo wrote the snapshot back while its trash
+ * entries were still in the bin — overwrites that entry with the trash
+ * copy instead of appending a second, identically-titled row. Returns null
  * when the entry is missing or already pruned.
  */
 export function restoreTrash(
@@ -154,24 +169,17 @@ export function restoreTrash(
   if (!entry) return null;
   saveTrash(pruneTrash(entries.filter((e) => e.sessionId !== sessionId), now));
 
-  const taken = new Set(state.sessions.map((s) => s.id));
-  let id = entry.sessionId;
-  if (taken.has(id)) {
-    id = `${entry.sessionId}-restored`;
-    let n = 2;
-    while (taken.has(id)) {
-      id = `${entry.sessionId}-restored-${n}`;
-      n += 1;
-    }
-  }
   const session: StoredChatSession = {
-    id,
+    id: entry.sessionId,
     title: entry.title,
     updatedAt: now,
     messages: entry.messages,
     ...(entry.customTitle === true ? { customTitle: true } : {}),
   };
-  return { state: { ...state, sessions: [session, ...state.sessions] }, session };
+  const sessions = state.sessions.some((s) => s.id === session.id)
+    ? state.sessions.map((s) => (s.id === session.id ? session : s))
+    : [session, ...state.sessions];
+  return { state: { ...state, sessions }, session };
 }
 
 /** Empty the trash entirely. Never throws. */

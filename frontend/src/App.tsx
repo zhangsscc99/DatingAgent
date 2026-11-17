@@ -41,7 +41,12 @@ import {
   watchChatStorage,
 } from './lib/chatStorage';
 import type { ChatStorageState } from './lib/chatStorage';
-import { clearTrash, loadTrash } from './lib/chatTrash';
+import {
+  clearTrash,
+  loadTrash,
+  removeTrashEntries,
+  saveTrash,
+} from './lib/chatTrash';
 import type { TrashEntry } from './lib/chatTrash';
 import { FIND_IN_CONVERSATION_LABEL } from './lib/searchLabels';
 import { DEFAULT_DRAFT_ID, sweepOrphanDrafts } from './lib/chatDrafts';
@@ -1291,6 +1296,13 @@ export default function App() {
         closeSidebar();
       },
       restore: restoreClearedChats,
+      // P273: the wipe pushed these sessions into the recycle bin — undo
+      // retracts exactly this clear's entries (older, unrelated ones stay)
+      // so a bin 恢复 cannot duplicate a conversation undo just revived.
+      removeTrash: (ids) => {
+        saveTrash(removeTrashEntries(loadTrash(), ids));
+        setTrashEntries(loadTrash());
+      },
     });
   };
 

@@ -202,3 +202,4 @@
 2026-11-17 19:32 | P270 | hide 清空全部对话 at zero sessions via shared shouldShowClearAll in sidebar + settings sheet
 2026-11-17 19:56 | P271 | renamed in-conversation find to 「在本对话内查找」 + sidebar filter empty state gained muted 「只筛选最近对话标题」 scope line; all strings via new shared lib/searchLabels.ts; search-labels.test.ts added
 2026-11-17 20:2x | P272 | 生成中显示「已生成 N 字」进度
+2026-11-17 20:43 | P273 | 撤销清空全部时同步回退回收站，恢复会话按 id 幂等
