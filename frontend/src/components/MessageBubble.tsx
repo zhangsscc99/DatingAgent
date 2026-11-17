@@ -18,6 +18,8 @@ interface Props {
   onRetry?: (messageId: string, prompt: string) => void;
   /** P26: offered only on the newest assistant bubble; regenerates in place. */
   onRegenerate?: (messageId: string) => void;
+  /** P276: swap the displayed reply with the version 换一个 parked. */
+  onToggleReplyVersion?: (messageId: string) => void;
   /** True while a request is in flight — disables the regenerate action. */
   busy?: boolean;
   /** P19: normalized search keyword — marks hits in user bubbles, flags assistant ones. */
@@ -69,7 +71,7 @@ const markdownComponents: Components = {
   },
 };
 
-function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlightQuery, waitingLabel }: Props) {
+function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, busy = false, highlightQuery, waitingLabel }: Props) {
   const isUser = message.role === 'user';
   // Assistant bubbles render through ReactMarkdown, so the whole bubble is
   // flagged instead of marking inline hits (P19).
@@ -134,6 +136,24 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
   const handleRegenerate = useCallback(() => {
     onRegenerate?.(message.id);
   }, [onRegenerate, message.id]);
+
+  // P276: after 换一个 the outgoing reply sits in previousVersion (the
+  // bubble shows the newest text → offer 恢复上一版); once restored, the
+  // newer reply parks in newerVersion instead → offer 查看新版. The control
+  // only exists while one of the two slots is populated, and never on a
+  // bubble that is streaming/regenerating/errored.
+  const viewingPrevious = message.newerVersion !== undefined;
+  const canToggleVersion =
+    !isUser &&
+    !message.streaming &&
+    !message.regenerating &&
+    !message.error &&
+    typeof onToggleReplyVersion === 'function' &&
+    (message.previousVersion !== undefined || viewingPrevious);
+
+  const handleToggleVersion = useCallback(() => {
+    onToggleReplyVersion?.(message.id);
+  }, [onToggleReplyVersion, message.id]);
 
   return (
     <div
@@ -317,6 +337,41 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
                   <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
                 </svg>
                 {'换一个'}
+              </button>
+            )}
+            {canToggleVersion && (
+              <button
+                type="button"
+                className="regen-btn version-toggle"
+                onClick={handleToggleVersion}
+                disabled={busy}
+                aria-label={viewingPrevious ? '查看新版回复' : '恢复上一版回复'}
+                title={viewingPrevious ? '查看新版回复' : '恢复上一版回复'}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  {viewingPrevious ? (
+                    <>
+                      <polyline points="23 4 23 10 17 10" />
+                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                    </>
+                  ) : (
+                    <>
+                      <polyline points="1 4 1 10 7 10" />
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                    </>
+                  )}
+                </svg>
+                {viewingPrevious ? '查看新版' : '恢复上一版'}
               </button>
             )}
             <span className="copy-status" role="status" aria-live="polite">

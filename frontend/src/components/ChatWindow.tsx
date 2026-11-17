@@ -94,6 +94,8 @@ interface Props {
   onRetry?: (messageId: string, prompt: string) => void;
   /** P26: regenerate the newest assistant reply in place. */
   onRegenerate?: (messageId: string) => void;
+  /** P276: swap a regenerated bubble between its newest and parked version. */
+  onToggleReplyVersion?: (messageId: string) => void;
   /** P161: resume an interrupted turn — answer a trailing user bubble. */
   onGenerateReply?: () => void;
   onSetupProfile?: () => void;
@@ -132,6 +134,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   onStop,
   onRetry,
   onRegenerate,
+  onToggleReplyVersion,
   onGenerateReply,
   onSetupProfile,
   rateLimit = null,
@@ -439,6 +442,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
               // or regenerated; anything older would append out of order.
               onRetry={msg.id === retryableId ? onRetry : undefined}
               onRegenerate={msg.id === regenerableId ? onRegenerate : undefined}
+              // P276: the version toggle follows the bubble that actually
+              // carries a parked version — every row gets the handler and
+              // MessageBubble only renders the control when a slot exists.
+              onToggleReplyVersion={onToggleReplyVersion}
             />
           ))}
 

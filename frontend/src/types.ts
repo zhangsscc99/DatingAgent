@@ -38,12 +38,33 @@ export interface ChatMessage {
   stopped?: boolean;
   /** Per-reply metadata badge (F21); hidden when tokens are unknown */
   meta?: ReplyMeta;
+  /**
+   * P276: the version 换一个 swapped out — shown while the newest reply is
+   * displayed (「恢复上一版」). One slot only, in-memory: serializeMessages
+   * drops it so a refresh keeps whichever text was showing.
+   */
+  previousVersion?: ReplyVersionSnapshot;
+  /**
+   * P276: the newer reply parked while the stored previous version is being
+   * viewed — 「查看新版」 swaps it back. Never set at the same time as
+   * previousVersion.
+   */
+  newerVersion?: ReplyVersionSnapshot;
 }
 
 export interface ReplyMeta {
   tool?: string;
   latencyMs?: number;
   tokens?: number;
+}
+
+/** P276: one parked reply version — what the bubble looked like before the
+ * current text replaced it. */
+export interface ReplyVersionSnapshot {
+  content: string;
+  toolEvents?: ToolEvent[];
+  meta?: ReplyMeta;
+  stopped?: boolean;
 }
 
 export interface ToolEvent {

@@ -81,6 +81,7 @@ import {
 } from './lib/confirmCopy';
 import { pushInputHistory } from './lib/inputHistory';
 import { regeneratePromptFor } from './lib/regenerate';
+import { toggleReplyVersion, versionSnapshotOf } from './lib/replyVersions';
 import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
 import { isServiceDown } from './lib/serviceStatus';
@@ -859,11 +860,7 @@ export default function App() {
       if (!prompt) return;
 
       const target = messages[messages.length - 1];
-      const original = {
-        content: target.content,
-        toolEvents: target.toolEvents,
-        meta: target.meta,
-      };
+      const original = versionSnapshotOf(target);
 
       // The session can be cleared while a request is in flight; never let a
       // late patch resurrect a bubble that no longer exists.
@@ -879,6 +876,12 @@ export default function App() {
         streamPhase: 'thinking',
         toolEvents: undefined,
         meta: undefined,
+        // P276: park the outgoing reply in the one-slot version store BEFORE
+        // the stream overwrites the bubble — 「恢复上一版」 can then bring it
+        // back. On failure P26 restores the same text, so the slot mirrors
+        // the restored content and stays hidden behind the error UI.
+        previousVersion: original,
+        newerVersion: undefined,
       });
       replyInFlightRef.current = true;
       setLoading(true);
@@ -906,6 +909,15 @@ export default function App() {
     },
     [loading, messages, streamReply, noteStreamOutcome],
   );
+
+  /**
+   * P276: swap the displayed reply with the parked one on a regenerated
+   * bubble. 恢复上一版 shows the outgoing version (newest parks in
+   * newerVersion); 查看新版 swaps back. Pure state — no request is re-issued.
+   */
+  const handleToggleReplyVersion = useCallback((messageId: string) => {
+    setMessages((prev) => toggleReplyVersion(prev, messageId));
+  }, []);
 
   /**
    * P161: answer a restored conversation that ends on a bare user bubble —
@@ -1742,6 +1754,7 @@ export default function App() {
           onStop={stopStreaming}
           onRetry={handleRetry}
           onRegenerate={handleRegenerate}
+          onToggleReplyVersion={handleToggleReplyVersion}
           onGenerateReply={handleGenerateReply}
           onSetupProfile={openProfileDialog}
           rateLimit={rateLimit}
