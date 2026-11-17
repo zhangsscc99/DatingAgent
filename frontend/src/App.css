@@ -154,16 +154,17 @@
   outline-offset: 2px;
 }
 
-/* P206: desktop-only in-conversation search trigger — it lives in the header
- * action row, where it can never overlap a bubble (the floating
- * .search-toggle that did is display:none at this breakpoint). Hidden below
- * 1024px: mobile keeps the floating button. */
+/* P206/P226: the in-conversation search trigger — it lives in the header
+ * action row at every width, where it can never overlap a bubble (P226
+ * removed the floating .search-toggle that did, below 1024px too).
+ * 36×36 below 1024px for a mobile-sized touch target; the desktop keeps
+ * the compact 32×32 it shipped with. */
 .search-toggle-header {
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   font-family: inherit;
   line-height: 1;
@@ -189,7 +190,8 @@
 
 @media (min-width: 1024px) {
   .search-toggle-header {
-    display: inline-flex;
+    width: 32px;
+    height: 32px;
   }
 }
 
@@ -402,10 +404,10 @@
     display: none;
   }
 
+  /* P226: hide the status chip so the always-visible search toggle fits in
+     the row — the .system-status footer shows the same live/mock signal. */
   .header-status {
-    font-size: 11px;
-    padding: 5px 10px;
-    color: var(--text);
+    display: none;
   }
 
   .header-actions {

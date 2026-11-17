@@ -29,8 +29,10 @@ const EMOJI = /\p{Extended_Pictographic}/u;
 const headerStart = app.indexOf('className="header-actions"');
 const headerActions = app.slice(headerStart, app.indexOf('</header>', headerStart));
 
-const toggleAt = chat.indexOf('className="search-toggle"');
-const searchToggle = chat.slice(toggleAt, chat.indexOf('</button>', toggleAt));
+// P226: the only search toggle left is the header one — the floating
+// .search-toggle inside .messages-wrap is gone at every width.
+const toggleAt = app.indexOf('className="search-toggle-header"');
+const searchToggle = app.slice(toggleAt, app.indexOf('</button>', toggleAt));
 
 const MESSAGES: ChatMessage[] = [
   { id: 'u-1', role: 'user', content: '她今天答应周末出来了', createdAt: 1 },
@@ -42,7 +44,7 @@ describe('P208 · header action row has no emoji glyphs', () => {
     expect(headerActions).not.toMatch(EMOJI);
   });
 
-  it('the floating search toggle renders an inline SVG, not a glyph', () => {
+  it('the header search toggle renders an inline SVG, not a glyph', () => {
     expect(toggleAt).toBeGreaterThan(-1);
     expect(searchToggle).not.toMatch(EMOJI);
     expect(searchToggle).toContain('<svg');
@@ -50,7 +52,7 @@ describe('P208 · header action row has no emoji glyphs', () => {
     expect(searchToggle).toContain('aria-hidden="true"');
   });
 
-  it('the rendered search-toggle markup contains no emoji', () => {
+  it('the chat window no longer renders a floating search toggle', () => {
     const html = renderToStaticMarkup(
       createElement(ChatWindow, {
         messages: MESSAGES,
@@ -58,11 +60,10 @@ describe('P208 · header action row has no emoji glyphs', () => {
         onSend: () => {},
       }),
     );
-    const at = html.indexOf('search-toggle');
-    expect(at).toBeGreaterThan(-1);
-    const markup = html.slice(at, html.indexOf('</button>', at));
-    expect(markup).not.toMatch(EMOJI);
-    expect(markup).toContain('<svg');
+    // P226: the floating .search-toggle inside .messages-wrap was removed;
+    // the trigger lives in the header at every width.
+    expect(html).not.toContain('search-toggle');
+    expect(chat).not.toContain('className="search-toggle"');
   });
 
   it('each header icon container mounts an aria-hidden currentColor SVG', () => {
@@ -92,10 +93,10 @@ describe('P208 · header action row has no emoji glyphs', () => {
     // Tooltips that carried meaning are untouched.
     expect(headerActions).toContain('title="选择回复语言（自动跟随对话）"');
     expect(headerActions).toContain('title="搜索当前对话"');
-    // The floating toggle keeps its name too.
+    // The search toggle keeps its name too.
     expect(searchToggle).toContain('aria-label="搜索对话"');
     expect(searchToggle).toContain('title="搜索当前对话"');
-    expect(searchToggle).toContain('onClick={openSearch}');
+    expect(searchToggle).toContain('chatWindowRef.current?.openSearch()');
   });
 
   it('the done state still shows a plain check, not an emoji', () => {

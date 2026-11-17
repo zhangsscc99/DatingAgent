@@ -11,13 +11,13 @@ import type { ChatMessage } from '../src/types';
 /**
  * P206 — at 1440×900 the floating `.search-toggle` (a 36×36 round button,
  * position:absolute; z-index:10 inside `.messages-wrap`) physically
- * overlapped the first user bubble and clipped its last characters, while
- * the desktop sidebar already carries a persistent 筛选对话 input. The fix:
- * below 1024px the floating button is untouched; at ≥1024px it is
- * `display:none` and an identical trigger (`.search-toggle-header`, same
- * aria-label/title, same open handler) sits in the header action row with
- * the export/copy buttons. Source-level assertions plus a static render —
- * this repo has no DOM test runner.
+ * overlapped the first user bubble and clipped its last characters. P206
+ * moved the ≥1024px trigger into the header action row; P226 finished the
+ * job below 1024px, where the same floating button covered the first bubble
+ * at 390×844 too. The trigger (`.search-toggle-header`, same aria-label/
+ * title, same open handler) now lives in the header at every width and the
+ * floating button is gone entirely. Source-level assertions plus a static
+ * render — this repo has no DOM test runner for styles.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -26,7 +26,8 @@ const read = (file: string) => readFileSync(join(SRC, file), 'utf8');
 const appTsx = read('App.tsx');
 const appCss = read('App.css');
 const chatTsx = read('components/ChatWindow.tsx');
-const chatCss = read('components/ChatWindow.css');
+/** Comments stripped — the explanatory comment still names .search-toggle. */
+const chatCss = read('components/ChatWindow.css').replace(/\/\*[\s\S]*?\*\//g, '');
 
 /** Slice the body of `@media <query> { … }` with brace matching. */
 function mediaBlock(css: string, query: string): string {
@@ -80,38 +81,13 @@ const MESSAGES: ChatMessage[] = [
   { id: 'u-1', role: 'user', content: '她今天答应周末出来了', createdAt: 1 },
 ];
 
-describe('P206 · search toggle layout', () => {
-  it('keeps the floating .search-toggle as the <1024px entry, unchanged', () => {
-    // Still rendered inside .messages-wrap with the original wiring.
-    const wrapStart = chatTsx.indexOf('className="messages-wrap"');
-    expect(wrapStart).toBeGreaterThan(-1);
-    const toggleAt = chatTsx.indexOf('className="search-toggle"');
-    expect(toggleAt).toBeGreaterThan(wrapStart);
-    // Its base rule keeps the absolute positioning — no desktop-only change
-    // leaked into the mobile presentation.
-    const base = ruleBody(stripMediaBlocks(chatCss), '.search-toggle');
-    expect(base).toContain('position: absolute');
-    expect(base).not.toMatch(/display:\s*none/);
-    // The button still carries the original accessible name and tooltip.
-    const toggleMarkup = chatTsx.slice(
-      toggleAt,
-      chatTsx.indexOf('</button>', toggleAt),
-    );
-    expect(toggleMarkup).toContain('aria-label="搜索对话"');
-    expect(toggleMarkup).toContain('title="搜索当前对话"');
-  });
-
-  it('hides the floating .search-toggle at ≥1024px', () => {
-    const desktop = mediaBlock(chatCss, '(min-width: 1024px)');
-    expect(desktop).toMatch(/\.search-toggle\s*\{[^}]*display:\s*none/);
-  });
-
-  it('renders a desktop replacement inside .header-actions', () => {
+describe('P206/P226 · search toggle layout', () => {
+  it('renders the search trigger inside .header-actions at every width', () => {
     const start = appTsx.indexOf('className="header-actions"');
     expect(start).toBeGreaterThan(-1);
     const headerActions = appTsx.slice(start, appTsx.indexOf('</header>', start));
     expect(headerActions).toContain('className="search-toggle-header"');
-    // Same accessible name and tooltip as the floating toggle.
+    // Same accessible name and tooltip the floating toggle carried.
     const btnAt = headerActions.indexOf('search-toggle-header');
     const button = headerActions.slice(
       btnAt,
@@ -127,37 +103,33 @@ describe('P206 · search toggle layout', () => {
     expect(button).not.toMatch(/\p{Extended_Pictographic}/u);
   });
 
-  it('shows the header trigger only at ≥1024px', () => {
+  it('the header trigger is visible at every width — ≥36px below 1024px, compact 32px on desktop', () => {
     const base = ruleBody(stripMediaBlocks(appCss), '.search-toggle-header');
-    expect(base).toMatch(/display:\s*none/);
+    // Not a hidden-by-default rule anymore: inline-flex in the base keeps it
+    // reachable on mobile and desktop alike.
+    expect(base).toMatch(/display:\s*inline-flex/);
+    expect(base).not.toMatch(/display:\s*none/);
+    // ≥36×36 touch target below 1024px (the base size).
+    expect(base).toContain('width: 36px');
+    expect(base).toContain('height: 36px');
+    // The ≥1024px block only shrinks it back to the desktop's 32×32 — it
+    // must not hide it again.
     const desktop = mediaBlock(appCss, '(min-width: 1024px)');
-    expect(desktop).toMatch(
-      /\.search-toggle-header\s*\{[^}]*display:\s*inline-flex/,
+    expect(desktop).toMatch(/\.search-toggle-header\s*\{[^}]*width:\s*32px/);
+    expect(desktop).toMatch(/\.search-toggle-header\s*\{[^}]*height:\s*32px/);
+    expect(ruleBody(desktop, '.search-toggle-header')).not.toMatch(
+      /display:\s*none/,
     );
   });
 
-  it('both triggers call the same search-open handler', () => {
-    // The floating toggle delegates to a shared handler…
-    const toggleAt = chatTsx.indexOf('className="search-toggle"');
-    const toggleMarkup = chatTsx.slice(
-      toggleAt,
-      chatTsx.indexOf('</button>', toggleAt),
-    );
-    expect(toggleMarkup).toContain('onClick={openSearch}');
-    // …which opens the in-conversation search the old inline handler did.
-    const handlerAt = chatTsx.indexOf('const openSearch');
-    expect(handlerAt).toBeGreaterThan(-1);
-    const handler = chatTsx.slice(handlerAt, handlerAt + 300);
-    expect(handler).toContain('setSearchOpen(true)');
-    // ChatWindow exposes it on a handle, and App wires the header button to it.
-    expect(chatTsx).toContain('useImperativeHandle');
-    expect(chatTsx).toContain('openSearch');
-    expect(appTsx).toContain('useRef<ChatWindowHandle>(null)');
-    expect(appTsx).toContain('chatWindowRef.current?.openSearch()');
-    expect(appTsx).toContain('ref={chatWindowRef}');
+  it('no floating .search-toggle remains in ChatWindow markup or CSS', () => {
+    expect(chatTsx).not.toContain('className="search-toggle"');
+    // No .search-toggle selector survives anywhere in the stylesheet —
+    // `.search-toggle-header` lives in App.css and must not match this.
+    expect(chatCss).not.toMatch(/\.search-toggle[\s,{:]/);
   });
 
-  it('renders the floating toggle inside .messages-wrap in markup (mobile path intact)', () => {
+  it('renders no search toggle inside .messages-wrap', () => {
     const html = renderToStaticMarkup(
       createElement(ChatWindow, {
         messages: MESSAGES,
@@ -166,9 +138,22 @@ describe('P206 · search toggle layout', () => {
       }),
     );
     const wrapAt = html.indexOf('messages-wrap');
-    const toggleAt = html.indexOf('search-toggle');
     expect(wrapAt).toBeGreaterThanOrEqual(0);
-    expect(toggleAt).toBeGreaterThan(wrapAt);
-    expect(html).toContain('aria-label="搜索对话"');
+    // Nothing classed search-toggle anywhere in the chat window render.
+    expect(html).not.toContain('search-toggle');
+  });
+
+  it('the header trigger calls the same search-open handler ChatWindow exposes', () => {
+    // ChatWindow exposes openSearch on a handle; App wires the header
+    // button to it at every breakpoint.
+    const handlerAt = chatTsx.indexOf('const openSearch');
+    expect(handlerAt).toBeGreaterThan(-1);
+    const handler = chatTsx.slice(handlerAt, handlerAt + 300);
+    expect(handler).toContain('setSearchOpen(true)');
+    expect(chatTsx).toContain('useImperativeHandle');
+    expect(chatTsx).toContain('openSearch');
+    expect(appTsx).toContain('useRef<ChatWindowHandle>(null)');
+    expect(appTsx).toContain('chatWindowRef.current?.openSearch()');
+    expect(appTsx).toContain('ref={chatWindowRef}');
   });
 });

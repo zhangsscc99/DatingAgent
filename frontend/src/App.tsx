@@ -185,8 +185,8 @@ export default function App() {
     return Boolean(session && session.messages.length > 0);
   });
   const abortRef = useRef<AbortController | null>(null);
-  // P206: the desktop header search toggle drives the in-conversation search
-  // through this handle; below 1024px the floating .search-toggle stays.
+  // P206/P226: the header search toggle drives the in-conversation search
+  // through this handle at every breakpoint.
   const chatWindowRef = useRef<ChatWindowHandle>(null);
   // P161: covers the frame between a 「生成回复」 click and the loading state
   // flush — a second click landing there must be a no-op.
@@ -1130,9 +1130,10 @@ export default function App() {
                 )}
               </span>
             </button>
-            {/* P206: the desktop (≥1024px) in-conversation search trigger —
-                inside the header it can never overlap a bubble; CSS hides it
-                below 1024px where the floating .search-toggle still works. */}
+            {/* P206/P226: the in-conversation search trigger — inside the
+                header it can never overlap a bubble, at every breakpoint
+                (P226 moved the <1024px entry here too: the floating
+                .search-toggle covered the first bubble at 390px). */}
             {!restoringSession && messages.length > 0 && (
               <button
                 type="button"

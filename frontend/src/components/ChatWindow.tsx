@@ -110,8 +110,8 @@ interface Props {
   onReplyLengthChange?: (next: ReplyLengthPreference) => void;
 }
 
-/** P206: lets the desktop header search toggle drive the same in-conversation
- * search the floating .search-toggle opens on mobile. */
+/** P206/P226: lets the header search toggle drive the in-conversation search
+ * at every breakpoint — nothing floats over .messages-wrap anymore. */
 export interface ChatWindowHandle {
   openSearch: () => void;
 }
@@ -231,8 +231,9 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     setActiveIndex(0);
   };
 
-  // P206: one open path shared by the floating toggle (mobile) and the
-  // header toggle (desktop) — identical behaviour at every breakpoint.
+  // P206/P226: the single open path the header toggle calls at every
+  // breakpoint (P226 removed the floating .search-toggle that covered the
+  // first bubble at <1024px too).
   const openSearch = useCallback(() => {
     setSearchOpen(true);
     setActiveIndex(0);
@@ -300,30 +301,6 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
             onRetry={onToastRetry ?? (() => {})}
             onDismiss={onToastDismiss ?? (() => {})}
           />
-        )}
-        {!restoring && messages.length > 0 && !searchOpen && (
-          <button
-            type="button"
-            className="search-toggle"
-            aria-label="搜索对话"
-            title="搜索当前对话"
-            onClick={openSearch}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-          </button>
         )}
         {searchOpen && (
           <ChatSearchBar

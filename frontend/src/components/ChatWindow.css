@@ -191,48 +191,10 @@
   outline-offset: 2px;
 }
 
-/* P19: floating search toggle, top-right of the message area. */
-.search-toggle {
-  position: absolute;
-  right: 24px;
-  top: 12px;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
-  z-index: 10;
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-
-.search-toggle:hover {
-  background: var(--surface-hover);
-  transform: translateY(-1px);
-}
-
-.search-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* P206: at ≥1024px the trigger lives in the header action row
- * (.search-toggle-header, App.css) — this floating button physically
- * overlapped the first user bubble there. Below 1024px it stays put:
- * it is the only in-conversation search entry on mobile. */
-@media (min-width: 1024px) {
-  .search-toggle {
-    display: none;
-  }
-}
+/* P226: the in-conversation search trigger now lives in the header action
+ * row at every width (.search-toggle-header, App.css). The floating
+ * .search-toggle that used to sit here physically overlapped the first user
+ * bubble at 390px too — nothing floats over .messages-wrap anymore. */
 
 /* P154: single dim line directly above the composer while offline; it only
  * exists while offline so reconnecting restores the layout exactly. */
@@ -293,13 +255,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   .scroll-to-bottom,
-  .search-toggle,
   .pending-reply-btn {
     transition: none;
   }
 
-  .scroll-to-bottom:hover,
-  .search-toggle:hover {
+  .scroll-to-bottom:hover {
     transform: none;
   }
 }
