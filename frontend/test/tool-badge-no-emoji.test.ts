@@ -9,14 +9,14 @@ import { describe, expect, it } from 'vitest';
  * (no DOM renderer, same as sidebar-no-emoji.test.ts), so these source guards
  * lock the rendered markup: no Extended_Pictographic code points anywhere in
  * ToolBadge.tsx, inline currentColor-stroke SVGs replacing the old emoji map,
- * and the tool-name → Chinese label mapping in App.tsx unchanged.
+ * and the tool-name → Chinese label mapping in lib/toolLabels.ts unchanged.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const read = (file: string) => readFileSync(join(SRC, file), 'utf8');
 
 const badge = read('components/ToolBadge.tsx');
-const app = read('App.tsx');
+const labels = read('lib/toolLabels.ts');
 const EMOJI = /\p{Extended_Pictographic}/u;
 
 describe('P207 · tool badge has no emoji icons', () => {
@@ -49,8 +49,8 @@ describe('P207 · tool badge has no emoji icons', () => {
   });
 
   it('keeps the tool-name → Chinese label mapping unchanged', () => {
-    const mapStart = app.indexOf('const TOOL_LABELS');
-    const mapBlock = app.slice(mapStart, app.indexOf('};', mapStart));
+    const mapStart = labels.indexOf('const TOOL_LABELS');
+    const mapBlock = labels.slice(mapStart, labels.indexOf('};', mapStart));
     expect(mapBlock).toContain("analyze_profile: '资料优化'");
     expect(mapBlock).toContain("coach_conversation: '聊天指导'");
     expect(mapBlock).toContain("plan_date: '约会规划'");

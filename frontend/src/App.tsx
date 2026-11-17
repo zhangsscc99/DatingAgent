@@ -70,15 +70,8 @@ import {
   streamAnnouncement as buildStreamAnnouncement,
   toolPhaseLabel,
 } from './lib/streamAnnouncement';
+import { TOOL_LABELS } from './lib/toolLabels';
 import './App.css';
-
-const TOOL_LABELS: Record<string, string> = {
-  analyze_profile: '资料优化',
-  coach_conversation: '聊天指导',
-  plan_date: '约会规划',
-  check_compatibility: '匹配分析',
-  get_relationship_advice: '关系建议',
-};
 
 /** Reply-language preference, persisted so it survives reloads. */
 const LANGUAGE_KEY = 'datingagent.replyLanguage';
