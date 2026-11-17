@@ -49,6 +49,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* P274: the two header groups always keep ≥8px between them, so the brand
+     block can never paint under the language select on narrow screens. */
+  column-gap: 8px;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
@@ -69,6 +72,13 @@
   min-width: 0;
 }
 
+/* P274: lets the brand text shrink below its content width so the h1 can
+   truncate with ellipsis instead of pushing under .header-actions. */
+.header-title-text {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .logo {
   font-size: 28px;
   flex-shrink: 0;
@@ -81,6 +91,12 @@
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  /* P274: single-line brand that ellipsises on overflow — never wraps to a
+     second line and never overflows into the action group. Only clips when
+     the space is genuinely gone, so the desktop look is unchanged. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .subtitle {
