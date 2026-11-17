@@ -209,3 +209,4 @@
 2026-11-17 21:56 | P276 | 换一个不再丢上一版：regen 前把当前回复存入 previousVersion，气泡新增「恢复上一版/查看新版」双向切换（复用 .regen-btn），槽位不落盘；新增 lib/replyVersions.ts + bubble-regen-undo.test.ts（15 例）
 2026-11-17 22:17 | P279 | 话术类提问先给一句可直接发送的原话，清洗手册化标签
 2026-11-17 22:47 | P278 | 侧栏筛选范围文案改为「标题和对话内容都搜」，与正文匹配行为一致
+2026-11-17 22:54 | P280 | hero subtitle nowrap: wrapped 「直接照着用」 in .hero-subtitle-nowrap span + text-wrap:balance on .welcome > p (ChatWindow.tsx/css, new hero-subtitle-wrap test)

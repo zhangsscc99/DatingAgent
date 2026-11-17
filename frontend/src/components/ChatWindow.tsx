@@ -361,9 +361,15 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
               {profile?.name ? `你好，${profile.name}！` : '你好，我是 DatingAgent'}
             </h2>
             <p>
-              {profile?.goals
-                ? `我会根据你的目标「${profile.goals}」给出专属建议。`
-                : '懂分寸的恋爱顾问：先听你说完，再给一句能直接照着用的建议。'}
+              {profile?.goals ? (
+                `我会根据你的目标「${profile.goals}」给出专属建议。`
+              ) : (
+                <>
+                  懂分寸的恋爱顾问：先听你说完，再给一句能
+                  <span className="hero-subtitle-nowrap">直接照着用</span>
+                  的建议。
+                </>
+              )}
             </p>
             {profile?.interests && profile.interests.length > 0 && (
               <div className="welcome-tags">
