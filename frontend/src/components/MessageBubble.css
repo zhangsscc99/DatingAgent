@@ -364,3 +364,40 @@
   border-radius: 8px;
   padding: 1px 8px;
 }
+
+/* P263: the bubble action pills were the last sub-36px touch targets on the
+   site (25px tall at 390px). Raise them to >=36px on narrow screens only —
+   desktop keeps the exact padding/font sizing above. */
+@media (max-width: 768px) {
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 3px 12px;
+  }
+
+  .regen-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 3px 12px;
+  }
+
+  .retry-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 6px 14px;
+  }
+
+  .collapse-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 3px 12px;
+  }
+}
