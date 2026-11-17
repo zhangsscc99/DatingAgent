@@ -205,6 +205,13 @@ export class LLMClient {
     tools: ToolDefinition[],
     signal?: AbortSignal,
     timeoutMs?: number,
+    /**
+     * P231: called with the accumulated function name every time an upstream
+     * `delta.tool_calls` fragment extends it, so the caller can announce the
+     * tool long before the call completes. Optional — omitting it changes
+     * nothing.
+     */
+    onToolCallName?: (name: string) => void,
   ): AsyncGenerator<string, LLMResponse, unknown> {
     if (!this.isConfigured) {
       return this.mockResponse(messages, tools);
@@ -297,6 +304,7 @@ export class LLMClient {
                 if (typeof part.id === 'string') slot.id += part.id;
                 if (typeof part.function?.name === 'string') {
                   slot.name += part.function.name;
+                  if (slot.name) onToolCallName?.(slot.name);
                 }
                 if (typeof part.function?.arguments === 'string') {
                   slot.arguments += part.function.arguments;

@@ -77,6 +77,20 @@ export function toolCallBudgetFromEnv(env: NodeJS.ProcessEnv = process.env): num
 }
 
 /**
+ * P231 — heartbeat cadence for `tool_progress` events while a tool handler
+ * is running. Today's handlers are in-process and finish in milliseconds,
+ * but a genuinely slow one used to leave the client without any event for
+ * the whole await. `TOOL_PROGRESS_HEARTBEAT_MS` overrides for tests/ops;
+ * non-positive or non-numeric values fall back to the default.
+ */
+export const TOOL_PROGRESS_HEARTBEAT_MS_DEFAULT = 5_000;
+
+export function toolProgressHeartbeatMs(env: NodeJS.ProcessEnv = process.env): number {
+  const parsed = Number(env.TOOL_PROGRESS_HEARTBEAT_MS);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : TOOL_PROGRESS_HEARTBEAT_MS_DEFAULT;
+}
+
+/**
  * P210: appended to the prompt once the tool budget is spent, so the
  * tool-free turn answers from the results already collected.
  */
@@ -142,6 +156,7 @@ export class AgentHarness {
     // P210: total executed-tool-call budget for this run — counting calls,
     // not turns, so a multi-call response also spends it.
     const toolBudget = toolCallBudgetFromEnv();
+    const progressHeartbeatMs = toolProgressHeartbeatMs();
     let toolCallsExecuted = 0;
     let budgetDirectiveAdded = false;
 
@@ -150,6 +165,18 @@ export class AgentHarness {
     for (let turn = 0; turn < this.maxTurns; turn++) {
       // Client already gone: stop before starting (and paying for) another turn.
       if (signal?.aborted) return;
+
+      // P231: after a tool ran, the follow-up model call can sit silent for
+      // many seconds before its first delta (measured 6.7–20 s on tool
+      // turns). Name the tool whose result is being written up so the
+      // client can keep tool-named progress copy on screen for that wait.
+      const lastToolName = toolsUsed.at(-1);
+      if (lastToolName) {
+        yield {
+          type: 'tool_progress',
+          data: { name: lastToolName, phase: 'summarizing', elapsedMs: 0 },
+        };
+      }
 
       // P210: once the budget is spent, the next turn offers no tools at
       // all and carries a directive telling the model to answer from the
@@ -160,16 +187,48 @@ export class AgentHarness {
         budgetDirectiveAdded = true;
       }
 
+      // P231: the upstream tool_calls stream reveals the function name long
+      // before the call completes — queue each registry-confirmed name and
+      // flush it as a `calling` progress event, so the bubble names the
+      // tool during the selection wait instead of only after tool_start.
+      const announcedTools = new Set<string>();
+      const pendingToolNames: string[] = [];
+      const onToolCallName = (name: string) => {
+        if (!getTool(name) || announcedTools.has(name)) return;
+        announcedTools.add(name);
+        pendingToolNames.push(name);
+      };
+
       // P189: stream the reply — each upstream token goes out as a `delta`
       // event so the client bubble grows while the model is still writing.
       // The generator's return value is the turn's authoritative response.
-      const stream = this.llm.chatStream(messages, budgetSpent ? [] : toolRegistry, signal);
+      const stream = this.llm.chatStream(
+        messages,
+        budgetSpent ? [] : toolRegistry,
+        signal,
+        undefined,
+        onToolCallName,
+      );
       let accumulated = '';
       let step = await stream.next();
       while (!step.done) {
+        while (pendingToolNames.length > 0) {
+          yield {
+            type: 'tool_progress',
+            data: { name: pendingToolNames.shift()!, phase: 'calling', elapsedMs: 0 },
+          };
+        }
         accumulated += step.value;
         yield { type: 'delta', data: { content: step.value } };
         step = await stream.next();
+      }
+      // A name can land in the same final chunk that closed the stream —
+      // flush it so it still reaches the client before tool_start.
+      while (pendingToolNames.length > 0) {
+        yield {
+          type: 'tool_progress',
+          data: { name: pendingToolNames.shift()!, phase: 'calling', elapsedMs: 0 },
+        };
       }
       const response = step.value;
 
@@ -211,8 +270,43 @@ export class AgentHarness {
             data: { name: call.name, arguments: call.arguments },
           };
 
+          // P231: the tool phase used to be the quietest part of the turn —
+          // an immediate progress event plus a heartbeat while the handler
+          // runs keeps the bubble naming the active tool with an elapsed
+          // counter for the whole wait.
+          const toolStartedAt = Date.now();
+          yield {
+            type: 'tool_progress',
+            data: { name: call.name, phase: 'calling', elapsedMs: 0 },
+          };
+
           try {
-            const result = await tool.execute(call.arguments, context);
+            const execution = tool.execute(call.arguments, context).then(
+              (value) => ({ ok: true as const, value }),
+              (error: unknown) => ({ ok: false as const, error }),
+            );
+            const settled = execution.then(() => 'settled' as const);
+            for (;;) {
+              const winner = await Promise.race([
+                settled,
+                new Promise<'tick'>((resolve) =>
+                  setTimeout(() => resolve('tick'), progressHeartbeatMs),
+                ),
+              ]);
+              if (winner === 'settled') break;
+              if (signal?.aborted) return;
+              yield {
+                type: 'tool_progress',
+                data: {
+                  name: call.name,
+                  phase: 'calling',
+                  elapsedMs: Date.now() - toolStartedAt,
+                },
+              };
+            }
+            const outcome = await execution;
+            if (!outcome.ok) throw outcome.error;
+            const result = outcome.value;
             messages.push({
               role: 'tool',
               content: result,

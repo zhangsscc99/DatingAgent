@@ -10,6 +10,8 @@ export interface RequestLogLine {
   status: number;
   ms: number;
   msgLen: number;
+  /** P231: ms from request start to the first SSE event, when measured. */
+  firstEventMs?: number;
 }
 
 /**
@@ -88,6 +90,11 @@ export function createRequestLogger(
         ms: Math.round(Number(process.hrtime.bigint() - startNs) / 100_000) / 10,
         msgLen: messageLength(req),
       };
+
+      // P231: the stream route records when its first SSE event went out so
+      // the access log shows time-to-first-byte separately from total ms.
+      const firstEventMs = res.locals.firstEventMs;
+      if (typeof firstEventMs === 'number') line.firstEventMs = firstEventMs;
 
       try {
         // JSON.stringify escapes newlines, so a hostile path cannot forge extra lines.

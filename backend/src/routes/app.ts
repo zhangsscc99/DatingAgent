@@ -409,10 +409,17 @@ export function createApp(options: AppOptions = {}) {
     res.on('finish', stopKeepalive);
 
     let failed = false;
+    // P231: first SSE event latency lands on the access log line as
+    // `firstEventMs`, so tool-turn waits are measurable from the log.
+    let firstEventRecorded = false;
     try {
       for await (const ev of harness.run(sanitized, session, controller.signal, parseReplyLength(replyLength))) {
         // Socket already closed: stop before writing to it again.
         if (controller.signal.aborted) break;
+        if (!firstEventRecorded) {
+          firstEventRecorded = true;
+          res.locals.firstEventMs = Date.now() - startedAt;
+        }
         let event = ev;
         if (event.type === 'done') {
           // F21: attach the request latency so the UI can show the meta badge.

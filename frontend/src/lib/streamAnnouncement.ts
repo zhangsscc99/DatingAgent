@@ -11,7 +11,7 @@
  * Kept DOM-free so the copy contract is testable without a renderer.
  */
 
-import type { StreamPhase } from '../types';
+import type { StreamPhase, ToolPhaseKind } from '../types';
 import { formatWaitingLabel } from './thinkingTimer';
 
 /**
@@ -22,13 +22,21 @@ import { formatWaitingLabel } from './thinkingTimer';
  * Returns undefined when no tool name is known so each surface can fall
  * back to its previous copy: the aria-live region keeps 「正在调用工具…」,
  * the bubble keeps the P192 formatWaitingLabel output.
+ *
+ * P231 — `summarizing` covers the post-tool window: the handler has
+ * returned but the model can spend many seconds writing the reply, during
+ * which the bubble still names the tool whose result is being organised.
  */
 export function toolPhaseLabel(
   toolLabel: string | undefined,
   elapsedMs: number,
+  phase: ToolPhaseKind = 'calling',
 ): string | undefined {
   if (!toolLabel) return undefined;
-  const prefix = `正在调用:${toolLabel}…`;
+  const prefix =
+    phase === 'summarizing'
+      ? `正在整理:${toolLabel}的结果…`
+      : `正在调用:${toolLabel}…`;
   if (elapsedMs < 1000) return prefix;
   const totalSeconds = Math.floor(elapsedMs / 1000);
   if (elapsedMs < 60_000) return `${prefix}（已等待 ${totalSeconds} 秒）`;
@@ -46,6 +54,7 @@ export function streamAnnouncement(
   phase: StreamPhase | undefined,
   waitingElapsedMs: number,
   currentToolLabel?: string,
+  toolPhase: ToolPhaseKind = 'calling',
 ): string {
   switch (phase) {
     case undefined:
@@ -53,8 +62,14 @@ export function streamAnnouncement(
     case 'thinking':
       return '正在思考…';
     case 'tool':
-      return toolPhaseLabel(currentToolLabel, waitingElapsedMs) ?? '正在调用工具…';
+      return toolPhaseLabel(currentToolLabel, waitingElapsedMs, toolPhase) ?? '正在调用工具…';
     case 'generating':
+      // P231: while a tool result is being written up, keep naming it even
+      // though the stream phase already flipped to generating.
+      if (toolPhase === 'summarizing') {
+        const label = toolPhaseLabel(currentToolLabel, waitingElapsedMs, 'summarizing');
+        if (label) return label;
+      }
       // Under one second formatWaitingLabel still says 「正在思考…」;
       // the phase is already generating, so keep the generating prefix.
       return waitingElapsedMs < 1000

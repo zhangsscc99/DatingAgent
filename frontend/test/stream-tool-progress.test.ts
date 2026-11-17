@@ -53,6 +53,39 @@ describe('P210 · tool-phase progress copy', () => {
     expect(streamAnnouncement(undefined, 12_000, '关系建议')).toBe('');
   });
 
+  it('P231: the summarizing phase keeps naming the tool with ticking seconds', () => {
+    // After tool_end the reply is still being written — the label says which
+    // tool's result is being organised and keeps counting elapsed seconds.
+    expect(toolPhaseLabel('关系建议', 12_000, 'summarizing')).toBe(
+      '正在整理:关系建议的结果…（已等待 12 秒）',
+    );
+    expect(toolPhaseLabel('关系建议', 500, 'summarizing')).toBe('正在整理:关系建议的结果…');
+    expect(toolPhaseLabel('关系建议', 75_000, 'summarizing')).toBe(
+      '正在整理:关系建议的结果…（已等待 1 分 15 秒）',
+    );
+    // 'tool' stream phase carrying a summarizing tool phase uses it too.
+    expect(streamAnnouncement('tool', 8_000, '约会规划', 'summarizing')).toBe(
+      '正在整理:约会规划的结果…（已等待 8 秒）',
+    );
+    // Even after the stream phase flips to 'generating', the post-tool wait
+    // keeps naming the tool instead of falling back to the generic copy.
+    expect(streamAnnouncement('generating', 20_000, '关系建议', 'summarizing')).toBe(
+      '正在整理:关系建议的结果…（已等待 20 秒）',
+    );
+    // Ticks second by second and never doubles the 正在生成 prefix.
+    expect(streamAnnouncement('generating', 20_000, '关系建议', 'summarizing')).not.toBe(
+      streamAnnouncement('generating', 21_000, '关系建议', 'summarizing'),
+    );
+    expect(streamAnnouncement('tool', 12_000, '关系建议', 'summarizing')).not.toContain(
+      '正在生成',
+    );
+    // No tool name → previous fallbacks still apply.
+    expect(streamAnnouncement('generating', 12_000, undefined, 'summarizing')).toBe(
+      '正在组织回复…（已等待 12 秒）',
+    );
+    expect(toolPhaseLabel(undefined, 12_000, 'summarizing')).toBeUndefined();
+  });
+
   it('never doubles the 正在生成 prefix', () => {
     for (const ms of [0, 12_000, 75_000]) {
       const text = streamAnnouncement('tool', ms, '关系建议');
@@ -67,8 +100,22 @@ describe('P210 · tool-phase progress copy', () => {
     expect(app).toContain("status === 'running'");
     // The aria-live announcement and the bubble waiting label both get it.
     expect(app).toContain(
-      'buildStreamAnnouncement(streamingPhase, waitingElapsedMs, currentToolLabel)',
+      'buildStreamAnnouncement(streamingPhase, waitingElapsedMs, currentToolLabel, streamingToolPhase)',
     );
-    expect(app).toContain('toolPhaseLabel(currentToolLabel, waitingElapsedMs)');
+    expect(app).toContain('toolPhaseLabel(currentToolLabel, waitingElapsedMs, streamingToolPhase)');
+  });
+
+  it('P231: tool_progress events are parsed and handled in the read loop', () => {
+    const app = read('App.tsx');
+    const sse = read('lib/sse.ts');
+    // The new backend event survives the SSE whitelist…
+    expect(sse).toContain("'tool_progress'");
+    // …and the read loop reacts to it: sets the tool phase, keeps the badge.
+    expect(app).toContain("event.type === 'tool_progress'");
+    expect(app).toContain("d.phase === 'summarizing' ? 'summarizing' : 'calling'");
+    // tool_start no longer pushes a duplicate badge after an early announce.
+    expect(app).toContain('toolEvents.find((t) => t.name === d.name)');
+    // The post-tool window is covered: tool_end marks allDone as summarizing.
+    expect(app).toContain("toolPhase = allDone ? 'summarizing' : 'calling'");
   });
 });

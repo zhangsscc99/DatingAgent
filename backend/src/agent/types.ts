@@ -56,7 +56,15 @@ export interface LLMResponse {
 }
 
 export interface AgentEvent {
-  type: 'thinking' | 'tool_start' | 'tool_end' | 'delta' | 'message' | 'error' | 'done';
+  type:
+    | 'thinking'
+    | 'tool_start'
+    | 'tool_end'
+    | 'tool_progress'
+    | 'delta'
+    | 'message'
+    | 'error'
+    | 'done';
   data: unknown;
 }
 

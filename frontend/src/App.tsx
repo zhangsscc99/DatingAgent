@@ -5,6 +5,7 @@ import type {
   StreamPhase,
   ToolEvent,
   ToolInfo,
+  ToolPhaseKind,
   UserProfile,
 } from './types';
 import ChatWindow, { type ChatWindowHandle } from './components/ChatWindow';
@@ -351,6 +352,8 @@ export default function App() {
         const decoder = new TextDecoder();
         let buffer = '';
         let streamPhase: StreamPhase = 'thinking';
+        // P231: which stage of the tool lifecycle the wait copy describes.
+        let toolPhase: ToolPhaseKind | undefined;
         let streamError: string | null = null;
 
         while (true) {
@@ -371,18 +374,50 @@ export default function App() {
               patchAssistant({ streamPhase, streaming: true });
             }
 
+            // P231: the backend announces the tool name the moment the
+            // upstream tool_calls stream reveals it — before tool_start —
+            // and again while its result is being written up. Either way
+            // the bubble keeps a tool-named phase instead of going silent.
+            if (event.type === 'tool_progress') {
+              const d = event.data as { name?: string; phase?: string };
+              toolPhase = d.phase === 'summarizing' ? 'summarizing' : 'calling';
+              if (d.name && !toolEvents.some((t) => t.name === d.name)) {
+                toolEvents.push({
+                  name: d.name,
+                  label: TOOL_LABELS[d.name] ?? d.name,
+                  status: toolPhase === 'summarizing' ? 'done' : 'running',
+                });
+              }
+              streamPhase = 'tool';
+              patchAssistant({
+                streamPhase,
+                streaming: true,
+                toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+                toolPhase,
+              });
+            }
+
             if (event.type === 'tool_start') {
               const d = event.data as { name: string };
-              toolEvents.push({
-                name: d.name,
-                label: TOOL_LABELS[d.name] ?? d.name,
-                status: 'running',
-              });
+              // A tool_progress 'calling' event may already have added the
+              // badge — keep it running rather than pushing a duplicate.
+              const existing = toolEvents.find((t) => t.name === d.name);
+              if (existing) {
+                existing.status = 'running';
+              } else {
+                toolEvents.push({
+                  name: d.name,
+                  label: TOOL_LABELS[d.name] ?? d.name,
+                  status: 'running',
+                });
+              }
+              toolPhase = 'calling';
               streamPhase = 'tool';
               patchAssistant({
                 streamPhase,
                 streaming: true,
                 toolEvents: [...toolEvents],
+                toolPhase,
               });
             }
 
@@ -393,11 +428,15 @@ export default function App() {
                 toolEvents[idx] = { ...toolEvents[idx], status: 'done', result: d.result };
               }
               const allDone = toolEvents.every((t) => t.status === 'done');
+              // P231: all tools done means the result is being written up —
+              // keep the tool name in the wait copy for that window too.
+              toolPhase = allDone ? 'summarizing' : 'calling';
               streamPhase = allDone ? 'generating' : 'tool';
               patchAssistant({
                 streamPhase,
                 streaming: true,
                 toolEvents: [...toolEvents],
+                toolPhase,
               });
             }
 
@@ -474,6 +513,7 @@ export default function App() {
           content: finalContent,
           streaming: false,
           streamPhase: undefined,
+          toolPhase: undefined,
           toolEvents: toolEvents.length ? [...toolEvents] : undefined,
         });
         return { status: 'ok' };
@@ -494,6 +534,7 @@ export default function App() {
               content: finalContent,
               streaming: false,
               streamPhase: undefined,
+              toolPhase: undefined,
               stopped: true,
               toolEvents: toolEvents.length ? [...toolEvents] : undefined,
             });
@@ -806,13 +847,19 @@ export default function App() {
   // entry's label is what the wait copy names.
   const streamingMessage = messages.find((m) => m.streaming);
   const streamingPhase = streamingMessage?.streamPhase;
-  const currentToolLabel = streamingMessage?.toolEvents
-    ?.filter((t) => t.status === 'running')
-    .at(-1)?.label;
+  const streamingToolPhase = streamingMessage?.toolPhase;
+  const currentToolLabel =
+    streamingMessage?.toolEvents?.filter((t) => t.status === 'running').at(-1)?.label ??
+    // P231: while a finished tool's result is being written up there is no
+    // running entry left — fall back to the last tool's label so the copy
+    // keeps naming it.
+    (streamingToolPhase === 'summarizing'
+      ? streamingMessage?.toolEvents?.at(-1)?.label
+      : undefined);
 
   const waitingLabel = waitingForFirstToken
-    ? (streamingPhase === 'tool'
-        ? toolPhaseLabel(currentToolLabel, waitingElapsedMs)
+    ? ((streamingPhase === 'tool' || streamingToolPhase === 'summarizing')
+        ? toolPhaseLabel(currentToolLabel, waitingElapsedMs, streamingToolPhase)
         : undefined) ?? formatWaitingLabel(waitingElapsedMs)
     : undefined;
 
@@ -875,7 +922,7 @@ export default function App() {
 
   const closeSidebar = () => setSidebarOpen(false);
 
-  const streamAnnouncement = buildStreamAnnouncement(streamingPhase, waitingElapsedMs, currentToolLabel);
+  const streamAnnouncement = buildStreamAnnouncement(streamingPhase, waitingElapsedMs, currentToolLabel, streamingToolPhase);
 
   const handleNewChat = () => {
     abortRef.current?.abort();

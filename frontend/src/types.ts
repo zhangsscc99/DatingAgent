@@ -8,6 +8,9 @@ export interface UserProfile {
 
 export type StreamPhase = 'thinking' | 'tool' | 'generating';
 
+/** P231: which stage of the tool lifecycle the wait copy should describe. */
+export type ToolPhaseKind = 'calling' | 'summarizing';
+
 /** Mirrors ReplyLanguage in backend/src/agent/types.ts. */
 export type ReplyLanguage = 'zh' | 'en' | 'auto';
 
@@ -21,6 +24,8 @@ export interface ChatMessage {
   /** True while SSE stream is active for this message */
   streaming?: boolean;
   streamPhase?: StreamPhase;
+  /** P231: `calling` while a tool runs, `summarizing` while its result is written up. */
+  toolPhase?: ToolPhaseKind;
   /** Stream or request failed — show retry UI */
   error?: boolean;
   /** Failure detail shown under a restored reply after a failed regen (P26) */
@@ -55,6 +60,14 @@ export interface ToolInfo {
 }
 
 export interface AgentEvent {
-  type: 'thinking' | 'tool_start' | 'tool_end' | 'delta' | 'message' | 'error' | 'done';
+  type:
+    | 'thinking'
+    | 'tool_start'
+    | 'tool_end'
+    | 'tool_progress'
+    | 'delta'
+    | 'message'
+    | 'error'
+    | 'done';
   data: unknown;
 }

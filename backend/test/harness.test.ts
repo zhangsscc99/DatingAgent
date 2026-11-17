@@ -60,7 +60,9 @@ describe('agent harness tool loop', () => {
     expect(events.map((e) => e.type)).toEqual([
       'thinking',
       'tool_start',
+      'tool_progress',
       'tool_end',
+      'tool_progress',
       'message',
       'done',
     ]);
@@ -68,7 +70,7 @@ describe('agent harness tool loop', () => {
     const start = events[1].data as { name: string };
     expect(start.name).toBe('analyze_profile');
 
-    const end = events[2].data as { name: string; result: { score: number } };
+    const end = events[3].data as { name: string; result: { score: number } };
     expect(end.name).toBe('analyze_profile');
     expect(typeof end.result.score).toBe('number');
 
@@ -82,7 +84,7 @@ describe('agent harness tool loop', () => {
     expect(toolMessage?.toolName).toBe('analyze_profile');
     expect(() => JSON.parse(toolMessage!.content) as unknown).not.toThrow();
 
-    const final = events[3].data as { content: string; role: string };
+    const final = events[5].data as { content: string; role: string };
     expect(final.content).toBe('这是你的资料分析。');
   });
 
