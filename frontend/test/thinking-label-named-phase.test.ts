@@ -34,7 +34,7 @@ describe('P240 · named wait phase before the first token', () => {
     const copy = toolPhaseLabel(label, 9_000, 'calling');
     expect(copy).toContain('聊天指导');
     expect(copy).toContain('已等待 9 秒');
-    expect(copy).toBe('正在调用:聊天指导…（已等待 9 秒）');
+    expect(copy).toBe('正在调用「聊天指导」…（已等待 9 秒）');
     // Still ticking second by second.
     expect(toolPhaseLabel(label, 10_000, 'calling')).toContain('已等待 10 秒');
   });

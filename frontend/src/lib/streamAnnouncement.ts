@@ -16,17 +16,26 @@ import { formatWaitingLabel } from './thinkingTimer';
 
 /**
  * P210 — tool-phase copy names the tool currently running and keeps the
- * waited seconds ticking: 「正在调用:关系建议…（已等待 12 秒）」. The caller
- * passes the already-mapped Chinese label (App.tsx's TOOL_LABELS, the same
- * map the tool badges use — this file must not grow a second map).
- * Returns undefined when no tool name is known so each surface can fall
- * back to its previous copy: the aria-live region keeps 「正在调用工具…」,
- * the bubble keeps the P192 formatWaitingLabel output.
+ * waited seconds ticking: 「正在调用「关系建议」…（已等待 12 秒）」. The
+ * caller passes the already-mapped Chinese label (App.tsx's TOOL_LABELS,
+ * the same map the tool badges use — this file must not grow a second
+ * map). Returns undefined when no tool name is known so each surface can
+ * fall back to its previous copy: the aria-live region keeps
+ * 「正在调用工具…」, the bubble keeps the P192 formatWaitingLabel output.
  *
  * P231 — `summarizing` covers the post-tool window: the handler has
  * returned but the model can spend many seconds writing the reply, during
  * which the bubble still names the tool whose result is being organised.
+ *
+ * P248 — the tool name is quoted with Chinese 「」 and the actions are
+ * verb phrases (no half-width colon, no 「…的结果」). Once a summarizing
+ * wait crosses SUMMARIZING_EXIT_HINT_AFTER_MS the label gains an exit
+ * hint telling the user the reply will stay put; the `calling` phase
+ * keeps the P240 copy untouched.
  */
+export const SUMMARIZING_EXIT_HINT = '这次有点慢，你可以先切走，回复会留在这里';
+export const SUMMARIZING_EXIT_HINT_AFTER_MS = 20_000;
+
 export function toolPhaseLabel(
   toolLabel: string | undefined,
   elapsedMs: number,
@@ -35,14 +44,23 @@ export function toolPhaseLabel(
   if (!toolLabel) return undefined;
   const prefix =
     phase === 'summarizing'
-      ? `正在整理:${toolLabel}的结果…`
-      : `正在调用:${toolLabel}…`;
-  if (elapsedMs < 1000) return prefix;
-  const totalSeconds = Math.floor(elapsedMs / 1000);
-  if (elapsedMs < 60_000) return `${prefix}（已等待 ${totalSeconds} 秒）`;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${prefix}（已等待 ${minutes} 分 ${seconds} 秒）`;
+      ? `正在整理「${toolLabel}」的建议…`
+      : `正在调用「${toolLabel}」…`;
+  let label = prefix;
+  if (elapsedMs >= 1000) {
+    const totalSeconds = Math.floor(elapsedMs / 1000);
+    if (elapsedMs < 60_000) {
+      label = `${prefix}（已等待 ${totalSeconds} 秒）`;
+    } else {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      label = `${prefix}（已等待 ${minutes} 分 ${seconds} 秒）`;
+    }
+  }
+  if (phase === 'summarizing' && elapsedMs >= SUMMARIZING_EXIT_HINT_AFTER_MS) {
+    label = `${label}，${SUMMARIZING_EXIT_HINT}`;
+  }
+  return label;
 }
 
 /**

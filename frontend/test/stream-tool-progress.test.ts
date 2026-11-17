@@ -18,7 +18,7 @@ const read = (file: string) => readFileSync(join(SRC, file), 'utf8');
 
 describe('P210 · tool-phase progress copy', () => {
   it('names the running tool with its mapped Chinese label and keeps the seconds ticking', () => {
-    expect(streamAnnouncement('tool', 12_000, '关系建议')).toBe('正在调用:关系建议…（已等待 12 秒）');
+    expect(streamAnnouncement('tool', 12_000, '关系建议')).toBe('正在调用「关系建议」…（已等待 12 秒）');
     expect(streamAnnouncement('tool', 12_000, '约会规划')).toContain('约会规划');
     expect(streamAnnouncement('tool', 8_000, '聊天指导')).toContain('已等待 8 秒');
     // Still ticking second by second.
@@ -27,10 +27,10 @@ describe('P210 · tool-phase progress copy', () => {
     );
     expect(streamAnnouncement('tool', 13_000, '关系建议')).toContain('已等待 13 秒');
     // Sub-second: name shows, seconds not yet.
-    expect(streamAnnouncement('tool', 500, '关系建议')).toBe('正在调用:关系建议…');
+    expect(streamAnnouncement('tool', 500, '关系建议')).toBe('正在调用「关系建议」…');
     // Past a minute the format matches formatWaitingLabel's 分/秒 shape.
     expect(streamAnnouncement('tool', 75_000, '关系建议')).toBe(
-      '正在调用:关系建议…（已等待 1 分 15 秒）',
+      '正在调用「关系建议」…（已等待 1 分 15 秒）',
     );
   });
 
@@ -57,20 +57,21 @@ describe('P210 · tool-phase progress copy', () => {
     // After tool_end the reply is still being written — the label says which
     // tool's result is being organised and keeps counting elapsed seconds.
     expect(toolPhaseLabel('关系建议', 12_000, 'summarizing')).toBe(
-      '正在整理:关系建议的结果…（已等待 12 秒）',
+      '正在整理「关系建议」的建议…（已等待 12 秒）',
     );
-    expect(toolPhaseLabel('关系建议', 500, 'summarizing')).toBe('正在整理:关系建议的结果…');
+    expect(toolPhaseLabel('关系建议', 500, 'summarizing')).toBe('正在整理「关系建议」的建议…');
+    // P248: past 20 s the summarizing label gains the exit hint.
     expect(toolPhaseLabel('关系建议', 75_000, 'summarizing')).toBe(
-      '正在整理:关系建议的结果…（已等待 1 分 15 秒）',
+      '正在整理「关系建议」的建议…（已等待 1 分 15 秒），这次有点慢，你可以先切走，回复会留在这里',
     );
     // 'tool' stream phase carrying a summarizing tool phase uses it too.
     expect(streamAnnouncement('tool', 8_000, '约会规划', 'summarizing')).toBe(
-      '正在整理:约会规划的结果…（已等待 8 秒）',
+      '正在整理「约会规划」的建议…（已等待 8 秒）',
     );
     // Even after the stream phase flips to 'generating', the post-tool wait
     // keeps naming the tool instead of falling back to the generic copy.
     expect(streamAnnouncement('generating', 20_000, '关系建议', 'summarizing')).toBe(
-      '正在整理:关系建议的结果…（已等待 20 秒）',
+      '正在整理「关系建议」的建议…（已等待 20 秒），这次有点慢，你可以先切走，回复会留在这里',
     );
     // Ticks second by second and never doubles the 正在生成 prefix.
     expect(streamAnnouncement('generating', 20_000, '关系建议', 'summarizing')).not.toBe(

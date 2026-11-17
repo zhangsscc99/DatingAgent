@@ -56,7 +56,7 @@ describe('P198 · streamAnnouncement copy', () => {
     // The tool phase keeps its own copy and is never swallowed by the
     // staged buckets.
     expect(streamAnnouncement('tool', 31_000, '关系建议')).toBe(
-      '正在调用:关系建议…（已等待 31 秒）',
+      '正在调用「关系建议」…（已等待 31 秒）',
     );
   });
 
