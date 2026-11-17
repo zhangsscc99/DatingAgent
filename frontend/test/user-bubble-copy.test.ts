@@ -43,8 +43,12 @@ describe('P184 copy button on user bubbles', () => {
     expect(block).toContain('{canCopy && (');
     expect(block).toContain('className={`copy-btn');
     expect(block).toContain('onClick={handleCopy}');
-    // Same aria-label / feedback path for whichever bubble shows the button.
-    expect(block).toContain("aria-label={copyState === 'copied' ? '已复制' : '复制回复'}");
+    // Same copied-feedback path for whichever bubble shows the button; the
+    // idle accessible name is role-aware (P219): 复制我的消息 on user bubbles,
+    // 复制回复 on assistant bubbles.
+    expect(block).toContain(
+      "copyState === 'copied' ? '已复制' : isUser ? '复制我的消息' : '复制回复'",
+    );
     expect(block).toContain('className="copy-status"');
     expect(block).toContain('aria-live="polite"');
   });

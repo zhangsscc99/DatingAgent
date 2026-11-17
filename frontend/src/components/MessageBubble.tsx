@@ -198,8 +198,16 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
                   copyState === 'failed' ? ' failed' : ''
                 }`}
                 onClick={handleCopy}
-                aria-label={copyState === 'copied' ? '已复制' : '复制回复'}
-                title={copyState === 'failed' ? '复制失败，请手动选择文本' : '复制回复'}
+                aria-label={
+                  copyState === 'copied' ? '已复制' : isUser ? '复制我的消息' : '复制回复'
+                }
+                title={
+                  copyState === 'failed'
+                    ? '复制失败，请手动选择文本'
+                    : isUser
+                      ? '复制我的消息'
+                      : '复制回复'
+                }
               >
                 {copyState === 'copied' ? (
                   '✓ 已复制'
