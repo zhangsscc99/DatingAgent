@@ -5,6 +5,7 @@ import {
   getLastEvictionNotice,
 } from '../lib/chatStorage';
 import type { StoredChatSession } from '../lib/chatStorage';
+import { CLEAR_ALL_LABEL } from '../lib/copy';
 import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
 import { formatRelativeTime, isRenderableTimestamp } from '../lib/relativeTime';
 import { filterRecentSessions, matchSessionMessage } from '../lib/sessionFilter';
@@ -339,10 +340,10 @@ export default function Sidebar({
             // P228: App owns the in-app confirm dialog; this only asks.
             onClick={() => onClearAllChats?.()}
             disabled={busy || recentSessions.length === 0}
-            aria-label="清空全部历史对话"
-            title="清空全部历史对话"
+            aria-label={CLEAR_ALL_LABEL}
+            title={CLEAR_ALL_LABEL}
           >
-            清空全部
+            {CLEAR_ALL_LABEL}
           </button>
         </div>
         <input

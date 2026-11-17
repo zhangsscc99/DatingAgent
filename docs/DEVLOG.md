@@ -196,3 +196,4 @@
 2026-11-17 17:02 | P263 | 手机端气泡复制/换一个按钮抬到 ≥36px 触控目标
 2026-11-17 17:41 | P265 | 删除/清空对话进回收站，7 天可恢复
 2026-11-17 18:02 | F07 | P266 confirm dialogs now state message counts and recovery
+2026-11-17 18:22 | P267 | unified clear-all label behind shared CLEAR_ALL_LABEL constant (sidebar + settings + confirm title)

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { CLEAR_ALL_LABEL } from '../lib/copy';
 import { startDialogDismiss } from '../lib/dialogDismiss';
 import type { ReplyLengthPreference } from '../lib/replyLength';
 import type { Theme } from '../hooks/useTheme';
@@ -208,10 +209,10 @@ export default function SettingsSheet({
               className="settings-data-btn danger"
               onClick={onClearAll}
               disabled={busy || !hasSessions}
-              aria-label="清空全部对话"
-              title="清空全部对话"
+              aria-label={CLEAR_ALL_LABEL}
+              title={CLEAR_ALL_LABEL}
             >
-              清空全部对话
+              {CLEAR_ALL_LABEL}
             </button>
           </div>
         </section>

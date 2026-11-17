@@ -37,8 +37,9 @@ describe('P155 · clear all history chats', () => {
       // The button sits inside the section header, before the filter input.
       expect(button).toBeGreaterThan(header);
       expect(button).toBeLessThan(filter);
-      expect(sidebar).toContain('aria-label="清空全部历史对话"');
-      expect(sidebar).toContain('清空全部');
+      // P267: the label is the shared CLEAR_ALL_LABEL constant.
+      expect(sidebar).toContain('aria-label={CLEAR_ALL_LABEL}');
+      expect(sidebar).toContain('{CLEAR_ALL_LABEL}');
       // Per-row actions remain rename/delete only — the bulk button is unique.
       expect(sidebar.indexOf('recent-chat-clear-all')).toBe(
         sidebar.lastIndexOf('recent-chat-clear-all'),
