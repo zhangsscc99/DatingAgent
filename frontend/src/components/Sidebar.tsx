@@ -595,8 +595,6 @@ export default function Sidebar({
           </svg>
           设置
         </button>
-        <p>基于 Agent Harness 架构</p>
-        <p className="muted">Tool-calling · SSE · TypeScript</p>
       </footer>
     </aside>
   );

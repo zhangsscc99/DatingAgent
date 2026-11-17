@@ -526,8 +526,6 @@
   margin-top: auto;
   padding-top: 16px;
   border-top: 1px solid var(--border);
-  font-size: 11px;
-  color: var(--text-muted);
 }
 
 /* P196 — settings entry point; quiet text button matching the footer's tone. */
@@ -557,10 +555,6 @@
   outline-offset: 2px;
 }
 
-.sidebar-footer .muted {
-  margin-top: 4px;
-  opacity: 0.7;
-}
 
 @media (max-width: 768px) {
   .sidebar.sidebar-drawer {
