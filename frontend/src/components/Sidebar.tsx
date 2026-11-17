@@ -150,12 +150,25 @@ function SidebarIcon({ iconKey }: { iconKey: QuickIconKey }) {
   );
 }
 
+// P220: quick-entry labels are intent-shaped sentences so they can never be
+// mistaken for the Agent 工具 capability names listed below.
 const QUICK_PROMPTS = [
-  { iconKey: 'profile', label: '优化资料', prompt: '帮我看看交友资料怎么写更有吸引力' },
-  { iconKey: 'chat', label: '聊天回复', prompt: '对方说「周末有什么安排」，我该怎么回复？' },
-  { iconKey: 'calendar', label: '约会规划', prompt: '帮我规划一次轻松自然的第一次约会' },
-  { iconKey: 'heart', label: '匹配分析', prompt: '我偏内向慢热，对方很外向，分析一下合不合适' },
+  { iconKey: 'profile', label: '帮我优化资料', prompt: '帮我看看交友资料怎么写更有吸引力' },
+  { iconKey: 'chat', label: '她这样回我怎么接', prompt: '对方说「周末有什么安排」，我该怎么回复？' },
+  { iconKey: 'calendar', label: '帮我规划第一次约会', prompt: '帮我规划一次轻松自然的第一次约会' },
+  { iconKey: 'heart', label: '我们合不合适', prompt: '我偏内向慢热，对方很外向，分析一下合不合适' },
 ] as const;
+
+// P220: when /api/tools has not loaded yet, the 工具 list falls back to the
+// real capability names — never to the quick-prompt labels, which would
+// render the same text twice in the drawer.
+const TOOL_FALLBACK: ToolInfo[] = [
+  { name: 'analyze_profile', label: '资料优化', icon: '' },
+  { name: 'coach_conversation', label: '聊天指导', icon: '' },
+  { name: 'plan_date', label: '约会规划', icon: '' },
+  { name: 'check_compatibility', label: '匹配分析', icon: '' },
+  { name: 'get_relationship_advice', label: '关系建议', icon: '' },
+];
 
 export default function Sidebar({
   tools,
@@ -528,7 +541,7 @@ export default function Sidebar({
       <section className="sidebar-section" aria-label="Agent 工具">
         <h3>Agent 工具</h3>
         <ul className="tool-list">
-          {(tools.length ? tools : QUICK_PROMPTS.map((p, i) => ({ name: String(i), label: p.label, icon: '' }))).map(
+          {(tools.length ? tools : TOOL_FALLBACK).map(
             (t) => (
               <li key={t.name} className="tool-item">
                 {t.label}

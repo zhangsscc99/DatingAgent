@@ -52,7 +52,13 @@ describe('P199 · sidebar has no emoji icons', () => {
     const labels = [...quickBlock.matchAll(/label: '([^']+)'/g)].map(
       (m) => m[1],
     );
-    expect(labels).toEqual(['优化资料', '聊天回复', '约会规划', '匹配分析']);
+    // P220: labels are intent-shaped sentences, distinct from tool names.
+    expect(labels).toEqual([
+      '帮我优化资料',
+      '她这样回我怎么接',
+      '帮我规划第一次约会',
+      '我们合不合适',
+    ]);
   });
 
   it('keeps the 设置 row labelled while its prefix is now an SVG', () => {
