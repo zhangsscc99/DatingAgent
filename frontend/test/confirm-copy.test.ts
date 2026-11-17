@@ -15,8 +15,9 @@ import type { ChatMessage } from '../src/types';
  * P266 — the destructive confirm dialogs used to ask one bare question
  * (「删除对话「…」？」 / 「确定清空全部历史对话？」) that hid the blast
  * radius and the recovery path. The description now states the counts and
- * the way back: single delete → the 7-day 回收站, 清空全部 → the 6 s undo
- * window (a hard wipe — it does not go to the bin). Counts are frozen into
+ * the way back: single delete → the 7-day 回收站, 清空全部 → the same
+ * 7-day 回收站 (P269 — a 6 s undo toast exists but is unreachable in
+ * practice, so the copy leads with the durable path). Counts are frozen into
  * the request when the dialog opens, so the copy cannot drift. These tests
  * pin the sentences at the pure-function level plus a source guard that
  * App really routes both actions through describeConfirm.
@@ -48,7 +49,7 @@ describe('P266 · confirm dialog states counts and recovery', () => {
     expect(copy).toBe('将把「周末安排」的 3 条消息移到回收站，7 天内可以恢复。');
   });
 
-  it('clear-all names the session count, the summed message count and the 6 秒 undo', () => {
+  it('clear-all names the session count, the summed message count and the 7 天 回收站', () => {
     const state = stateWith([
       { id: 's1', title: '甲', messages: [msg('a'), msg('b'), msg('c')] },
       { id: 's2', title: '乙', messages: [msg('d'), msg('e')] },
@@ -57,9 +58,19 @@ describe('P266 · confirm dialog states counts and recovery', () => {
     const copy = describeConfirm(request);
     expect(copy).toContain('2 段对话');
     expect(copy).toContain('5 条消息');
-    expect(copy).toContain('撤销');
-    expect(copy).toContain('6 秒');
-    expect(copy).toBe('将清空 2 段对话，共 5 条消息；清空后 6 秒内可以撤销。');
+    expect(copy).toContain('回收站');
+    expect(copy).toContain('7 天');
+    expect(copy).not.toContain('6 秒');
+    expect(copy).not.toContain('撤销');
+    expect(copy).toBe('将清空 2 段对话，共 5 条消息；清空后可在回收站保留 7 天，之后自动清除。');
+  });
+
+  it('single delete still promises 「7 天内可以恢复」 unchanged', () => {
+    const state = stateWith([
+      { id: 's1', title: '甲', messages: [msg('a')] },
+    ]);
+    const copy = describeConfirm(deleteConfirmRequest(state, 's1', '甲'));
+    expect(copy).toContain('7 天内可以恢复');
   });
 
   it('neither description is the old bare 「确定清空全部历史对话？」', () => {

@@ -170,7 +170,7 @@ describe('P228 · in-app confirm dialog', () => {
     expect(dialog).not.toBeNull();
     // P266: one session with one message remains after the s1 delete.
     expect(dialog!.textContent).toContain(
-      '将清空 1 段对话，共 1 条消息；清空后 6 秒内可以撤销。',
+      '将清空 1 段对话，共 1 条消息；清空后可在回收站保留 7 天，之后自动清除。',
     );
     expect(dom.document.activeElement).toBe(cancelButton());
     expect(confirmSpy).not.toHaveBeenCalled();
@@ -226,7 +226,7 @@ describe('P228 · in-app confirm dialog', () => {
       expect(app).not.toContain('确定清空全部历史对话？');
       const copy = read('lib/confirmCopy.ts');
       expect(copy).toContain('回收站，7 天内可以恢复。');
-      expect(copy).toContain('清空后 6 秒内可以撤销。');
+      expect(copy).toContain('清空后可在回收站保留 7 天，之后自动清除。');
     });
 
     it('ConfirmDialog is a labelled alertdialog with a danger primary and a default-focused 取消', () => {

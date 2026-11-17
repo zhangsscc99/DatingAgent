@@ -5,9 +5,10 @@ import type { ChatStorageState } from './chatStorage';
  * question (「删除对话「…」？」 / 「确定清空全部历史对话？」) that said
  * nothing about blast radius or the way back. The description now states
  * how many messages the action touches and what recovery looks like: a
- * single delete moves the session into the 7-day 回收站; 清空全部 is a
- * hard wipe with a 6 s undo window (it does NOT go to the bin — the undo
- * snapshot lives in clearAllUndo.ts). Counts are captured when the dialog
+ * single delete moves the session into the 7-day 回收站; 清空全部 moves
+ * the sessions into the same 7-day 回收站 (a 6 s undo toast also exists
+ * via clearAllUndo.ts, but the copy leads with the durable recovery
+ * path). Counts are captured when the dialog
  * is requested so the sentence cannot drift while it is open, and both
  * 清空全部 entry points share the one request builder. Pure copy + count
  * plumbing — no React, no localStorage.
@@ -60,7 +61,7 @@ export function deleteConfirmRequest(
  */
 export function describeConfirm(request: ConfirmRequest): string {
   if (request.kind === 'clear-all') {
-    return `将清空 ${request.sessionCount} 段对话，共 ${request.messageCount} 条消息；清空后 6 秒内可以撤销。`;
+    return `将清空 ${request.sessionCount} 段对话，共 ${request.messageCount} 条消息；清空后可在回收站保留 7 天，之后自动清除。`;
   }
   if (request.messageCount > 0) {
     return `将把「${request.title}」的 ${request.messageCount} 条消息移到回收站，7 天内可以恢复。`;

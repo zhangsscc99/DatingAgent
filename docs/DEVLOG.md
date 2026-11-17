@@ -197,3 +197,4 @@
 2026-11-17 17:41 | P265 | 删除/清空对话进回收站，7 天可恢复
 2026-11-17 18:02 | F07 | P266 confirm dialogs now state message counts and recovery
 2026-11-17 18:22 | P267 | unified clear-all label behind shared CLEAR_ALL_LABEL constant (sidebar + settings + confirm title)
+2026-11-17 18:50 | P269 | clear-all confirm copy now promises the 7-day 回收站 instead of an unreachable 6 s undo; stale confirmCopy.ts module comment corrected; confirm-dialog.test.ts updated to the new sentence
