@@ -384,6 +384,14 @@ export class FakeElement extends FakeNode {
   getAttribute(name: string): string | null {
     return this.attributes.has(name) ? (this.attributes.get(name) as string) : null;
   }
+  getAttributeNames(): string[] {
+    return [...this.attributes.keys()];
+  }
+  getAttributeNode(name: string) {
+    return this.attributes.has(name)
+      ? { name, value: this.attributes.get(name) as string }
+      : null;
+  }
   hasAttribute(name: string): boolean {
     return this.attributes.has(name);
   }
@@ -420,6 +428,9 @@ export class FakeElement extends FakeNode {
   querySelectorAll(sel: string): FakeElement[] {
     const parts = sel.split(',');
     return this._walk().filter((e) => parts.some((s) => matchesSelector(e, s)));
+  }
+  matches(sel: string): boolean {
+    return sel.split(',').some((s) => matchesSelector(this, s));
   }
   closest(sel: string): FakeElement | null {
     let node: FakeNode | null = this;
