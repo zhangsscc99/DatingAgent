@@ -67,6 +67,7 @@ import { regeneratePromptFor } from './lib/regenerate';
 import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
 import { isServiceDown } from './lib/serviceStatus';
+import { headerStatusCopy } from './lib/headerStatus';
 import { parseSseDataLine } from './lib/sse';
 import { foldReplyDraft } from './lib/streamDraft';
 import { canRunQuickPrompt } from './lib/quickPromptGate';
@@ -1183,6 +1184,8 @@ export default function App() {
     setRecentSessions(getRecentSessions());
   };
 
+  const headerStatus = headerStatusCopy(health?.llmConfigured === true);
+
   return (
     <div className="app">
       <a className="skip-link" href="#main-content">
@@ -1563,12 +1566,18 @@ export default function App() {
                           ? '导出失败'
                           : ''}
             </span>
-            <div className="header-status" role="status" aria-live="polite">
+            <div
+              className="header-status"
+              role="status"
+              aria-live="polite"
+              title={headerStatus.detail}
+              aria-label={headerStatus.detail}
+            >
               <span
                 className={`status-dot ${health?.llmConfigured ? 'live' : 'mock'}`}
                 aria-hidden="true"
               />
-              {health?.llmConfigured ? 'LLM 已连接' : 'Demo 模式'}
+              {headerStatus.label}
             </div>
           </div>
         </header>
