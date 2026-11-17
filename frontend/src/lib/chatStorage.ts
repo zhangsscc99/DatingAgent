@@ -1,5 +1,6 @@
 import type { ChatMessage, ReplyMeta, UserProfile } from '../types';
 import { purgeDraft, purgeDrafts } from './chatDrafts';
+import { loadTrash, pushTrash, restoreTrash, saveTrash } from './chatTrash';
 import {
   purgeAllInputHistories,
   purgeInputHistories,
@@ -473,6 +474,10 @@ export function renameChatSession(sessionId: string, title: string): void {
 
 export function deleteChatSession(sessionId: string): void {
   const state = loadChatState();
+  // P265: the conversation is recoverable for 7 days — move it into the
+  // recycle bin before its entry leaves the history store.
+  const doomed = state.sessions.find((s) => s.id === sessionId);
+  if (doomed) saveTrash(pushTrash(loadTrash(), [doomed]));
   state.sessions = state.sessions.filter((s) => s.id !== sessionId);
   if (state.activeSessionId === sessionId) state.activeSessionId = null;
   persistState(state);
@@ -515,7 +520,13 @@ export function deleteBackendSessions(
  * P188: the eviction notice goes too — after a full wipe it would describe
  * history that no longer exists anywhere. */
 export function clearAllChatSessions(): void {
-  const ids = loadChatState().sessions.map((s) => s.id);
+  const state = loadChatState();
+  const ids = state.sessions.map((s) => s.id);
+  // P265: one bulk move into the recycle bin before the wipe — every
+  // cleared conversation stays restorable for 7 days.
+  if (state.sessions.length > 0) {
+    saveTrash(pushTrash(loadTrash(), state.sessions));
+  }
   deleteBackendSessions(ids);
   purgeDrafts(ids);
   purgeInputHistories(ids);
@@ -541,6 +552,21 @@ export function restoreChatState(state: ChatStorageState): void {
     activeSessionId: state.activeSessionId,
     sessions: state.sessions,
   });
+}
+
+/**
+ * P265 — move a trashed session back into the history list and persist it
+ * through the same guarded write path as every other chat-history update.
+ * Returns the restored session (its id may carry a `-restored` suffix when
+ * the original id is taken again), or null when the entry is gone.
+ */
+export function restoreChatSession(
+  sessionId: string,
+): StoredChatSession | null {
+  const restored = restoreTrash(loadChatState(), sessionId);
+  if (!restored) return null;
+  persistState(restored.state);
+  return restored.session;
 }
 
 export function getSession(sessionId: string): StoredChatSession | undefined {

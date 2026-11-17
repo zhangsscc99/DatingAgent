@@ -443,6 +443,35 @@
   opacity: 0.45;
 }
 
+/* P265 — the 回收站 row under 最近对话: a quiet dashed entry, same visual
+   language as the no-profile 完善资料 card. */
+.recent-chat-trash {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.recent-chat-trash:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.recent-chat-trash:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .recent-chat-eviction {
   display: flex;
   align-items: flex-start;
@@ -683,6 +712,11 @@
   }
 
   .recent-chat-clear-all {
+    min-height: 36px;
+  }
+
+  /* P265 — the 回收站 row follows the same ≥36px touch-target rule. */
+  .recent-chat-trash {
     min-height: 36px;
   }
 }

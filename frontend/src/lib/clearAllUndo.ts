@@ -23,6 +23,11 @@ export interface ClearAllUndoOps {
   wipe(): void;
   /** Write the snapshot back verbatim — the undo path. */
   restore(snapshot: ChatStorageState): void;
+  /** P265: optional toast copy — defaults keep the 清空全部 wording so
+   * other destructive actions (the single-row delete) can reuse the same
+   * single-slot undo window with their own message. */
+  message?: string;
+  actionLabel?: string;
 }
 
 export interface ClearAllUndoController {
@@ -86,8 +91,8 @@ export function createClearAllUndo(
       seq += 1;
       emit({
         seq,
-        message: CLEAR_ALL_UNDO_MESSAGE,
-        actionLabel: CLEAR_ALL_UNDO_ACTION_LABEL,
+        message: ops.message ?? CLEAR_ALL_UNDO_MESSAGE,
+        actionLabel: ops.actionLabel ?? CLEAR_ALL_UNDO_ACTION_LABEL,
       });
       timer = setTimeout(() => {
         timer = null;

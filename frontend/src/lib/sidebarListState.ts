@@ -46,6 +46,18 @@ export function shouldShowEvictionNotice(
 }
 
 /**
+ * P265: the 回收站 row is the section's only way back from a delete, so it
+ * stays visible whenever anything exists to manage — a live session list or
+ * a non-empty trash. Only a totally empty section hides it.
+ */
+export function shouldShowTrashEntry(
+  sessionCount: number,
+  trashCount: number,
+): boolean {
+  return sessionCount > 0 || trashCount > 0;
+}
+
+/**
  * Keep an in-progress rename only while its row still exists. A vanished row
  * (deleted in this tab or removed by a cross-tab sync) drops the id so a stale
  * editingValue can never commit onto a wrong or absent row.

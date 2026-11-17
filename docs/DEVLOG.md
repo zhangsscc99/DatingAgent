@@ -194,3 +194,4 @@
 2026-11-17 16:31 | P259 | narrow-screen (<=768px) touch targets on the settings path raised to >=36px: .settings-open-btn + .recent-chat-clear-all min-height 36 in Sidebar.css, .settings-close 36x36 + .settings-segment min-height 36 in SettingsSheet.css, .profile-nudge-dismiss 36x36 in ChatWindow.css; desktop rules untouched; new settings-touch-targets.test.ts (969 green); ci-deploy exit 0
 2026-11-17 16:47 | P260 | .profile-nudge-btn 「完善资料」chip raised to min-height:36px (inline-flex centered, pill shape kept) inside @media (max-width:768px) only in ChatWindow.css; desktop rule untouched; settings-touch-targets.test.ts extended (7 green); ci-deploy exit 0
 2026-11-17 17:02 | P263 | 手机端气泡复制/换一个按钮抬到 ≥36px 触控目标
+2026-11-17 17:41 | P265 | 删除/清空对话进回收站，7 天可恢复

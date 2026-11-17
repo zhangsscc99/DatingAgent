@@ -30,6 +30,7 @@ import {
   newSessionId,
   remapChatSessionId,
   renameChatSession,
+  restoreChatSession,
   restoreChatState,
   sameConversation,
   sameRecentSessions,
@@ -40,6 +41,8 @@ import {
   watchChatStorage,
 } from './lib/chatStorage';
 import type { ChatStorageState } from './lib/chatStorage';
+import { clearTrash, loadTrash } from './lib/chatTrash';
+import type { TrashEntry } from './lib/chatTrash';
 import { DEFAULT_DRAFT_ID, sweepOrphanDrafts } from './lib/chatDrafts';
 import {
   hasMinimalProfile,
@@ -216,6 +219,16 @@ export default function App() {
   const [clearAllUndoCtl] = useState(() =>
     createClearAllUndo(setClearAllUndoToast),
   );
+  // P265: the recycle bin — deleted sessions land here for 7 days, and the
+  // single-row delete shares the undo-toast mechanics with its own copy.
+  const [trashEntries, setTrashEntries] = useState<TrashEntry[]>(() =>
+    loadTrash(),
+  );
+  const [trashUndoToast, setTrashUndoToast] =
+    useState<ClearAllUndoToastState | null>(null);
+  const [trashUndoCtl] = useState(() =>
+    createClearAllUndo(setTrashUndoToast),
+  );
   const [restoringSession, setRestoringSession] = useState(() => {
     const { activeSessionId, sessions } = loadChatState();
     const session = sessions.find((s) => s.id === activeSessionId);
@@ -316,8 +329,9 @@ export default function App() {
       if (jsonExportTimer.current !== null) window.clearTimeout(jsonExportTimer.current);
       toastCtl.destroy();
       clearAllUndoCtl.destroy();
+      trashUndoCtl.destroy();
     },
-    [toastCtl, clearAllUndoCtl],
+    [toastCtl, clearAllUndoCtl, trashUndoCtl],
   );
 
   // P156: the storage watcher below binds once on mount, so it reads the
@@ -354,6 +368,8 @@ export default function App() {
         setRecentSessions((prev) =>
           sameRecentSessions(prev, nextRecent) ? prev : nextRecent,
         );
+        // P265: a foreign delete/clear also moved its trash entries.
+        setTrashEntries(loadTrash());
         setSessionId((prev) => (prev === next.sessionId ? prev : next.sessionId));
         setMessages((prev) =>
           sameConversation(prev, next.messages) ? prev : next.messages,
@@ -1116,6 +1132,9 @@ export default function App() {
   /** P228: the per-row delete only opens the confirm dialog; the deletion
    * itself happens in performDeleteChat after the danger button is pressed. */
   const handleDeleteChat = (id: string) => {
+    // P265: a fresh destructive intent retires the pending clear-all toast —
+    // the two undo windows share one visual slot.
+    clearAllUndoCtl.dismiss();
     const title = recentSessions.find((s) => s.id === id)?.title ?? id;
     setConfirmRequest({ kind: 'delete', sessionId: id, title });
   };
@@ -1124,24 +1143,70 @@ export default function App() {
    * P148: delete one stored session. The backend DELETE is fire-and-forget —
    * the local copy is the source of truth for the list, and a dropped request
    * only leaves an idle backend session that the F01 TTL reaps anyway.
+   * P265: the session moves into the 回收站 first (inside deleteChatSession),
+   * and the delete arms the same 6 s undo window as 清空全部 — its 撤销 pulls
+   * the entry back out of the trash.
    */
   const performDeleteChat = (id: string) => {
-    deleteChatSession(id);
+    const wasActive = id === sessionId;
+    trashUndoCtl.confirm({
+      takeSnapshot: loadChatState,
+      message: '已移到回收站',
+      wipe: () => {
+        deleteChatSession(id);
+        setRecentSessions(getRecentSessions());
+        setTrashEntries(loadTrash());
+
+        try {
+          void fetch(`/api/session/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+        } catch {
+          /* fire-and-forget */
+        }
+
+        if (id === sessionId) {
+          abortRef.current?.abort();
+          toastCtl.dismiss();
+          setMessages([]);
+          setSessionId(null);
+          setLoading(false);
+        }
+      },
+      restore: () => restoreDeletedChat(id, wasActive),
+    });
+  };
+
+  /** P265: 撤销 on the single-delete toast — pull the entry back out of the
+   * recycle bin and re-open the chat when it was the active one. */
+  const restoreDeletedChat = (id: string, wasActive: boolean) => {
+    const session = restoreChatSession(id);
     setRecentSessions(getRecentSessions());
-
-    try {
-      void fetch(`/api/session/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
-    } catch {
-      /* fire-and-forget */
+    setTrashEntries(loadTrash());
+    if (session && wasActive) {
+      setSessionId(session.id);
+      setMessages(session.messages);
+      setActiveSessionId(session.id);
+      setRestoringSession(true);
+      void syncSessionWithBackend(
+        session.id,
+        session.messages,
+        profile,
+      ).finally(() => {
+        setRestoringSession(false);
+      });
     }
+  };
 
-    if (id === sessionId) {
-      abortRef.current?.abort();
-      toastCtl.dismiss();
-      setMessages([]);
-      setSessionId(null);
-      setLoading(false);
-    }
+  /** P265: the 回收站 panel's per-row 恢复 — the session rejoins 最近对话. */
+  const handleRestoreTrash = (id: string) => {
+    restoreChatSession(id);
+    setRecentSessions(getRecentSessions());
+    setTrashEntries(loadTrash());
+  };
+
+  /** P265: 清空回收站 — confirmed in-app, then the whole bin goes. */
+  const handleClearTrash = () => {
+    clearTrash();
+    setTrashEntries([]);
   };
 
   /** P228: both 清空全部 triggers open the confirm dialog; the danger button
@@ -1184,8 +1249,12 @@ export default function App() {
     clearAllUndoCtl.confirm({
       takeSnapshot: loadChatState,
       wipe: () => {
+        // P265: retire the single-delete toast — the two undo windows share
+        // one visual slot, and the new clear supersedes it.
+        trashUndoCtl.dismiss();
         clearAllChatSessions();
         setRecentSessions([]);
+        setTrashEntries(loadTrash());
         abortRef.current?.abort();
         toastCtl.dismiss();
         setServiceDownBanner(false);
@@ -1234,6 +1303,9 @@ export default function App() {
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}
         onClearAllChats={requestClearAllChats}
+        trashEntries={trashEntries}
+        onRestoreTrash={handleRestoreTrash}
+        onClearTrash={handleClearTrash}
         busy={loading}
         onEditProfile={() => {
           openProfileDialog();
@@ -1652,6 +1724,14 @@ export default function App() {
           actionLabel={clearAllUndoToast.actionLabel}
           onAction={clearAllUndoCtl.undo}
           onDismiss={clearAllUndoCtl.dismiss}
+        />
+      )}
+      {trashUndoToast && (
+        <UndoToast
+          text={trashUndoToast.message}
+          actionLabel={trashUndoToast.actionLabel}
+          onAction={trashUndoCtl.undo}
+          onDismiss={trashUndoCtl.dismiss}
         />
       )}
       {confirmRequest && (

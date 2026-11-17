@@ -14,7 +14,10 @@ import {
   nextFilterQueryAfterSessionsChange,
   shouldShowEvictionNotice,
   shouldShowFilterEmptyHint,
+  shouldShowTrashEntry,
 } from '../lib/sidebarListState';
+import type { TrashEntry } from '../lib/chatTrash';
+import TrashSheet from './TrashSheet';
 import type { ToolInfo, UserProfile } from '../types';
 import './Sidebar.css';
 
@@ -38,6 +41,11 @@ interface Props {
   onClearAllChats?: () => void;
   onEditProfile?: () => void;
   onOpenSettings?: () => void;
+  /** P265: the recycle bin — App owns the entries and the restore/clear
+   * handlers so a restore refreshes the session list too. */
+  trashEntries?: TrashEntry[];
+  onRestoreTrash?: (sessionId: string) => void;
+  onClearTrash?: () => void;
   busy?: boolean;
 }
 
@@ -180,6 +188,9 @@ export default function Sidebar({
   onClearAllChats,
   onEditProfile,
   onOpenSettings,
+  trashEntries = [],
+  onRestoreTrash,
+  onClearTrash,
   busy = false,
 }: Props) {
   const sidebarRef = useRef<HTMLElement>(null);
@@ -195,6 +206,8 @@ export default function Sidebar({
   // state; the tick just forces the re-render that then reads null.
   const evictionNotice = getLastEvictionNotice();
   const [, setEvictionTick] = useState(0);
+  // P265: open state for the 回收站 sheet anchored under 最近对话.
+  const [trashOpen, setTrashOpen] = useState(false);
   const visibleSessions = filterRecentSessions(recentSessions, filterQuery);
   const sessionGroups = groupSessionsByDay(visibleSessions);
 
@@ -235,6 +248,12 @@ export default function Sidebar({
     if (isMobile && open) {
       closeBtnRef.current?.focus();
     }
+  }, [isMobile, open]);
+
+  // P265: a closed mobile drawer goes inert — an open trash sheet anchored
+  // inside it would become unreachable, so it folds away with the drawer.
+  useEffect(() => {
+    if (isMobile && !open) setTrashOpen(false);
   }, [isMobile, open]);
 
   useEffect(() => {
@@ -500,6 +519,20 @@ export default function Sidebar({
             ? `找到 ${visibleSessions.length} 段对话`
             : ''}
         </span>
+        {/* P265: the way back from a delete — visible whenever either list
+            holds something, above the eviction notice; a totally empty
+            section hides the row entirely. */}
+        {shouldShowTrashEntry(recentSessions.length, trashEntries.length) && (
+          <button
+            type="button"
+            className="recent-chat-trash"
+            onClick={() => setTrashOpen(true)}
+            aria-label={`回收站，${trashEntries.length} 段已删除对话`}
+            title="回收站"
+          >
+            回收站（{trashEntries.length}）
+          </button>
+        )}
         {/* P188: an empty history can never legitimately show the notice,
             even if some other path left the module state set. */}
         {shouldShowEvictionNotice(evictionNotice, recentSessions.length) && (
@@ -594,6 +627,14 @@ export default function Sidebar({
           )}
         </ul>
       </section>
+
+      <TrashSheet
+        open={trashOpen}
+        entries={trashEntries}
+        onClose={() => setTrashOpen(false)}
+        onRestore={(id) => onRestoreTrash?.(id)}
+        onClearAll={() => onClearTrash?.()}
+      />
 
       <footer className="sidebar-footer">
         <button

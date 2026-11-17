@@ -1,0 +1,116 @@
+/* P265 — recycle-bin sheet. The shell reuses the SettingsSheet classes
+   (.settings-overlay/.settings-panel/.settings-close/.settings-title); only
+   the trash-specific rows live here, on the same tokens. */
+
+.trash-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 46vh;
+  overflow-y: auto;
+  margin-bottom: 14px;
+}
+
+.trash-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.trash-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trash-row-title {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-row-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.trash-restore-btn {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.trash-restore-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.trash-restore-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.trash-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 8px 0 16px;
+}
+
+.trash-note {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.trash-clear-btn {
+  width: 100%;
+  min-height: 36px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--danger);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.trash-clear-btn:hover:not(:disabled) {
+  border-color: var(--danger-border, var(--danger));
+}
+
+.trash-clear-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.trash-clear-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trash-restore-btn,
+  .trash-clear-btn {
+    transition: none;
+  }
+}
