@@ -334,7 +334,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
             <p>
               {profile?.goals
                 ? `我会根据你的目标「${profile.goals}」给出专属建议。`
-                : '专业的 AI 恋爱关系顾问，基于 Agent Harness 架构驱动。'}
+                : '懂分寸的恋爱顾问：先听你说完，再给一句能直接照着用的建议。'}
             </p>
             {profile?.interests && profile.interests.length > 0 && (
               <div className="welcome-tags">
@@ -369,8 +369,8 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                   <FeatureIcon iconKey="wrench" />
                 </span>
                 <div>
-                  <strong>Tool-calling Loop</strong>
-                  <p>自动调用专业工具分析你的问题</p>
+                  <strong>帮你把话说到点上</strong>
+                  <p>该不该发、怎么发，给一个具体说法</p>
                 </div>
               </div>
               <div className="feature">
@@ -387,8 +387,8 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                   <FeatureIcon iconKey="chart" />
                 </span>
                 <div>
-                  <strong>结构化输出</strong>
-                  <p>资料优化、聊天指导、约会规划一应俱全</p>
+                  <strong>约会前把安排想清楚</strong>
+                  <p>资料、聊天、约会，一次聊明白</p>
                 </div>
               </div>
             </div>

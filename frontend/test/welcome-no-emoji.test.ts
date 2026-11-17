@@ -42,7 +42,7 @@ describe('P200 · welcome card and onboarding have no emoji decoration', () => {
     const labels = [...welcomeBlock.matchAll(/<strong>([^<]+)<\/strong>/g)].map(
       (m) => m[1],
     );
-    expect(labels).toEqual(['Tool-calling Loop', '真诚沟通', '结构化输出']);
+    expect(labels).toEqual(['帮你把话说到点上', '真诚沟通', '约会前把安排想清楚']);
     expect(welcomeBlock.match(/className="feature"/g)).toHaveLength(3);
   });
 
