@@ -184,8 +184,15 @@ describe('P230 · sidebar filter matches message body', () => {
 
     it('announces the result count in a visually-hidden live region', () => {
       expect(sidebar).toContain('找到 ');
-      expect(sidebar).toContain('没有匹配的对话');
       expect(sidebar).toContain('className="sr-only" role="status" aria-live="polite"');
+      // P245: zero-match announcements come from the filter-empty-hint li;
+      // this region never emits a second generic no-match message.
+      const region = sidebar.slice(
+        sidebar.indexOf('role="status" aria-live="polite"'),
+        sidebar.indexOf('</span>', sidebar.indexOf('role="status" aria-live="polite"')),
+      );
+      expect(region).toContain('visibleSessions.length > 0');
+      expect(region).not.toContain('没有匹配');
     });
 
     it('keeps the excerpt styling dim and single-line', () => {

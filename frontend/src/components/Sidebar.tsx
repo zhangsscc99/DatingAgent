@@ -482,12 +482,13 @@ export default function Sidebar({
           </ul>
           {/* P230: announce how many conversations the filter matched, at
               most once per query change; blank while the box is empty so
-              mounting the section never announces a count. */}
+              mounting the section never announces a count. P245: a zero-match
+              query is already announced by the filter-empty-hint li's own
+              aria-live, so this region stays silent there instead of doubling
+              the empty-state copy with a second generic message. */}
           <span className="sr-only" role="status" aria-live="polite">
-            {filterQuery.trim()
-              ? visibleSessions.length > 0
-                ? `找到 ${visibleSessions.length} 段对话`
-                : '没有匹配的对话'
+            {filterQuery.trim() && visibleSessions.length > 0
+              ? `找到 ${visibleSessions.length} 段对话`
               : ''}
           </span>
           {/* P188: an empty history can never legitimately show the notice,
