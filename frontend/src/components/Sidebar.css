@@ -291,6 +291,17 @@
   font-weight: 500;
 }
 
+/* P230: body-match excerpt under the title — one dim, truncated line. */
+.recent-chat-excerpt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
 .recent-chat-meta {
   display: flex;
   align-items: center;

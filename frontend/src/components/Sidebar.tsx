@@ -7,7 +7,7 @@ import {
 import type { StoredChatSession } from '../lib/chatStorage';
 import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
 import { formatRelativeTime, isRenderableTimestamp } from '../lib/relativeTime';
-import { filterRecentSessions } from '../lib/sessionFilter';
+import { filterRecentSessions, matchSessionMessage } from '../lib/sessionFilter';
 import { nextSessionIndex, sessionNavDirection } from '../lib/sessionListNav';
 import {
   nextEditingIdAfterSessionsChange,
@@ -382,6 +382,16 @@ export default function Sidebar({
               <Fragment key={group.label}>
                 <li className="recent-chat-group">{group.label}</li>
                 {group.sessions.map((s) => {
+                  // P230: a session the query kept only through its message
+                  // body shows why — one dim excerpt line under the title.
+                  // Title hits and empty queries add nothing, so rows never
+                  // shift when the box is blank.
+                  const trimmedQuery = filterQuery.trim().toLowerCase();
+                  const bodyMatch =
+                    trimmedQuery &&
+                    !s.title.toLowerCase().includes(trimmedQuery)
+                      ? matchSessionMessage(s, filterQuery)
+                      : null;
                   const commitRename = () => {
                     // Enter already exits edit mode; ignore the blur that follows.
                     if (editingId !== s.id) return;
@@ -422,6 +432,11 @@ export default function Sidebar({
                             aria-current={s.id === activeSessionId ? 'true' : undefined}
                           >
                             <span className="recent-chat-title">{s.title}</span>
+                            {bodyMatch && (
+                              <span className="recent-chat-excerpt">
+                                {bodyMatch.excerpt}
+                              </span>
+                            )}
                             <span className="recent-chat-meta">
                               <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
                               <span
@@ -465,6 +480,16 @@ export default function Sidebar({
               </Fragment>
             ))}
           </ul>
+          {/* P230: announce how many conversations the filter matched, at
+              most once per query change; blank while the box is empty so
+              mounting the section never announces a count. */}
+          <span className="sr-only" role="status" aria-live="polite">
+            {filterQuery.trim()
+              ? visibleSessions.length > 0
+                ? `找到 ${visibleSessions.length} 段对话`
+                : '没有匹配的对话'
+              : ''}
+          </span>
           {/* P188: an empty history can never legitimately show the notice,
               even if some other path left the module state set. */}
           {shouldShowEvictionNotice(evictionNotice, recentSessions.length) && (
