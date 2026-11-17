@@ -43,6 +43,7 @@ import {
 import type { ChatStorageState } from './lib/chatStorage';
 import { clearTrash, loadTrash } from './lib/chatTrash';
 import type { TrashEntry } from './lib/chatTrash';
+import { FIND_IN_CONVERSATION_LABEL } from './lib/searchLabels';
 import { DEFAULT_DRAFT_ID, sweepOrphanDrafts } from './lib/chatDrafts';
 import {
   hasMinimalProfile,
@@ -1495,8 +1496,8 @@ export default function App() {
               <button
                 type="button"
                 className="search-toggle-header"
-                aria-label="搜索对话"
-                title="搜索当前对话"
+                aria-label={FIND_IN_CONVERSATION_LABEL}
+                title={FIND_IN_CONVERSATION_LABEL}
                 onClick={() => chatWindowRef.current?.openSearch()}
               >
                 <svg

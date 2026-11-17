@@ -1,6 +1,13 @@
 import { useEffect, useRef } from 'react';
 import type { KeyboardEvent } from 'react';
 import { isSearching } from '../lib/messageSearch';
+import {
+  FIND_IN_CONVERSATION_CLOSE_LABEL,
+  FIND_IN_CONVERSATION_LABEL,
+  FIND_IN_CONVERSATION_NEXT_LABEL,
+  FIND_IN_CONVERSATION_PLACEHOLDER,
+  FIND_IN_CONVERSATION_PREV_LABEL,
+} from '../lib/searchLabels';
 import './ChatSearchBar.css';
 
 interface Props {
@@ -58,8 +65,8 @@ export default function ChatSearchBar({
         className="chat-search-input"
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
-        placeholder="搜索当前对话…"
-        aria-label="搜索当前对话"
+        placeholder={FIND_IN_CONVERSATION_PLACEHOLDER}
+        aria-label={FIND_IN_CONVERSATION_LABEL}
       />
       <span className="chat-search-status" role="status" aria-live="polite">
         {status}
@@ -67,8 +74,8 @@ export default function ChatSearchBar({
       <button
         type="button"
         className="chat-search-btn"
-        aria-label="上一个匹配"
-        title="上一个匹配"
+        aria-label={FIND_IN_CONVERSATION_PREV_LABEL}
+        title={FIND_IN_CONVERSATION_PREV_LABEL}
         onClick={onPrev}
         disabled={matchCount === 0}
       >
@@ -77,8 +84,8 @@ export default function ChatSearchBar({
       <button
         type="button"
         className="chat-search-btn"
-        aria-label="下一个匹配"
-        title="下一个匹配"
+        aria-label={FIND_IN_CONVERSATION_NEXT_LABEL}
+        title={FIND_IN_CONVERSATION_NEXT_LABEL}
         onClick={onNext}
         disabled={matchCount === 0}
       >
@@ -87,8 +94,8 @@ export default function ChatSearchBar({
       <button
         type="button"
         className="chat-search-btn"
-        aria-label="关闭搜索"
-        title="关闭搜索"
+        aria-label={FIND_IN_CONVERSATION_CLOSE_LABEL}
+        title={FIND_IN_CONVERSATION_CLOSE_LABEL}
         onClick={onClose}
       >
         ×

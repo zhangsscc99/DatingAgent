@@ -84,7 +84,7 @@ describe('P208 · header action row has no emoji glyphs', () => {
 
   it('every header action keeps its accessible name', () => {
     expect(headerActions).toContain('aria-label="回复语言"');
-    expect(headerActions).toContain('aria-label="搜索对话"');
+    expect(headerActions).toContain('aria-label={FIND_IN_CONVERSATION_LABEL}');
     expect(headerActions).toContain("'导出 Markdown'");
     expect(headerActions).toContain("'导出 JSON'");
     expect(headerActions).toContain("'复制 Markdown'");
@@ -92,10 +92,10 @@ describe('P208 · header action row has no emoji glyphs', () => {
     expect(headerActions).toContain('切换到深色主题');
     // Tooltips that carried meaning are untouched.
     expect(headerActions).toContain('title="选择回复语言（自动跟随对话）"');
-    expect(headerActions).toContain('title="搜索当前对话"');
+    expect(headerActions).toContain('title={FIND_IN_CONVERSATION_LABEL}');
     // The search toggle keeps its name too.
-    expect(searchToggle).toContain('aria-label="搜索对话"');
-    expect(searchToggle).toContain('title="搜索当前对话"');
+    expect(searchToggle).toContain('aria-label={FIND_IN_CONVERSATION_LABEL}');
+    expect(searchToggle).toContain('title={FIND_IN_CONVERSATION_LABEL}');
     expect(searchToggle).toContain('chatWindowRef.current?.openSearch()');
   });
 

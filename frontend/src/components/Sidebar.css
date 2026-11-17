@@ -221,6 +221,12 @@
   min-width: 0;
 }
 
+.filter-empty-hint-scope {
+  flex-basis: 100%;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
 .filter-empty-clear {
   flex-shrink: 0;
   padding: 2px 10px;

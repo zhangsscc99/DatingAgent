@@ -93,8 +93,8 @@ describe('P206/P226 · search toggle layout', () => {
       btnAt,
       headerActions.indexOf('</button>', btnAt),
     );
-    expect(button).toContain('aria-label="搜索对话"');
-    expect(button).toContain('title="搜索当前对话"');
+    expect(button).toContain('aria-label={FIND_IN_CONVERSATION_LABEL}');
+    expect(button).toContain('title={FIND_IN_CONVERSATION_LABEL}');
     // P199/P202/P208 standard: inline currentColor SVG, decoration aria-hidden,
     // no emoji glyph.
     expect(button).toContain('<svg');

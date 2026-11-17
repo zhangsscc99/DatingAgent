@@ -9,6 +9,7 @@ import { CLEAR_ALL_LABEL } from '../lib/copy';
 import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
 import { formatRelativeTime, isRenderableTimestamp } from '../lib/relativeTime';
 import { filterRecentSessions, matchSessionMessage } from '../lib/sessionFilter';
+import { FILTER_SESSIONS_HINT, FILTER_SESSIONS_LABEL } from '../lib/searchLabels';
 import { nextSessionIndex, sessionNavDirection } from '../lib/sessionListNav';
 import {
   nextEditingIdAfterSessionsChange,
@@ -355,8 +356,8 @@ export default function Sidebar({
           type="text"
           className="recent-chat-filter"
           value={filterQuery}
-          placeholder="筛选对话"
-          aria-label="筛选对话"
+          placeholder={FILTER_SESSIONS_LABEL}
+          aria-label={FILTER_SESSIONS_LABEL}
           onChange={(e) => setFilterQuery(e.target.value)}
           onKeyDown={(e) => {
             // P167: a composing Escape cancels the IME, not the filter.
@@ -409,6 +410,12 @@ export default function Sidebar({
                 >
                   清除筛选
                 </button>
+                {/* P271: the filter only matches recent titles — say so on a
+                    second muted line so it stops reading like a history
+                    search next to 在本对话内查找 in the header. */}
+                <span className="filter-empty-hint-scope">
+                  {FILTER_SESSIONS_HINT}
+                </span>
               </li>
             )}
             {sessionGroups.map((group) => (

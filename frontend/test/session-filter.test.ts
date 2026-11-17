@@ -38,7 +38,7 @@ describe('P150 · sidebar session filter', () => {
       const list = sidebar.indexOf('className="recent-chat-list"');
       expect(input).toBeGreaterThan(-1);
       expect(list).toBeGreaterThan(input);
-      expect(sidebar).toContain('aria-label="筛选对话"');
+      expect(sidebar).toContain('aria-label={FILTER_SESSIONS_LABEL}');
       expect(sidebar).toContain('onChange={(e) => setFilterQuery(e.target.value)}');
     });
 

@@ -200,3 +200,4 @@
 2026-11-17 18:50 | P269 | clear-all confirm copy now promises the 7-day 回收站 instead of an unreachable 6 s undo; stale confirmCopy.ts module comment corrected; confirm-dialog.test.ts updated to the new sentence
 2026-11-17 19:12 | P268 | trash 恢复 now activates the restored chat (bubbles shown, sheet + mobile drawer closed) via handleRestoreTrash → setActiveSessionId + closeSidebar; new render test trash-restore-activate.test.ts
 2026-11-17 19:32 | P270 | hide 清空全部对话 at zero sessions via shared shouldShowClearAll in sidebar + settings sheet
+2026-11-17 19:56 | P271 | renamed in-conversation find to 「在本对话内查找」 + sidebar filter empty state gained muted 「只筛选最近对话标题」 scope line; all strings via new shared lib/searchLabels.ts; search-labels.test.ts added

@@ -11,6 +11,10 @@ import {
   FakeEvent,
   type FakeDom,
 } from './helpers/fakeDom';
+import {
+  FIND_IN_CONVERSATION_LABEL,
+  FIND_IN_CONVERSATION_PLACEHOLDER,
+} from '../src/lib/searchLabels';
 
 /**
  * P226 — at 390×844 the floating `.search-toggle` (position:absolute inside
@@ -163,8 +167,8 @@ describe('P226 · search toggle at narrow (390px) layout', () => {
     expect(toggle).not.toBeNull();
     expect(toggle!.closest('.header-actions')).not.toBeNull();
     expect(toggle!.closest('.messages-wrap')).toBeNull();
-    expect(toggle!.getAttribute('aria-label')).toBe('搜索对话');
-    expect(toggle!.getAttribute('title')).toBe('搜索当前对话');
+    expect(toggle!.getAttribute('aria-label')).toBe(FIND_IN_CONVERSATION_LABEL);
+    expect(toggle!.getAttribute('title')).toBe(FIND_IN_CONVERSATION_LABEL);
     // Inline SVG icon — no emoji glyph (P208 contract).
     expect(toggle!.querySelector('svg')).not.toBeNull();
 
@@ -174,7 +178,9 @@ describe('P226 · search toggle at narrow (390px) layout', () => {
     await flush();
     const input = qs('.chat-search-input');
     expect(input).not.toBeNull();
-    expect(input!.getAttribute('placeholder')).toBe('搜索当前对话…');
+    expect(input!.getAttribute('placeholder')).toBe(
+      FIND_IN_CONVERSATION_PLACEHOLDER,
+    );
     expect(dom.document.activeElement).toBe(input);
 
     // The bubble list is still fully rendered behind the open bar.
