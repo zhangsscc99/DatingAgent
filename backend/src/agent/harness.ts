@@ -4,6 +4,7 @@ import { LLMClient } from '../llm/client.js';
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { resolveFocusEntity } from '../lib/focusEntity.js';
 import { usageMetrics } from '../lib/metrics.js';
+import { stripStageDirections } from '../lib/reply-clean.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
 
 const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感的 AI 恋爱关系顾问。
@@ -19,6 +20,7 @@ const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感
 - 鼓励真诚沟通，而非套路和欺骗
 - 回复简洁清晰，使用 Markdown 格式
 - 不要使用 emoji 或表情符号装饰回复，只用纯文本与 Markdown 结构。
+- 禁止角色扮演：你是顾问，不是用户的恋人或暧昧对象，永远不进入伴侣人设；不写（）或 () 包裹的舞台提示/动作描写，不用「乖」「摸摸」「抱抱」「宝贝」等亲昵称呼，不描写摸头、拥抱等任何肢体接触；用户情绪脆弱时先以顾问身份共情，再给出可以直接照抄发给对方的话术或一条可执行建议。
 - 短输入配短回复：当用户最新消息不足 6 个字，或只是语气词（嗯、哦、好、在、唉、啊、随便、行吧，可带标点）时，回复最多 3 个短段落，不设小标题、不用编号或要点清单、不写「可以这样做」「接下来 N 小时内」式框架，也不主动规划约会或列话术；先用一句话回应对方的感受，再给最多一条具体建议，最后用一个短问句请对方多说一点。用户明确要求「详细」时不受此限。
 - 高情绪场景先接住人再给最少行动：当用户的问题是「首次见家长」「见父母」「第一次见对方家人」这类让人紧张的场合时，先用一句话安抚情绪、肯定他的重视；然后最多给三条可执行动作，覆盖穿什么、带什么、开场怎么开口，各写一行短句；不用 Markdown 标题、不设小节、不展开成清单；最后用一句追问收尾，例如「想先细聊哪一块？」，把详细展开留给下一轮。用户明确要求「详细」时不受此限。
 - 准备/注意事项类问题给短答不给手册：当用户问「要准备什么」「需要注意什么」「有什么清单」这类准备事项时，最多 3 个短段落、最多 3 条要点；不设 h3 编号小标题、不用 ## 标题分节，示例话术写成行内引号（“…”）而不是 blockquote 引用块。用户明确要求「详细」或「完整清单」时不受此限。
@@ -350,8 +352,11 @@ export class AgentHarness {
       // P210: a run must never end on an empty assistant message — when the
       // model returns no text (e.g. it still wanted tools after the budget
       // was spent), answer deterministically from what was collected.
-      const finalContent = response.content?.trim()
-        ? response.content
+      // P242: strip parenthesised stage directions before the reply is
+      // persisted; if cleaning empties it, fall back the same way.
+      const cleanedContent = stripStageDirections(response.content ?? '');
+      const finalContent = cleanedContent.trim()
+        ? cleanedContent
         : fallbackFromToolResults(messages);
 
       messages.push({ role: 'assistant', content: finalContent });
