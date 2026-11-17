@@ -38,12 +38,14 @@ export function formatLatencySeconds(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-/** P212: user-facing latency copy for the reply meta row. Replies that took
- * more than 20 s get a neutral phrase instead of a bare heavy number; the
- * raw seconds stay available in the element's title tooltip. */
+/** P212/P258: user-facing latency copy for the reply meta row. The number
+ * is always rendered — a reply past the threshold only appends a short
+ * clause after it, so a slow reply can never hide how slow it actually was
+ * (the exact ms still ride in the element's title tooltip). */
 export const SLOW_REPLY_THRESHOLD_MS = 20_000;
 
 export function formatReplyLatency(ms: number): string {
-  if (ms > SLOW_REPLY_THRESHOLD_MS) return '本次思考较久';
-  return `约 ${(ms / 1000).toFixed(1)} 秒`;
+  const duration = `约 ${(ms / 1000).toFixed(1)} 秒`;
+  if (ms > SLOW_REPLY_THRESHOLD_MS) return `${duration} · 想了有一会儿`;
+  return duration;
 }

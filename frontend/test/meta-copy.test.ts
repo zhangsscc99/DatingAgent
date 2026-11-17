@@ -11,7 +11,9 @@ import {
 
 /**
  * P212 — the reply meta row must not leak internal jargon or bare slow
- * numbers. Visible copy is human language ("约 N 秒" / "本次思考较久"); the
+ * numbers. Visible copy is human language ("约 N 秒"; P258 appends a short
+ * 「想了有一会儿」 clause after the number when a reply is slow rather than
+ * swapping in a vague phrase); the
  * token count lives only in the element's title tooltip. vitest runs in the
  * node environment (no DOM renderer), so the tooltip contract is locked via
  * a source guard on MessageBubble.tsx plus pure-function assertions on the
@@ -32,12 +34,13 @@ describe('P212 · reply meta copy', () => {
     expect(formatReplyLatency(20_000)).toBe('约 20.0 秒');
   });
 
-  it('slow replies render the neutral phrase, no raw seconds', () => {
+  it('slow replies keep the numeric seconds and append a short clause', () => {
     const text = formatReplyLatency(SLOW_REPLY_THRESHOLD_MS + 1);
-    expect(text).toBe('本次思考较久');
-    expect(text).not.toContain('秒');
-    expect(text).not.toMatch(/\d/);
-    expect(formatReplyLatency(70_200)).toBe('本次思考较久');
+    expect(text).toBe('约 20.0 秒 · 想了有一会儿');
+    expect(text).toContain('秒');
+    expect(text).toMatch(/\d/);
+    expect(text).not.toBe('本次思考较久');
+    expect(formatReplyLatency(70_200)).toBe('约 70.2 秒 · 想了有一会儿');
   });
 
   it('keeps the token count in the title tooltip, not the visible text', () => {

@@ -7,7 +7,7 @@ import {
   type FakeElement,
 } from './helpers/fakeDom';
 import type { ChatMessage } from '../src/types';
-import { toolDisplayName } from '../src/lib/toolLabels';
+import { toolDisplayName, TOOL_LABELS } from '../src/lib/toolLabels';
 import {
   normalizeStoredSessions,
   serializeMessages,
@@ -18,10 +18,17 @@ import {
  * internal tool id (`coach_conversation`, `get_relationship_advice`) next to
  * the Chinese badge and the latency; after a hard refresh the id disappeared
  * (the persisted message simply lacks `meta.tool`), which proved it was a
- * render-layer leak, not a contract field. The meta line now goes through
- * `toolDisplayName`: a known id renders its Chinese name, an unmapped id
- * renders nothing — no `[a-z]+_[a-z_]+` identifier can reach bubble text.
- * Mounted on the fake DOM (same approach as bubble-copy-role-copy.test.ts).
+ * render-layer leak, not a contract field. No `[a-z]+_[a-z_]+` identifier
+ * can reach bubble text.
+ *
+ * P258 — the meta line then repeated the badge's Chinese tool name a second
+ * time inside the same bubble. The meta row no longer renders a tool label
+ * at all: the badge inside the bubble already carries the name, so
+ * 「聊天指导」 appears exactly once per bubble and never inside
+ * `.reply-meta`. The same round also made the latency number unconditional —
+ * a slow tool reply keeps its numeric seconds plus a short clause instead of
+ * the vague 「本次思考较久」. Mounted on the fake DOM (same approach as
+ * bubble-copy-role-copy.test.ts).
  */
 
 const SNAKE_ID = /[a-z]+_[a-z_]+/;
@@ -31,6 +38,9 @@ const KNOWN: ChatMessage = {
   role: 'assistant',
   content: '可以先接住她的表情包，再顺着约咖啡。',
   createdAt: 1,
+  toolEvents: [
+    { name: 'coach_conversation', label: '聊天指导', status: 'done' },
+  ],
   meta: { tool: 'coach_conversation', tokens: 120, latencyMs: 8800 },
 };
 
@@ -50,11 +60,23 @@ const NOTOOL: ChatMessage = {
   meta: { tokens: 40, latencyMs: 2000 },
 };
 
+/** P258 — a slow tool round: badge on top, meta row under the reply. */
+const SLOW: ChatMessage = {
+  id: 'a-slow',
+  role: 'assistant',
+  content: '慢回复正文。',
+  createdAt: 4,
+  toolEvents: [
+    { name: 'coach_conversation', label: '聊天指导', status: 'done' },
+  ],
+  meta: { tool: 'coach_conversation', tokens: 300, latencyMs: 25_400 },
+};
+
 /**
  * P243 — what a hard reload hands back to the bubble: serialize → JSON →
  * normalise. The restored message must render a meta row byte-identical to
- * the in-session one, still through toolDisplayName (never the raw id) and
- * still without the word `tokens` in visible text (P212).
+ * the in-session one, still without a tool name, a raw id, or the word
+ * `tokens` in visible text (P212).
  */
 const RESTORED: ChatMessage = normalizeStoredSessions([
   {
@@ -65,11 +87,13 @@ const RESTORED: ChatMessage = normalizeStoredSessions([
   },
 ])[0].messages[0];
 
-describe('P239 · bubble meta never renders a raw tool id', () => {
+describe('P258 · bubble meta never repeats the tool name', () => {
   let dom: FakeDom;
 
   const metaRows = () =>
     Array.from(dom.document.querySelectorAll('.reply-meta')) as FakeElement[];
+  const bubbleRows = () =>
+    Array.from(dom.document.querySelectorAll('.bubble-row')) as FakeElement[];
 
   beforeAll(async () => {
     dom = installFakeDom();
@@ -88,6 +112,7 @@ describe('P239 · bubble meta never renders a raw tool id', () => {
           createElement(MessageBubble, { message: UNKNOWN }),
           createElement(MessageBubble, { message: NOTOOL }),
           createElement(MessageBubble, { message: RESTORED }),
+          createElement(MessageBubble, { message: SLOW }),
         ),
       );
       await Promise.resolve();
@@ -99,14 +124,29 @@ describe('P239 · bubble meta never renders a raw tool id', () => {
     // fake DOM is process-global; nothing persistent to tear down
   });
 
-  it('a known tool id renders its Chinese name, never the raw id', () => {
+  it('the badge says the tool name once and the meta line never repeats it', () => {
+    const bubble = bubbleRows()[0];
+    const occurrences = (bubble.textContent.match(/聊天指导/g) ?? []).length;
+    expect(occurrences).toBe(1);
+    expect(bubble.querySelector('.tool-badge'), 'tool badge').toBeTruthy();
+
     const row = metaRows()[0];
     expect(row, 'meta row').toBeTruthy();
-    expect(row.textContent).toContain('聊天指导');
+    expect(row.textContent).not.toContain('聊天指导');
     expect(row.textContent).not.toContain('coach_conversation');
     expect(SNAKE_ID.test(row.textContent)).toBe(false);
-    // latency still renders alongside the label
-    expect(row.textContent).toMatch(/秒/);
+    // latency still renders alongside
+    expect(row.textContent).toMatch(/约 [\d.]+ 秒/);
+  });
+
+  it('no meta row carries any tool display name or meta-tool element', () => {
+    expect(metaRows()).toHaveLength(5);
+    for (const row of metaRows()) {
+      for (const name of Object.values(TOOL_LABELS)) {
+        expect(row.textContent).not.toContain(name);
+      }
+      expect(row.querySelector('.reply-meta-tool')).toBeNull();
+    }
   });
 
   it('an unmapped tool id renders no snake_case identifier at all', () => {
@@ -117,18 +157,31 @@ describe('P239 · bubble meta never renders a raw tool id', () => {
     expect(row.querySelector('.reply-meta-tool')).toBeNull();
   });
 
-  it('a restored message renders the identical meta row — Chinese name, no raw id, no tokens', () => {
+  it('a restored message renders the identical meta row — no tool name, no raw id, no tokens', () => {
     const restored = metaRows()[3];
     expect(restored, 'restored meta row').toBeTruthy();
     // identical to the in-session line
     expect(restored.textContent).toBe(metaRows()[0].textContent);
-    expect(restored.textContent).toContain('聊天指导');
+    expect(restored.textContent).not.toContain('聊天指导');
     expect(restored.textContent).toContain('秒');
     expect(restored.textContent).not.toContain('coach_conversation');
     expect(restored.textContent).not.toContain('tokens');
     expect(SNAKE_ID.test(restored.textContent)).toBe(false);
     // and the persisted meta really did survive the round trip
     expect(RESTORED.meta).toEqual(KNOWN.meta);
+  });
+
+  it('a slow reply keeps the numeric seconds plus a short clause — still no tool name', () => {
+    const row = metaRows()[4];
+    expect(row, 'slow meta row').toBeTruthy();
+    expect(row.textContent).toContain('约');
+    expect(row.textContent).toMatch(/约 [\d.]+ 秒/);
+    expect(row.textContent).toContain('想了有一会儿');
+    expect(row.textContent).not.toBe('本次思考较久');
+    expect(row.textContent).not.toContain('聊天指导');
+    // and its bubble still says the name exactly once, in the badge
+    const bubble = bubbleRows()[4];
+    expect((bubble.textContent.match(/聊天指导/g) ?? []).length).toBe(1);
   });
 
   it('toolDisplayName maps known ids and returns undefined otherwise', () => {

@@ -1825,3 +1825,9 @@ header 一排，气泡工具行这一处漏了；文案语义没问题，等下�
 - **P257（P1，本轮实现）** 工具轮两次调用都带 thinking，首字 9.8–19.1 s；直连实测关掉 thinking 首字 0.7 s。
 - **P258（P3，仅入池）** 气泡底部 meta 重复工具名，并把秒数换成「本次思考较久」。
 - **P259（P3，仅入池）** 设置入口 29 px、面板控件 32–34 px，低于 P227 已统一的 ≥36 px。
+
+## Round 60 — 16:08 UTC (390x844)
+
+- I sent 「她三天没回我消息了，我是不是把关系搞砸了」 as this round's anxious-tone message. This time the model did not invoke a tool: the bubble carried no 「聊天指导」 badge, the meta line read `约 2.7 秒`, and the whole round finished in about 2.7 s. Last round the same style of message paid for a tool round at 9.8–19.1 s, so P257's thinking-off fix removed the worst of the wait — and the tool badge is now conditional rather than automatic.
+- The vague `本次思考较久` string only ever appeared on slow tool replies, which made the inconsistency P258 describes even more visible: the same product was speaking in two different voices depending on how fast it happened to be.
+- The settings entry button in the drawer is still 64×29 px at 390×844, and 「清空全部历史对话」 is 56×19 px — still the narrowest touch targets on the site (P259 remains open).

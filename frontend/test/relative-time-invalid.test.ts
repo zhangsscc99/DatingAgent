@@ -1,6 +1,10 @@
 /// <reference types="node" />
 import { describe, expect, it } from 'vitest';
-import { formatRelativeTime } from '../src/lib/relativeTime';
+import {
+  formatRelativeTime,
+  formatReplyLatency,
+  SLOW_REPLY_THRESHOLD_MS,
+} from '../src/lib/relativeTime';
 import { groupSessionsByDay } from '../src/components/Sidebar';
 import type { StoredChatSession } from '../src/lib/chatStorage';
 import type { ChatMessage } from '../src/types';
@@ -101,5 +105,36 @@ describe('P186 · groupSessionsByDay buckets corrupt timestamps into 更早', ()
     expect(groups[0].sessions.map((s) => s.id)).toEqual(['t']);
     expect(groups[1].sessions.map((s) => s.id)).toEqual(['y']);
     expect(groups[2].sessions.map((s) => s.id)).toEqual(['o']);
+  });
+});
+
+/**
+ * P258 — the reply meta line always shows the numeric duration. A reply past
+ * SLOW_REPLY_THRESHOLD_MS appends a short clause after the number instead of
+ * swapping in the vague 「本次思考较久」, so the slowest reply is never the
+ * one that hides how slow it was.
+ */
+describe('P258 · formatReplyLatency always renders numeric seconds', () => {
+  it('fast replies render 约 N 秒 with no clause', () => {
+    expect(formatReplyLatency(2_700)).toBe('约 2.7 秒');
+    expect(formatReplyLatency(SLOW_REPLY_THRESHOLD_MS)).toBe('约 20.0 秒');
+  });
+
+  it('a slow reply contains 约, a numeric seconds value, and the short clause', () => {
+    const text = formatReplyLatency(SLOW_REPLY_THRESHOLD_MS + 1);
+    expect(text).toContain('约');
+    expect(text).toMatch(/约 [\d.]+ 秒/);
+    expect(text).toContain('想了有一会儿');
+    expect(text).not.toBe('本次思考较久');
+    expect(formatReplyLatency(21_000)).toBe('约 21.0 秒 · 想了有一会儿');
+    expect(formatReplyLatency(70_200)).toContain('70.2 秒');
+  });
+
+  it('the vague 本次思考较久 label is unreachable at any latency', () => {
+    for (const ms of [0, 999, 11_000, 20_000, 20_001, 65_000, 600_000]) {
+      const text = formatReplyLatency(ms);
+      expect(text).not.toBe('本次思考较久');
+      expect(text).toMatch(/^约 [\d.]+ 秒/);
+    }
   });
 });

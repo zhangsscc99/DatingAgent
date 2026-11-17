@@ -8,7 +8,6 @@ import { highlightSegments } from '../lib/messageSearch';
 import { normalizeMarkdownTables } from '../lib/markdownTables';
 import { shouldCollapseReply, visibleReplyContent } from '../lib/replyCollapse';
 import { formatLatencySeconds, formatReplyLatency } from '../lib/relativeTime';
-import { toolDisplayName } from '../lib/toolLabels';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
 import './MessageBubble.css';
@@ -317,9 +316,6 @@ function MessageBubble({ message, onRetry, onRegenerate, busy = false, highlight
                 : `${message.meta.tokens} tokens`
             }
           >
-            {message.meta.tool && toolDisplayName(message.meta.tool) && (
-              <span className="reply-meta-tool">{toolDisplayName(message.meta.tool)}</span>
-            )}
             {typeof message.meta.latencyMs === 'number' && (
               <span>{formatReplyLatency(message.meta.latencyMs)}</span>
             )}
