@@ -1847,3 +1847,21 @@ header 一排，气泡工具行这一处漏了；文案语义没问题，等下�
 | conversational quality | 5 | Opens with the feeling, hands the turn back, three tones all land. |
 | state consistency | 5 | Refresh keeps 6 bubbles + meta; search surviving 清空/撤销 is consistent to a fault. |
 | discoverability | 4 | Settings path still holds the narrowest controls on the site. |
+
+## Round 62 — 16:45 UTC (390x844)
+
+- Three toned messages this round. Happy/planning one —「今天约会聊得特别投机，她说下次想去看展，我该怎么接这个话？」— went through a tool round (聊天指导 badge) with meta `约 7.1 秒`; the anxious 「她两天没回我消息了，我是不是说错什么了。」came back in `约 2.8 秒` without a tool; the dry 「哦。」got a short, non-cheerful reply that still handed the turn back instead of lecturing. Writing quality is the product's strong point: every reply opens with the feeling, gives one copy-paste line, then asks one question.
+- What still feels like waiting: the tool round is a 7 s silent bubble. It is labelled (「正在调用「聊天指导」…」) so I no longer wonder whether it is broken, but 7 s is enough that I reached for 复制 twice before there was anything to copy.
+- After the first reply a small「完善资料」chip appears above the composer. It is 70×24 px — visibly smaller than everything else on the screen after P259 (设置入口 64×36, 清空全部 56×36, 浮层关闭 36×36). Tapping it with a thumb is the one place this round where I missed.
+- The settings entry and everything inside it now read properly on a phone: 64×36 entry, panel controls 36 px tall, the panel closes from the × at 36×36. One 235×35 row inside the panel is 1 px under the bar — effectively fine, noted only so it does not surprise a later pass.
+- Refresh after the three turns: all 6 bubbles and 3 reply-meta lines come back byte-identical; localStorage holds 3 keys. No flash, no lost draft.
+- Small thing I noticed but did not act on: the browser tab title renders `🐴 DatingAgent — AI 恋爱关系顾问`. A horse in a dating product's tab looks like a leftover, not a brand.
+
+### Scores (1-5)
+
+| Dimension | Score | One-line reason |
+|---|---|---|
+| responsiveness | 4 | 2.8 s plain, 7.1 s with a tool — the label makes the wait legible. |
+| conversational quality | 5 | Three tones, three different registers, all human and actionable. |
+| state consistency | 5 | Refresh restores 6 bubbles + 3 metas exactly. |
+| discoverability | 4 | Settings path is now thumb-sized; the「完善资料」chip is the last small target. |

@@ -85,6 +85,14 @@ describe('P259 settings-path touch targets on narrow screens', () => {
     expect(Number(w![1])).toBeGreaterThanOrEqual(36);
   });
 
+  it('profile-prompt chip .profile-nudge-btn is at least 36px tall', () => {
+    const body = ruleBody(narrowBlock(chatWindowCss), '.profile-nudge-btn');
+    minHeightAtLeast36(body, '.profile-nudge-btn');
+    // keep the pill shape + label readable: still inline-flex centered
+    expect(body).toContain('display: inline-flex');
+    expect(body).toContain('align-items: center');
+  });
+
   it('desktop rules are unchanged: base selectors keep their old sizes', () => {
     // .settings-close base rule stays 32x32 outside the media query.
     const baseClose = settingsCss.match(/\.settings-close\s*\{([^}]*)\}/);
@@ -95,5 +103,13 @@ describe('P259 settings-path touch targets on narrow screens', () => {
     const baseOpen = sidebarCss.match(/\.settings-open-btn\s*\{([^}]*)\}/);
     expect(baseOpen).toBeTruthy();
     expect(baseOpen![1]).not.toContain('min-height');
+    // base .profile-nudge-btn keeps its 70×24 desktop sizing (the media
+    // block sits earlier in the file, so drop it before matching).
+    const outsideMedia = chatWindowCss.replace(narrowBlock(chatWindowCss), '');
+    const baseNudge = outsideMedia.match(/\.profile-nudge-btn\s*\{([^}]*)\}/);
+    expect(baseNudge).toBeTruthy();
+    expect(baseNudge![1]).toContain('padding: 2px 10px');
+    expect(baseNudge![1]).toContain('font-size: 12px');
+    expect(baseNudge![1]).not.toContain('min-height');
   });
 });

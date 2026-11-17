@@ -129,6 +129,16 @@
     padding: 12px 16px;
   }
 
+  /* P260 — the 「完善资料」 chip measured 70×24; raise it to the ≥36px
+     touch target without changing the pill shape or its 12px label.
+     inline-flex centering keeps the text vertically centered. */
+  .profile-nudge-btn {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   /* P259 — the profile-prompt dismiss × measured 21×21; icon-only
      buttons must be ≥36×36 on narrow screens. */
   .profile-nudge-dismiss {
