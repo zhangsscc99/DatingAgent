@@ -421,9 +421,9 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           </span>
         )}
       </div>
-      {/* P205: the composer tool row — length cycler, ⌨ hint and send/stop
-          stay in one group so they wrap (or not) as a unit on narrow
-          viewports instead of stranding the send button alone. */}
+      {/* P205: the composer tool row — length cycler, shortcut hint and
+          send/stop stay in one group so they wrap (or not) as a unit on
+          narrow viewports instead of stranding the send button alone. */}
       <div className="input-tools">
         {/* In-place reply-length cycler — writes the same storage key the
             settings sheet uses; 默认 keeps the request body byte-identical
@@ -454,7 +454,28 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
             aria-describedby="input-kbd-tip"
             tabIndex={0}
           >
-            ⌨
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect width="20" height="16" x="2" y="4" rx="2" />
+              <path d="M6 8h.01" />
+              <path d="M10 8h.01" />
+              <path d="M14 8h.01" />
+              <path d="M18 8h.01" />
+              <path d="M6 12h.01" />
+              <path d="M10 12h.01" />
+              <path d="M14 12h.01" />
+              <path d="M18 12h.01" />
+              <path d="M7 16h10" />
+            </svg>
           </button>
           <div id="input-kbd-tip" className="input-hint-tip" role="tooltip">
             <span>
@@ -483,7 +504,20 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           disabled={sendBlocked || !text.trim()}
           aria-label="发送消息"
         >
-          ↑
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m22 2-7 20-4-9-9-4Z" />
+            <path d="M22 2 11 13" />
+          </svg>
         </button>
         {streaming && onStop && (
           <button
