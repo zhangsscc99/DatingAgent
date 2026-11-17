@@ -176,7 +176,15 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
     const onChange = () => setNarrowViewport(mq.matches);
     onChange();
     mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
+    // P237: also re-check on window 'resize' — engines/webviews that don't
+    // reliably deliver MediaQueryList 'change' still fire 'resize', and
+    // `mq.matches` is read fresh, so the copy follows orientation flips and
+    // desktop window narrowing instead of staying clipped at mount length.
+    window.addEventListener('resize', onChange);
+    return () => {
+      mq.removeEventListener('change', onChange);
+      window.removeEventListener('resize', onChange);
+    };
   }, []);
 
   // P06: terminal-style recall of sent messages. `historyPos` counts steps
