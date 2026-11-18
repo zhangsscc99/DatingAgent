@@ -226,11 +226,11 @@ describe('P335 · wiring guards', () => {
   });
 
   it('the bubble renders the cap from message fields — disabled, aria-disabled, hint', () => {
-    expect(bubbleSrc).toContain('regenCooldownRemainingMs(message.regenCooldownUntil, Date.now())');
-    expect(bubbleSrc).toContain('disabled={busy || regenCapped}');
+    expect(bubbleSrc).toContain('regenLimitStateOf(message).cooldownUntil');
+    expect(bubbleSrc).toContain('regenCooldownRemainingMs(');
     expect(bubbleSrc).toContain('aria-disabled={regenCapped ? true : undefined}');
     expect(bubbleSrc).toContain('className="regen-limit-hint"');
-    expect(bubbleSrc).toContain('REGEN_LIMIT_HINT');
+    expect(bubbleSrc).toContain('regenLimitHint(regenCooldownLeftMs)');
   });
 
   it('the lock has a visible affordance and the hint reuses theme vars', () => {

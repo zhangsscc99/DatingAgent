@@ -203,10 +203,11 @@ describe('P304 · copy action visibility per role', () => {
   });
 
   it('the 「换一个」 logic is untouched — regen still offered on assistant bubbles', () => {
-    // The actions-row guard still keys on canCopy || canRegen; the regen
-    // button is gated by its own canRegen flag, not by role alone.
+    // The actions-row guard still keys on copy-or-regen (P338 widened the
+    // regen flag to showRegenButton so the capped lock stays mounted); the
+    // regen button is gated by its own flag, not by role alone.
     const tsx = readFileSync(join(SRC, 'components', 'MessageBubble.tsx'), 'utf8');
-    expect(tsx).toContain('{(canCopy || canRegen) && (');
+    expect(tsx).toContain('{(canCopy || showRegenButton) && (');
     expect(tsx).toContain('className="regen-btn"');
   });
 });

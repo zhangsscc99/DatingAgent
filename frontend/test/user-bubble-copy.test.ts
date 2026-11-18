@@ -61,7 +61,7 @@ describe('P304 copy button leaves user bubbles', () => {
   });
 
   it('keeps the actions row guarded on copy-or-regen', () => {
-    const actionsGuard = bubbleTsx.indexOf('{(canCopy || canRegen) && (');
+    const actionsGuard = bubbleTsx.indexOf('{(canCopy || showRegenButton) && (');
     expect(actionsGuard).toBeGreaterThan(-1);
   });
 });

@@ -23,8 +23,9 @@ import {
   DUPLICATE_REGEN_RETRY_LABEL,
 } from '../lib/regenerateDedupe';
 import {
-  REGEN_LIMIT_HINT,
   regenCooldownRemainingMs,
+  regenLimitHint,
+  regenLimitStateOf,
 } from '../lib/regenLimit';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
@@ -160,11 +161,33 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
     !message.error &&
     typeof onRegenerate === 'function';
 
-  // P335: after REGEN_ROLL_LIMIT 换一个 clicks the App stamps
-  // regenCooldownUntil on the message — the button renders disabled with
-  // the 「已达上限」 hint until the App-owned cooldown clears the fields.
-  const regenCapped =
-    regenCooldownRemainingMs(message.regenCooldownUntil, Date.now()) !== null;
+  // P335/P338: after REGEN_ROLL_LIMIT 换一个 clicks the App stamps
+  // regenCooldownUntil on the message — on the SAME patch that flags the
+  // regeneration streaming, so gating the lock on canRegen unmounted the
+  // button exactly when the budget ran out (the live P338 vacuum). The cap
+  // renders on its own flag instead, and a 1s tick keeps the hint's
+  // remaining seconds honest and re-enables the button the moment the lock
+  // lifts — the App-owned cooldown still clears the fields for good.
+  const regenCooldownUntil = regenLimitStateOf(message).cooldownUntil;
+  const [, forceRegenTick] = useState(0);
+  useEffect(() => {
+    if (regenCooldownUntil === null) return;
+    const id = window.setInterval(() => {
+      forceRegenTick((n) => n + 1);
+      if (Date.now() >= regenCooldownUntil) window.clearInterval(id);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [regenCooldownUntil]);
+  const regenCooldownLeftMs = regenCooldownRemainingMs(
+    regenCooldownUntil,
+    Date.now(),
+  );
+  const regenCapped = regenCooldownLeftMs !== null;
+  // P338: a spent budget keeps the button mounted (disabled + hint) even
+  // while the capped regeneration is still in flight; an errored bubble
+  // keeps the P26 retry UI instead.
+  const showRegenButton =
+    !isUser && !message.error && (canRegen || regenCapped);
 
   const handleRegenerate = useCallback(() => {
     onRegenerate?.(message.id);
@@ -366,7 +389,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             ↻ 重试
           </button>
         )}
-        {(canCopy || canRegen) && (
+        {(canCopy || showRegenButton) && (
           <div className="bubble-actions">
             {replyMeta}
             {canCopy && (
@@ -406,15 +429,15 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
                 )}
               </button>
             )}
-            {canRegen && (
+            {showRegenButton && (
               <button
                 type="button"
                 className="regen-btn"
                 onClick={handleRegenerate}
-                disabled={busy || regenCapped}
+                disabled={busy || regenCapped || !canRegen}
                 aria-disabled={regenCapped ? true : undefined}
                 aria-label="重新生成回复"
-                title={regenCapped ? REGEN_LIMIT_HINT : '换一个回复'}
+                title={regenCapped ? regenLimitHint(regenCooldownLeftMs) : '换一个回复'}
               >
                 <svg
                   width="14"
@@ -433,9 +456,9 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
                 {'换一个'}
               </button>
             )}
-            {canRegen && regenCapped && (
+            {regenCapped && (
               <span className="regen-limit-hint" role="status">
-                {REGEN_LIMIT_HINT}
+                {regenLimitHint(regenCooldownLeftMs)}
               </span>
             )}
             {canToggleVersion && (
@@ -501,7 +524,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             </button>
           </div>
         )}
-        {!(canCopy || canRegen) && replyMeta}
+        {!(canCopy || showRegenButton) && replyMeta}
       </div>
     </div>
   );

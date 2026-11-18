@@ -73,7 +73,7 @@ describe('P222 · bubble regen button has no ↻ glyph', () => {
     const btnStart = tsx.indexOf('className="regen-btn"');
     const block = tsx.slice(btnStart, tsx.indexOf('</button>', btnStart));
     expect(block).toContain('onClick={handleRegenerate}');
-    expect(block).toContain('disabled={busy || regenCapped}');
+    expect(block).toContain('disabled={busy || regenCapped || !canRegen}');
     const handlerStart = tsx.indexOf('const handleRegenerate');
     expect(handlerStart).toBeGreaterThan(-1);
     const handler = tsx.slice(handlerStart, tsx.indexOf('}, [', handlerStart));
@@ -81,7 +81,7 @@ describe('P222 · bubble regen button has no ↻ glyph', () => {
   });
 
   it('the copy sibling and the actions-row guard are unchanged', () => {
-    expect(tsx).toContain('{(canCopy || canRegen) && (');
+    expect(tsx).toContain('{(canCopy || showRegenButton) && (');
     expect(tsx).toContain('className={`copy-btn');
     expect(tsx).toContain("'复制回复'");
   });

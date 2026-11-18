@@ -23,6 +23,15 @@ export const REGEN_COOLDOWN_MS = 20_000;
 /** Visible copy shown next to the locked button. */
 export const REGEN_LIMIT_HINT = `已达上限，${REGEN_COOLDOWN_MS / 1000} 秒后可再换`;
 
+/**
+ * P338 — the hint counts down live: the bubble re-derives it from the
+ * remaining lock time on every tick, so the user reads 「已达上限，17 秒后
+ * 可再换」 instead of a frozen 20. Seconds are ceiled (never shows 0).
+ */
+export function regenLimitHint(remainingMs: number): string {
+  return `已达上限，${Math.max(1, Math.ceil(remainingMs / 1000))} 秒后可再换`;
+}
+
 export interface RegenLimitState {
   /** Rolls consumed on this reply since the last reset (0..REGEN_ROLL_LIMIT). */
   rolls: number;
