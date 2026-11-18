@@ -334,317 +334,323 @@ export default function Sidebar({
         </div>
       )}
 
-      <button className="new-chat-btn" onClick={onNewChat} aria-label="开始新对话">
-        + 新对话
-      </button>
+      {/* P298: everything between the pinned chrome (drawer header above,
+          设置 footer below) lives in one scroll region — it shrinks below its
+          content height and scrolls internally, so the <aside> itself never
+          overflows and the footer never scrolls away with the list. */}
+      <div className="sidebar-body">
+        <button className="new-chat-btn" onClick={onNewChat} aria-label="开始新对话">
+          + 新对话
+        </button>
 
-      <section className="sidebar-section recent-chats" aria-label="最近对话">
-        <div className="recent-chats-header">
-          <h3>最近对话</h3>
-          {/* P270: with an empty history the button would open a「清空 0 段
-              对话」no-op confirm — hide it until a session exists again. */}
-          {shouldShowClearAll(recentSessions) && (
-            <button
-              type="button"
-              className="recent-chat-clear-all"
-              // P228: App owns the in-app confirm dialog; this only asks.
-              onClick={() => onClearAllChats?.()}
-              disabled={busy}
-              aria-label={CLEAR_ALL_LABEL}
-              title={CLEAR_ALL_LABEL}
-            >
-              {CLEAR_ALL_LABEL}
-            </button>
-          )}
-        </div>
-        <input
-          type="text"
-          className="recent-chat-filter"
-          value={filterQuery}
-          placeholder={FILTER_SESSIONS_LABEL}
-          aria-label={FILTER_SESSIONS_LABEL}
-          onChange={(e) => setFilterQuery(e.target.value)}
-          onKeyDown={(e) => {
-            // P167: a composing Escape cancels the IME, not the filter.
-            if (shouldHandleEscape(e)) {
-              setFilterQuery('');
-              e.currentTarget.blur();
-              return;
-            }
-            // P132: ArrowDown from the filter moves into the first row.
-            if (e.key === 'ArrowDown') {
-              const first =
-                sessionListRef.current?.querySelector<HTMLElement>(
-                  '.recent-chat-item',
-                );
-              if (first) {
-                e.preventDefault();
-                first.focus();
-              }
-            }
-          }}
-        />
-        {/* P247: a cleared/fresh history used to vanish the whole section —
-            keep the heading and fill the list slot with one dim line instead
-            of blank space. */}
-        {recentSessions.length === 0 && (
-          <p className="recent-chat-empty" role="status">
-            还没有对话，问第一个问题吧
-          </p>
-        )}
-        {recentSessions.length > 0 && (
-          <ul className="recent-chat-list" ref={sessionListRef}>
-            {shouldShowFilterEmptyHint(
-              recentSessions.length,
-              visibleSessions.length,
-            ) && (
-              <li
-                className="recent-chat-empty filter-empty-hint"
-                aria-live="polite"
-                aria-label="无匹配对话"
+        <section className="sidebar-section recent-chats" aria-label="最近对话">
+          <div className="recent-chats-header">
+            <h3>最近对话</h3>
+            {/* P270: with an empty history the button would open a「清空 0 段
+                对话」no-op confirm — hide it until a session exists again. */}
+            {shouldShowClearAll(recentSessions) && (
+              <button
+                type="button"
+                className="recent-chat-clear-all"
+                // P228: App owns the in-app confirm dialog; this only asks.
+                onClick={() => onClearAllChats?.()}
+                disabled={busy}
+                aria-label={CLEAR_ALL_LABEL}
+                title={CLEAR_ALL_LABEL}
               >
-                <span className="filter-empty-hint-text">
-                  没有匹配「{filterQuery.trim()}」的对话
-                </span>
-                {/* P271/P275: the filter only matches recent titles — fold the
-                    scope note into the empty state's first sentence so it is
-                    read before the 清除筛选 action, not after it. */}
-                <span className="filter-empty-hint-scope">
-                  ——{FILTER_SESSIONS_HINT}
-                </span>
-                <button
-                  type="button"
-                  className="filter-empty-clear"
-                  aria-label="清除筛选"
-                  title="清除筛选"
-                  onClick={() => setFilterQuery('')}
-                >
-                  清除筛选
-                </button>
-              </li>
-            )}
-            {sessionGroups.map((group) => (
-              <Fragment key={group.label}>
-                <li className="recent-chat-group">{group.label}</li>
-                {group.sessions.map((s) => {
-                  // P230: a session the query kept only through its message
-                  // body shows why — one dim excerpt line under the title.
-                  // Title hits and empty queries add nothing, so rows never
-                  // shift when the box is blank.
-                  const trimmedQuery = filterQuery.trim().toLowerCase();
-                  const bodyMatch =
-                    trimmedQuery &&
-                    !s.title.toLowerCase().includes(trimmedQuery)
-                      ? matchSessionMessage(s, filterQuery)
-                      : null;
-                  const commitRename = () => {
-                    // Enter already exits edit mode; ignore the blur that follows.
-                    if (editingId !== s.id) return;
-                    const next = editingValue.trim();
-                    if (next && next !== s.title) onRenameChat?.(s.id, next);
-                    setEditingId(null);
-                  };
-                  return (
-                    <li key={s.id} className="recent-chat-row">
-                      {editingId === s.id ? (
-                        <input
-                          ref={editInputRef}
-                          type="text"
-                          className="recent-chat-rename-input"
-                          value={editingValue}
-                          maxLength={40}
-                          disabled={busy}
-                          aria-label={`重命名对话：${s.title}`}
-                          onChange={(e) => setEditingValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            // P167: while composing, Enter/Escape belong to
-                            // the IME — never commit or cancel mid-conversion.
-                            if (shouldSubmitOnEnter(e)) commitRename();
-                            if (shouldHandleEscape(e)) setEditingId(null);
-                          }}
-                          onBlur={commitRename}
-                        />
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            className={`recent-chat-item${s.id === activeSessionId ? ' active' : ''}`}
-                            onClick={() => onSelectChat?.(s.id)}
-                            onKeyDown={handleSessionItemKeyDown}
-                            disabled={busy}
-                            aria-disabled={busy || undefined}
-                            title={s.title}
-                            aria-current={s.id === activeSessionId ? 'true' : undefined}
-                          >
-                            <span className="recent-chat-title">{s.title}</span>
-                            {bodyMatch && (
-                              <span className="recent-chat-excerpt">
-                                {bodyMatch.excerpt}
-                              </span>
-                            )}
-                            <span className="recent-chat-meta">
-                              <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
-                              <span
-                                className="recent-chat-count"
-                                title={`共 ${Array.isArray(s.messages) ? s.messages.length : 0} 条消息`}
-                              >
-                                {formatMessageCount(s.messages)}
-                              </span>
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            className="recent-chat-rename"
-                            onClick={() => {
-                              setEditingId(s.id);
-                              setEditingValue(s.title);
-                            }}
-                            disabled={busy}
-                            aria-disabled={busy || undefined}
-                            aria-label={`重命名对话：${s.title}`}
-                            title={`重命名对话：${s.title}`}
-                          >
-                            <SidebarIcon iconKey="profile" />
-                          </button>
-                          <button
-                            type="button"
-                            className="recent-chat-delete"
-                            onClick={() => onDeleteChat?.(s.id)}
-                            disabled={busy}
-                            aria-disabled={busy || undefined}
-                            aria-label={`删除对话：${s.title}`}
-                            title={`删除对话：${s.title}`}
-                          >
-                            <span aria-hidden="true">×</span>
-                          </button>
-                        </>
-                      )}
-                    </li>
-                  );
-                })}
-              </Fragment>
-            ))}
-          </ul>
-        )}
-        {/* P230: announce how many conversations the filter matched, at
-            most once per query change; blank while the box is empty so
-            mounting the section never announces a count. P245: a zero-match
-            query is already announced by the filter-empty-hint li's own
-            aria-live, so this region stays silent there instead of doubling
-            the empty-state copy with a second generic message. */}
-        <span className="sr-only" role="status" aria-live="polite">
-          {filterQuery.trim() && visibleSessions.length > 0
-            ? `找到 ${visibleSessions.length} 段对话`
-            : ''}
-        </span>
-        {/* P265: the way back from a delete — visible whenever either list
-            holds something, above the eviction notice; a totally empty
-            section hides the row entirely. */}
-        {shouldShowTrashEntry(recentSessions.length, trashEntries.length) && (
-          <button
-            type="button"
-            className="recent-chat-trash"
-            onClick={() => setTrashOpen(true)}
-            aria-label={`回收站，${trashEntries.length} 段已删除对话`}
-            title="回收站"
-          >
-            回收站（{trashEntries.length}）
-          </button>
-        )}
-        {/* P188: an empty history can never legitimately show the notice,
-            even if some other path left the module state set. */}
-        {shouldShowEvictionNotice(evictionNotice, recentSessions.length) && (
-          <div className="recent-chat-eviction" role="status">
-            <span className="recent-chat-eviction-text">{evictionNotice}</span>
-            <button
-              type="button"
-              className="recent-chat-eviction-close"
-              aria-label="关闭提示"
-              title="关闭提示"
-              onClick={() => {
-                clearLastEvictionNotice();
-                setEvictionTick((n) => n + 1);
-              }}
-            >
-              <span aria-hidden="true">×</span>
-            </button>
-          </div>
-        )}
-      </section>
-
-      {profile?.name ? (
-        <section className="sidebar-section profile-card" aria-label="我的资料">
-          <div className="profile-card-header">
-            <h3>我的资料</h3>
-            {onEditProfile && (
-              <button type="button" className="profile-edit-btn" onClick={onEditProfile} aria-label="编辑资料">
-                编辑
+                {CLEAR_ALL_LABEL}
               </button>
             )}
           </div>
-          <div className="profile-card-body">
-            <p className="profile-name">{profile.name}{profile.age ? `，${profile.age} 岁` : ''}</p>
-            {profile.goals && <p className="profile-goals-text">{profile.goals}</p>}
-            {profile.interests && profile.interests.length > 0 && (
-              <div className="profile-tags">
-                {profile.interests.slice(0, 4).map((tag) => (
-                  <span key={tag} className="profile-tag">
-                    {tag}
+          <input
+            type="text"
+            className="recent-chat-filter"
+            value={filterQuery}
+            placeholder={FILTER_SESSIONS_LABEL}
+            aria-label={FILTER_SESSIONS_LABEL}
+            onChange={(e) => setFilterQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // P167: a composing Escape cancels the IME, not the filter.
+              if (shouldHandleEscape(e)) {
+                setFilterQuery('');
+                e.currentTarget.blur();
+                return;
+              }
+              // P132: ArrowDown from the filter moves into the first row.
+              if (e.key === 'ArrowDown') {
+                const first =
+                  sessionListRef.current?.querySelector<HTMLElement>(
+                    '.recent-chat-item',
+                  );
+                if (first) {
+                  e.preventDefault();
+                  first.focus();
+                }
+              }
+            }}
+          />
+          {/* P247: a cleared/fresh history used to vanish the whole section —
+              keep the heading and fill the list slot with one dim line instead
+              of blank space. */}
+          {recentSessions.length === 0 && (
+            <p className="recent-chat-empty" role="status">
+              还没有对话，问第一个问题吧
+            </p>
+          )}
+          {recentSessions.length > 0 && (
+            <ul className="recent-chat-list" ref={sessionListRef}>
+              {shouldShowFilterEmptyHint(
+                recentSessions.length,
+                visibleSessions.length,
+              ) && (
+                <li
+                  className="recent-chat-empty filter-empty-hint"
+                  aria-live="polite"
+                  aria-label="无匹配对话"
+                >
+                  <span className="filter-empty-hint-text">
+                    没有匹配「{filterQuery.trim()}」的对话
                   </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      ) : (
-        /* P255: no profile yet — the card keeps a 「完善资料」 entry so the
-         * dialog stays reachable mid-conversation, after the welcome CTA
-         * has scrolled away. */
-        onEditProfile && (
-          <section className="sidebar-section profile-card" aria-label="我的资料">
+                  {/* P271/P275: the filter only matches recent titles — fold the
+                      scope note into the empty state's first sentence so it is
+                      read before the 清除筛选 action, not after it. */}
+                  <span className="filter-empty-hint-scope">
+                    ——{FILTER_SESSIONS_HINT}
+                  </span>
+                  <button
+                    type="button"
+                    className="filter-empty-clear"
+                    aria-label="清除筛选"
+                    title="清除筛选"
+                    onClick={() => setFilterQuery('')}
+                  >
+                    清除筛选
+                  </button>
+                </li>
+              )}
+              {sessionGroups.map((group) => (
+                <Fragment key={group.label}>
+                  <li className="recent-chat-group">{group.label}</li>
+                  {group.sessions.map((s) => {
+                    // P230: a session the query kept only through its message
+                    // body shows why — one dim excerpt line under the title.
+                    // Title hits and empty queries add nothing, so rows never
+                    // shift when the box is blank.
+                    const trimmedQuery = filterQuery.trim().toLowerCase();
+                    const bodyMatch =
+                      trimmedQuery &&
+                      !s.title.toLowerCase().includes(trimmedQuery)
+                        ? matchSessionMessage(s, filterQuery)
+                        : null;
+                    const commitRename = () => {
+                      // Enter already exits edit mode; ignore the blur that follows.
+                      if (editingId !== s.id) return;
+                      const next = editingValue.trim();
+                      if (next && next !== s.title) onRenameChat?.(s.id, next);
+                      setEditingId(null);
+                    };
+                    return (
+                      <li key={s.id} className="recent-chat-row">
+                        {editingId === s.id ? (
+                          <input
+                            ref={editInputRef}
+                            type="text"
+                            className="recent-chat-rename-input"
+                            value={editingValue}
+                            maxLength={40}
+                            disabled={busy}
+                            aria-label={`重命名对话：${s.title}`}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              // P167: while composing, Enter/Escape belong to
+                              // the IME — never commit or cancel mid-conversion.
+                              if (shouldSubmitOnEnter(e)) commitRename();
+                              if (shouldHandleEscape(e)) setEditingId(null);
+                            }}
+                            onBlur={commitRename}
+                          />
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className={`recent-chat-item${s.id === activeSessionId ? ' active' : ''}`}
+                              onClick={() => onSelectChat?.(s.id)}
+                              onKeyDown={handleSessionItemKeyDown}
+                              disabled={busy}
+                              aria-disabled={busy || undefined}
+                              title={s.title}
+                              aria-current={s.id === activeSessionId ? 'true' : undefined}
+                            >
+                              <span className="recent-chat-title">{s.title}</span>
+                              {bodyMatch && (
+                                <span className="recent-chat-excerpt">
+                                  {bodyMatch.excerpt}
+                                </span>
+                              )}
+                              <span className="recent-chat-meta">
+                                <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
+                                <span
+                                  className="recent-chat-count"
+                                  title={`共 ${Array.isArray(s.messages) ? s.messages.length : 0} 条消息`}
+                                >
+                                  {formatMessageCount(s.messages)}
+                                </span>
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              className="recent-chat-rename"
+                              onClick={() => {
+                                setEditingId(s.id);
+                                setEditingValue(s.title);
+                              }}
+                              disabled={busy}
+                              aria-disabled={busy || undefined}
+                              aria-label={`重命名对话：${s.title}`}
+                              title={`重命名对话：${s.title}`}
+                            >
+                              <SidebarIcon iconKey="profile" />
+                            </button>
+                            <button
+                              type="button"
+                              className="recent-chat-delete"
+                              onClick={() => onDeleteChat?.(s.id)}
+                              disabled={busy}
+                              aria-disabled={busy || undefined}
+                              aria-label={`删除对话：${s.title}`}
+                              title={`删除对话：${s.title}`}
+                            >
+                              <span aria-hidden="true">×</span>
+                            </button>
+                          </>
+                        )}
+                      </li>
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </ul>
+          )}
+          {/* P230: announce how many conversations the filter matched, at
+              most once per query change; blank while the box is empty so
+              mounting the section never announces a count. P245: a zero-match
+              query is already announced by the filter-empty-hint li's own
+              aria-live, so this region stays silent there instead of doubling
+              the empty-state copy with a second generic message. */}
+          <span className="sr-only" role="status" aria-live="polite">
+            {filterQuery.trim() && visibleSessions.length > 0
+              ? `找到 ${visibleSessions.length} 段对话`
+              : ''}
+          </span>
+          {/* P265: the way back from a delete — visible whenever either list
+              holds something, above the eviction notice; a totally empty
+              section hides the row entirely. */}
+          {shouldShowTrashEntry(recentSessions.length, trashEntries.length) && (
             <button
               type="button"
-              className="profile-setup-btn"
-              onClick={onEditProfile}
+              className="recent-chat-trash"
+              onClick={() => setTrashOpen(true)}
+              aria-label={`回收站，${trashEntries.length} 段已删除对话`}
+              title="回收站"
             >
-              完善资料，获得更个性化建议
+              回收站（{trashEntries.length}）
             </button>
-          </section>
-        )
-      )}
-
-      <section className="sidebar-section" aria-label="快捷入口">
-        <h3>快捷入口</h3>
-        <div className="quick-prompts">
-          {QUICK_PROMPTS.map((p) => (
-            <button
-              key={p.label}
-              className="quick-btn"
-              onClick={() => onQuickPrompt(p.prompt)}
-              disabled={busy}
-              aria-disabled={busy || undefined}
-              title={busy ? '回复生成中，请稍候' : undefined}
-              aria-label={`快捷提问：${p.label}`}
-            >
-              <SidebarIcon iconKey={p.iconKey} />
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="sidebar-section" aria-label="进阶工具">
-        <h3>进阶工具</h3>
-        <ul className="tool-list">
-          {(tools.length ? tools : TOOL_FALLBACK).map(
-            (t) => (
-              <li key={t.name} className="tool-item">
-                {toolDisplayName(t.name) ?? t.label}
-              </li>
-            ),
           )}
-        </ul>
-      </section>
+          {/* P188: an empty history can never legitimately show the notice,
+              even if some other path left the module state set. */}
+          {shouldShowEvictionNotice(evictionNotice, recentSessions.length) && (
+            <div className="recent-chat-eviction" role="status">
+              <span className="recent-chat-eviction-text">{evictionNotice}</span>
+              <button
+                type="button"
+                className="recent-chat-eviction-close"
+                aria-label="关闭提示"
+                title="关闭提示"
+                onClick={() => {
+                  clearLastEvictionNotice();
+                  setEvictionTick((n) => n + 1);
+                }}
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </div>
+          )}
+        </section>
+
+        {profile?.name ? (
+          <section className="sidebar-section profile-card" aria-label="我的资料">
+            <div className="profile-card-header">
+              <h3>我的资料</h3>
+              {onEditProfile && (
+                <button type="button" className="profile-edit-btn" onClick={onEditProfile} aria-label="编辑资料">
+                  编辑
+                </button>
+              )}
+            </div>
+            <div className="profile-card-body">
+              <p className="profile-name">{profile.name}{profile.age ? `，${profile.age} 岁` : ''}</p>
+              {profile.goals && <p className="profile-goals-text">{profile.goals}</p>}
+              {profile.interests && profile.interests.length > 0 && (
+                <div className="profile-tags">
+                  {profile.interests.slice(0, 4).map((tag) => (
+                    <span key={tag} className="profile-tag">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        ) : (
+          /* P255: no profile yet — the card keeps a 「完善资料」 entry so the
+           * dialog stays reachable mid-conversation, after the welcome CTA
+           * has scrolled away. */
+          onEditProfile && (
+            <section className="sidebar-section profile-card" aria-label="我的资料">
+              <button
+                type="button"
+                className="profile-setup-btn"
+                onClick={onEditProfile}
+              >
+                完善资料，获得更个性化建议
+              </button>
+            </section>
+          )
+        )}
+
+        <section className="sidebar-section" aria-label="快捷入口">
+          <h3>快捷入口</h3>
+          <div className="quick-prompts">
+            {QUICK_PROMPTS.map((p) => (
+              <button
+                key={p.label}
+                className="quick-btn"
+                onClick={() => onQuickPrompt(p.prompt)}
+                disabled={busy}
+                aria-disabled={busy || undefined}
+                title={busy ? '回复生成中，请稍候' : undefined}
+                aria-label={`快捷提问：${p.label}`}
+              >
+                <SidebarIcon iconKey={p.iconKey} />
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="sidebar-section" aria-label="进阶工具">
+          <h3>进阶工具</h3>
+          <ul className="tool-list">
+            {(tools.length ? tools : TOOL_FALLBACK).map(
+              (t) => (
+                <li key={t.name} className="tool-item">
+                  {toolDisplayName(t.name) ?? t.label}
+                </li>
+              ),
+            )}
+          </ul>
+        </section>
+      </div>
 
       <TrashSheet
         open={trashOpen}

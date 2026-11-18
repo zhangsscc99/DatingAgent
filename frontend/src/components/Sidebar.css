@@ -9,6 +9,20 @@
   flex-shrink: 0;
 }
 
+/* P298 — the scroll region between the pinned chrome (mobile drawer header)
+   and the pinned 设置 footer. flex:1 1 auto + min-height:0 lets it shrink
+   below its content height and scroll internally, so the <aside> itself never
+   overflows (scrollHeight <= clientHeight) and the footer never scrolls away
+   with the list. On desktop the same rule is inert while the content fits. */
+.sidebar-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .sidebar-drawer-header {
   display: none;
 }
@@ -632,6 +646,14 @@
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.28s;
     box-shadow: var(--shadow-drawer);
     padding-top: 0;
+    /* P298: tighter spacing inside the drawer so a fresh sidebar at 390×844
+       fits the whole list — the scroll region only engages when history /
+       profile content genuinely exceeds the viewport. */
+    gap: 12px;
+  }
+
+  .sidebar.sidebar-drawer .sidebar-body {
+    gap: 12px;
   }
 
   .sidebar.sidebar-drawer.open {
@@ -644,7 +666,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 8px 16px;
     margin: 0 -16px 4px;
     border-bottom: 1px solid var(--border);
     position: sticky;
@@ -683,12 +705,16 @@
   /* P201 — the drawer is the scroll container; pin the footer (which holds
      the 设置 entry) to its bottom edge so the button stays inside the
      viewport instead of sitting past the scroll end with no hint. Opaque
-     --surface + the existing border-top keep scrolled content legible. */
+     --surface + the existing border-top keep scrolled content legible.
+     P298 — the footer is now a flex sibling AFTER the .sidebar-body scroll
+     region, so it is pinned structurally (the sticky rule stays as a no-op
+     fallback); the smaller padding-top gives the list a few more pixels. */
   .sidebar.sidebar-drawer .sidebar-footer {
     position: sticky;
     bottom: 0;
     z-index: 1;
     background: var(--surface);
+    padding-top: 10px;
   }
 
   .recent-chat-list {

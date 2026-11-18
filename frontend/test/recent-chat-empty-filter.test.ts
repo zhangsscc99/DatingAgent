@@ -150,8 +150,10 @@ describe('P187 · sidebar filter empty-state hint', () => {
     });
 
     it('gates the hint on shouldShowFilterEmptyHint so empty history stays silent', () => {
-      expect(sidebar).toContain(
-        'shouldShowFilterEmptyHint(\n              recentSessions.length,\n              visibleSessions.length,\n            )',
+      // P298: whitespace-tolerant — the call moved one level deeper when the
+      // sidebar list gained its own .sidebar-body scroll region.
+      expect(sidebar).toMatch(
+        /shouldShowFilterEmptyHint\(\s*recentSessions\.length,\s*visibleSessions\.length,\s*\)/,
       );
       expect(sidebar).toContain('shouldShowFilterEmptyHint');
       // The session section itself is still gated on stored sessions, so a
