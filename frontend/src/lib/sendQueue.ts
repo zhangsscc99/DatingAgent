@@ -7,7 +7,7 @@
  *
  * P310 — …but only once drafts are actually parked. While the queue is
  * empty the row stays silent: the pending AI bubble already owns progress
- * copy (「正在组织答案」/「已生成 N 字」), and a global "reply generating"
+ * copy (「正在组织答案」/「正在写…」), and a global "reply generating"
  * line rendered directly under the user's just-sent bubble read like the
  * message had never gone out.
  *

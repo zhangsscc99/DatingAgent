@@ -269,10 +269,14 @@
   color: var(--text-muted);
 }
 
-/* P272: live 「已生成 N 字」 counter under a streaming bubble — same dim
-   footprint as .stopped-note, aria-hidden so the per-token change never
-   reaches the polite live region. */
+/* P318: the raw 「已生成 N 字」 count is gone — the pending line now
+   carries quiet 「正在写…」 copy plus the same dot pulse the thinking
+   indicator uses, still aria-hidden so the live region announces the
+   App-level phase label instead. */
 .generation-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 6px;
   font-size: 11px;
   color: var(--text-muted);

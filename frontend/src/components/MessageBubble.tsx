@@ -12,7 +12,10 @@ import {
   formatRelativeTime,
   isRenderableTimestamp,
 } from '../lib/relativeTime';
-import { generationProgressLabel } from '../lib/generationProgress';
+import {
+  GENERATION_PROGRESS_WRITING,
+  generationProgressLabel,
+} from '../lib/generationProgress';
 import {
   DUPLICATE_REGEN_HINT,
   DUPLICATE_REGEN_RETRY_LABEL,
@@ -90,8 +93,9 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
   const showStreamingIndicator =
     !isUser && message.streaming && !message.content && message.streamPhase;
   const showCursor = !isUser && message.streaming && !!message.content && !message.error;
-  // P272: a quiet 「已生成 N 字」/「正在组织答案」 signal for the whole
-  // pending window — undefined the instant `streaming` flips off.
+  // P272: a quiet progress signal for the whole pending window —
+  // undefined the instant `streaming` flips off. P318: the in-stream line
+  // paints GENERATION_PROGRESS_WRITING, not the raw character count.
   const progressLabel = generationProgressLabel(message.content.length, !isUser && !!message.streaming);
 
   const [copyState, setCopyState] = useState<CopyState>('idle');
@@ -243,7 +247,12 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
         </div>
         {progressLabel && message.content.length > 0 && (
           <div className="generation-progress" aria-hidden="true">
-            {progressLabel}
+            <span>{GENERATION_PROGRESS_WRITING}</span>
+            <span className="streaming-dots" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
           </div>
         )}
         {collapsible && (
