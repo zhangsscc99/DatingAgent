@@ -17,7 +17,7 @@ import type { ChatMessage } from '../src/types';
 /**
  * P293 — after three turns nothing on screen acknowledged what the agent
  * had remembered, and the profile card showed no receipt either. A quiet
- * 「已记住：…」 line now sits at the head of the conversation, derived only
+ * 「记得你提到：…」 line now sits at the head of the conversation, derived only
  * from data the client already holds (the stored profile plus the
  * reply-length preference); it renders nothing when there is nothing
  * remembered. Same node-side harness as welcome-primary-cta.test.ts:
@@ -71,7 +71,7 @@ afterEach(() => {
 });
 
 describe('P293 · memory receipt line derivation', () => {
-  it('names up to two remembered items, prefixed with 已记住：', () => {
+  it('names up to two remembered items, prefixed with 记得你提到：', () => {
     const line = memoryReceiptLine({
       name: '阿宇',
       goals: '想认真谈恋爱',
@@ -131,7 +131,7 @@ describe('P293 · rendered receipt at the head of the conversation', () => {
 
     const markup = renderChat({ profile });
     expect(markup).toContain('memory-receipt');
-    expect(markup).toContain('已记住');
+    expect(markup).toContain('记得你提到');
     // The line carries an actual stored field value.
     expect(markup).toContain('想认真谈恋爱');
     expect(markup).toContain('徒步');
@@ -142,7 +142,7 @@ describe('P293 · rendered receipt at the head of the conversation', () => {
     expect(loadProfile()).toBeNull();
     const markup = renderChat({ profile: loadProfile() });
     expect(markup).not.toContain('memory-receipt');
-    expect(markup).not.toContain('已记住');
+    expect(markup).not.toContain('记得你提到');
   });
 
   it('renders nothing on the empty welcome screen even with a profile', () => {
@@ -168,7 +168,7 @@ describe('P293 · rendered receipt at the head of the conversation', () => {
   it('a session-only preference still produces the receipt line', () => {
     const markup = renderChat({ replyLength: 'concise' });
     expect(markup).toContain('memory-receipt');
-    expect(markup).toContain('已记住');
+    expect(markup).toContain('记得你提到');
     expect(markup).toContain('回答简短一些');
   });
 });
@@ -232,9 +232,9 @@ describe('P296 · durable facts mined from user messages', () => {
         interests: ['徒步', '摄影'],
         personality: '慢热',
       }),
-    ).toBe('已记住：目标「想认真谈恋爱」、喜欢「徒步、摄影」');
+    ).toBe('记得你提到：目标「想认真谈恋爱」、喜欢「徒步、摄影」');
     expect(memoryReceiptLine(null)).toBeNull();
-    expect(memoryReceiptLine(null, 'concise')).toBe('已记住：偏好回答简短一些');
+    expect(memoryReceiptLine(null, 'concise')).toBe('记得你提到：偏好回答简短一些');
   });
 
   it('dedupes profile items against facts and never exceeds the cap', () => {
@@ -243,7 +243,7 @@ describe('P296 · durable facts mined from user messages', () => {
       'default',
       [{ id: 'u1', role: 'user', content: '周末想去徒步再看展' }],
     );
-    expect(line).toBe('已记住：喜欢「徒步」、看展');
+    expect(line).toBe('记得你提到：喜欢「徒步」、看展');
     expect(line!.match(/徒步/g)).toHaveLength(1);
     expect(line!.split('、').length).toBeLessThanOrEqual(
       MEMORY_RECEIPT_MAX_ITEMS,
@@ -257,7 +257,7 @@ describe('P296 · rendered receipt without a stored profile', () => {
     expect(loadProfile()).toBeNull();
     const markup = renderChat({ messages: factTurns, profile: null });
     expect(markup).toContain('memory-receipt');
-    expect(markup).toContain('已记住');
+    expect(markup).toContain('记得你提到');
     expect(markup).toContain('没睡好');
     expect(markup).toContain('看展');
   });
@@ -265,6 +265,6 @@ describe('P296 · rendered receipt without a stored profile', () => {
   it('renders nothing for an empty conversation without a profile', () => {
     const markup = renderChat({ messages: [] as ChatMessage[], profile: null });
     expect(markup).not.toContain('memory-receipt');
-    expect(markup).not.toContain('已记住');
+    expect(markup).not.toContain('记得你提到');
   });
 });

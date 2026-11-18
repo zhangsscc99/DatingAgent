@@ -231,3 +231,4 @@
 2026-11-18 07:32 | P305 | 主列与输入区统一宽度、消息区撑满视口并垂直居中单轮内容
 2026-11-18 07:49 | F06 | 回复清洗去掉全角句号/感叹号/问号后的半角空格，代码块与 URL 不动
 2026-11-18 08:16 | P307 | ≤768px 下 welcome 收紧顶部节奏（padding-top 24→10、副标题/CTA/chips 间距收紧、卡片 gap 16→12）并加 padding-bottom:160px（≥输入区153px）：390×844 实测第三卡 bottom 649.9 < 输入区 top 691（首屏净余 41px），滚到底卡片高出输入区 208px；1440×900 桌面不变；新增 frontend/test/welcome-bottom-clearance.test.ts（4例）
+2026-11-18 08:35 | P308 | 记忆回执改为会话头部右侧图标胶囊：前缀「记得你提到：」，点击展开可逐条删除的记忆列表（dismissal 持久化到 localStorage，真正从回执派生状态剔除）；与底部「完善资料」提示互斥常驻；13px --text-secondary on --surface（两主题 ≥4.5:1），行底 padding 8px + 消息列顶距保证与首条消息 ≥8px；新增 frontend/test/memory-receipt-ui.test.ts（10例），memoryReceipt 拆出 memoryReceiptItems，旧断言随前缀更新；1258 例全绿

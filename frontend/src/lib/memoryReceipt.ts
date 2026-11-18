@@ -16,7 +16,7 @@ import { replyLengthLabel, type ReplyLengthPreference } from './replyLength';
  * network, deterministic.
  */
 
-export const MEMORY_RECEIPT_PREFIX = '已记住：';
+export const MEMORY_RECEIPT_PREFIX = '记得你提到：';
 export const MEMORY_RECEIPT_MAX_ITEMS = 2;
 
 /**
@@ -137,8 +137,31 @@ export function rememberedItems(
 }
 
 /**
+ * The remembered items behind the receipt, as a list — P308 renders each
+ * entry as a deletable row, so callers need the items un-joined. Same
+ * derivation and cap as `memoryReceiptLine`; an empty list means render
+ * nothing.
+ */
+export function memoryReceiptItems(
+  profile: UserProfile | null | undefined,
+  replyLength: ReplyLengthPreference = 'default',
+  messages?: readonly Pick<ChatMessage, 'role' | 'content'>[],
+): string[] {
+  const items = rememberedItems(profile, replyLength);
+  if (messages === undefined) return items;
+  if (!messages.some((m) => m.role === 'user')) return [];
+  for (const fact of conversationFactItems(messages)) {
+    if (items.length >= MEMORY_RECEIPT_MAX_ITEMS) break;
+    if (items.some((item) => item.includes(fact))) continue;
+    items.push(fact);
+  }
+  return items;
+}
+
+/**
  * The rendered receipt line, or null when nothing is remembered — callers
- * must render nothing in that case.
+ * must render nothing in that case. P308 changed the prefix to
+ * 「记得你提到：」 alongside the capsule treatment.
  *
  * P296 — `messages` is optional: the two-argument call keeps the exact
  * P293 behaviour. When a conversation is passed, profile-derived items
@@ -152,17 +175,6 @@ export function memoryReceiptLine(
   replyLength: ReplyLengthPreference = 'default',
   messages?: readonly Pick<ChatMessage, 'role' | 'content'>[],
 ): string | null {
-  const items = rememberedItems(profile, replyLength);
-  if (messages === undefined) {
-    return items.length > 0
-      ? `${MEMORY_RECEIPT_PREFIX}${items.join('、')}`
-      : null;
-  }
-  if (!messages.some((m) => m.role === 'user')) return null;
-  for (const fact of conversationFactItems(messages)) {
-    if (items.length >= MEMORY_RECEIPT_MAX_ITEMS) break;
-    if (items.some((item) => item.includes(fact))) continue;
-    items.push(fact);
-  }
+  const items = memoryReceiptItems(profile, replyLength, messages);
   return items.length > 0 ? `${MEMORY_RECEIPT_PREFIX}${items.join('、')}` : null;
 }

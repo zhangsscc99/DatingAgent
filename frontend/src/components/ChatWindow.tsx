@@ -22,7 +22,14 @@ import {
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
 import { canGenerateReply, needsReply } from '../lib/pendingReply';
 import { isOnboardingComplete } from '../lib/profileStorage';
-import { memoryReceiptLine } from '../lib/memoryReceipt';
+import {
+  MEMORY_RECEIPT_PREFIX,
+  memoryReceiptItems,
+} from '../lib/memoryReceipt';
+import {
+  dismissReceiptItem,
+  dismissedReceiptItems,
+} from '../lib/memoryReceiptDismissals';
 import { hasInteracted } from '../lib/interactionState';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
@@ -155,6 +162,34 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const wasLoading = useRef(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
+  // P293/P296/P308: the memory receipt — a small icon capsule anchored at
+  // the right of the session header area naming what the agent already
+  // remembers (stored profile fields, the reply-length preference, and —
+  // for the default profile-less path — durable facts the user stated in
+  // this very conversation). Clicking it opens the remembered list, where
+  // each row can be deleted; a deleted item is recorded in
+  // memoryReceiptDismissals and drops out of the derivation for good.
+  // Nothing renders before a conversation exists or while a session is
+  // still being restored, and nothing renders when there is nothing
+  // remembered.
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [dismissedFacts, setDismissedFacts] = useState<readonly string[]>(() =>
+    dismissedReceiptItems(),
+  );
+  const receiptItems =
+    !restoring && messages.length > 0
+      ? memoryReceiptItems(profile, replyLength, messages).filter(
+          (item) => !dismissedFacts.includes(item),
+        )
+      : [];
+  const memoryReceipt =
+    receiptItems.length > 0
+      ? `${MEMORY_RECEIPT_PREFIX}${receiptItems.join('、')}`
+      : null;
+  const handleDismissFact = (item: string) => {
+    setDismissedFacts(dismissReceiptItem(item));
+  };
+
   // P255: the one-line profile nudge above the composer is session-scoped —
   // dismissed once, it stays down until reload. Users who already saved or
   // skipped the profile prompt (onboardingDone) never see it, and a saved
@@ -165,6 +200,9 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     !restoring &&
     !profile?.name &&
     !profileNudgeDismissed &&
+    // P308: the nudge and the memory capsule are mutually exclusive — when
+    // the capsule is resident the bottom 完善资料 hint stays down.
+    receiptItems.length === 0 &&
     !isOnboardingComplete() &&
     messages.some(
       (m) =>
@@ -173,18 +211,6 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
         !m.error &&
         m.content.length > 0,
     );
-
-  // P293/P296: the memory receipt — one quiet line pinned at the head of
-  // the conversation naming what the agent already remembers (stored
-  // profile fields, the reply-length preference, and — for the default
-  // profile-less path — durable facts the user stated in this very
-  // conversation). Nothing renders before a conversation exists or while
-  // a session is still being restored, and nothing renders when there is
-  // nothing remembered.
-  const memoryReceipt =
-    !restoring && messages.length > 0
-      ? memoryReceiptLine(profile, replyLength, messages)
-      : null;
 
   // P19: client-side search over the rendered conversation.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -355,12 +381,52 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   return (
     <div className="chat-window">
       {memoryReceipt && (
-        <p
-          className="memory-receipt"
-          title="来自你的资料与本对话的偏好设置"
-        >
-          {memoryReceipt}
-        </p>
+        <div className="memory-receipt" role="status">
+          <div className="memory-capsule-wrap">
+            <button
+              type="button"
+              className="memory-capsule"
+              aria-label="管理记忆"
+              aria-expanded={memoryOpen}
+              title="来自你的资料与本对话 — 点击查看或删除"
+              onClick={() => setMemoryOpen((v) => !v)}
+            >
+              <svg
+                className="memory-capsule-icon"
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+              <span className="memory-capsule-text">{memoryReceipt}</span>
+            </button>
+            {memoryOpen && (
+              <div className="memory-panel" role="group" aria-label="已记住的内容">
+                {receiptItems.map((item) => (
+                  <div className="memory-panel-row" key={item}>
+                    <span className="memory-panel-text">{item}</span>
+                    <button
+                      type="button"
+                      className="memory-panel-delete"
+                      aria-label={`删除记忆：${item}`}
+                      title={`删除记忆：${item}`}
+                      onClick={() => handleDismissFact(item)}
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
       <div className="messages-wrap">
         {errorToast && (
