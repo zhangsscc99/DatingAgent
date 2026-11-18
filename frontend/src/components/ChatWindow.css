@@ -548,6 +548,25 @@
   outline-offset: 2px;
 }
 
+/* P328: content arrived while the user was reading above — the circle grows
+   into an accented pill naming what waits below, without moving the view.
+   The button is absolutely positioned, so the wider shape shifts nothing. */
+.scroll-to-bottom.has-new {
+  width: auto;
+  padding: 0 12px;
+  border-radius: 18px;
+  border-color: var(--accent);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scroll-to-bottom-hint {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 /* P226: the in-conversation search trigger now lives in the header action
  * row at every width (.search-toggle-header, App.css). The floating
  * .search-toggle that used to sit here physically overlapped the first user

@@ -32,6 +32,7 @@ import {
   dismissedReceiptItems,
 } from '../lib/memoryReceiptDismissals';
 import { hasInteracted } from '../lib/interactionState';
+import { shouldAutoScroll } from '../lib/autoScroll';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
 import type { ReplyLengthPreference } from '../lib/replyLength';
@@ -165,6 +166,19 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const wasRestoring = useRef(false);
   const wasLoading = useRef(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  // P328: how far the scrollport sits from the tail — refreshed by the
+  // scroll handler; 0 (at bottom) until the first measurement, so first
+  // render and restore behave as before.
+  const distanceFromBottomRef = useRef(0);
+  // P328: the newest user bubble already seen — a send while scrolled up is
+  // an "own turn" and always follows to the bottom.
+  const lastUserMessageIdRef = useRef<string | null>(null);
+  // P328: set when content arrived while the user was away from the bottom —
+  // the jump button wears a 「有新内容」 pill until they return or click it.
+  const [hasNewBelow, setHasNewBelow] = useState(false);
+  // P328: the polite live region announces once per burst, not per delta.
+  const newBelowAnnouncedRef = useRef(false);
+  const [scrollLiveText, setScrollLiveText] = useState('');
 
   // P321: at ≤480px the three welcome feature cards collapse to quiet
   // single-line rows (CSS keys on .welcome-features[data-compact]) so the
@@ -273,8 +287,40 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
       return;
     }
     if (messages.length === 0 && !loading) return;
+    let lastUserId: string | null = null;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === 'user') {
+        lastUserId = messages[i].id;
+        break;
+      }
+    }
+    const isOwnTurn =
+      lastUserId !== null && lastUserId !== lastUserMessageIdRef.current;
+    if (lastUserId !== null) lastUserMessageIdRef.current = lastUserId;
     const jump = restoredJump.current;
     restoredJump.current = false;
+    // P328: scrolled-up reading beats tail-chasing — a streaming delta or a
+    // new turn must not drag the view back down. Show the jump button with
+    // a once-per-burst 「有新内容」 hint instead.
+    if (
+      !jump &&
+      !shouldAutoScroll({
+        distanceFromBottom: distanceFromBottomRef.current,
+        isOwnTurn,
+      })
+    ) {
+      setShowScrollToBottom(true);
+      setHasNewBelow(true);
+      if (!newBelowAnnouncedRef.current) {
+        newBelowAnnouncedRef.current = true;
+        setScrollLiveText('有新内容');
+      }
+      return;
+    }
+    // Optimistic: we are headed to the tail, so the deltas that land before
+    // the next real scroll event keep following instead of re-arming the
+    // hint mid-scroll.
+    distanceFromBottomRef.current = 0;
     bottomRef.current?.scrollIntoView({
       // A reload lands straight on the latest reply — jumping, not
       // smooth-scrolling, past what may be a long history.
@@ -287,12 +333,25 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const handleMessagesScroll = () => {
     const el = listRef.current;
     if (!el) return;
-    setShowScrollToBottom(
-      el.scrollHeight - el.scrollTop - el.clientHeight > SCROLL_BOTTOM_THRESHOLD,
-    );
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    distanceFromBottomRef.current = distance;
+    const away = distance > SCROLL_BOTTOM_THRESHOLD;
+    setShowScrollToBottom(away);
+    // P328: back at the bottom — end the burst so the next excursion can
+    // announce again.
+    if (!away) {
+      setHasNewBelow(false);
+      newBelowAnnouncedRef.current = false;
+      setScrollLiveText('');
+    }
   };
 
   const scrollToLatest = () => {
+    // P328: jumping by hand re-arms follow-the-tail and ends the burst.
+    distanceFromBottomRef.current = 0;
+    setHasNewBelow(false);
+    newBelowAnnouncedRef.current = false;
+    setScrollLiveText('');
     bottomRef.current?.scrollIntoView({
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
     });
@@ -630,13 +689,21 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
         {showScrollToBottom && (
           <button
             type="button"
-            className="scroll-to-bottom"
-            aria-label="滚动到底部"
+            className={
+              hasNewBelow ? 'scroll-to-bottom has-new' : 'scroll-to-bottom'
+            }
+            aria-label={hasNewBelow ? '有新内容，回到底部' : '滚动到底部'}
             onClick={scrollToLatest}
           >
             ↑
+            {hasNewBelow && (
+              <span className="scroll-to-bottom-hint">有新内容</span>
+            )}
           </button>
         )}
+        <span className="sr-only" role="status" aria-live="polite">
+          {scrollLiveText}
+        </span>
       </div>
 
       {offline && (
