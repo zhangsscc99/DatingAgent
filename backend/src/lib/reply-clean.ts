@@ -99,3 +99,65 @@ export function normalizeChinesePunctuation(text: string): string {
   }
   return out + convertSegment(text.slice(last));
 }
+
+// P292: a quote pair counts as Chinese-context when its inner text holds a
+// Han character or either quote mark sits directly next to one.
+const HAN_CHAR = /\p{Script=Han}/u;
+const CURLY_QUOTE_PAIR = /“([^“”\n]*)”/g;
+
+function hanAdjacent(text: string, index: number): boolean {
+  return HAN_CHAR.test(text[index] ?? '');
+}
+
+function isCjkQuoteContext(segment: string, open: number, close: number, inner: string): boolean {
+  return HAN_CHAR.test(inner) || hanAdjacent(segment, open - 1) || hanAdjacent(segment, close + 1);
+}
+
+function convertQuoteSegment(segment: string): string {
+  const withCurly = segment.replace(CURLY_QUOTE_PAIR, (match, inner: string, offset: number) =>
+    isCjkQuoteContext(segment, offset, offset + match.length - 1, inner)
+      ? `「${inner}」`
+      : match,
+  );
+  // Straight `"` has no distinct open/close glyph — pair each `"` with the
+  // next one on the same line, left to right; an unmatched `"` stays literal.
+  let out = '';
+  let cursor = 0;
+  while (cursor < withCurly.length) {
+    const open = withCurly.indexOf('"', cursor);
+    if (open === -1) break;
+    const close = withCurly.indexOf('"', open + 1);
+    const newline = withCurly.indexOf('\n', open + 1);
+    if (close === -1 || (newline !== -1 && newline < close)) {
+      out += withCurly.slice(cursor, open + 1);
+      cursor = open + 1;
+      continue;
+    }
+    const inner = withCurly.slice(open + 1, close);
+    out +=
+      withCurly.slice(cursor, open) +
+      (isCjkQuoteContext(withCurly, open, close, inner) ? `「${inner}」` : `"${inner}"`);
+    cursor = close + 1;
+  }
+  return out + withCurly.slice(cursor);
+}
+
+/**
+ * P292 — the model occasionally wraps Chinese phrases in English curly
+ * “…” or half-width straight "…" quotes while the rest of the reply uses
+ * 「」. normalizeCjkQuotes rewrites a pair to 「…」 only when it sits in a
+ * Chinese context (Han inside or directly beside the pair): pure-English
+ * quotes like "hello" and unpaired lone marks pass through byte-identical,
+ * as do fenced/inline code and URLs. The function is idempotent.
+ */
+export function normalizeCjkQuotes(text: string): string {
+  if (!HAN_CHAR.test(text)) return text;
+  let out = '';
+  let last = 0;
+  for (const match of text.matchAll(PROTECTED_SPAN)) {
+    out += convertQuoteSegment(text.slice(last, match.index));
+    out += match[0];
+    last = match.index + match[0].length;
+  }
+  return out + convertQuoteSegment(text.slice(last));
+}

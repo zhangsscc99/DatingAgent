@@ -7,6 +7,7 @@ import { usageMetrics } from '../lib/metrics.js';
 import { matchesAnyReply } from '../lib/reply-dedupe.js';
 import {
   normalizeChinesePunctuation,
+  normalizeCjkQuotes,
   stripManualLabels,
   stripPromptEcho,
   stripStageDirections,
@@ -432,8 +433,10 @@ export class AgentHarness {
       // persisted; if cleaning empties it, fall back the same way.
       // P279: also strip manual-style labels (「解析：」「避坑指南：」and
       // leading emoji) so the persisted and final streamed text agree.
-      const cleanedContent = normalizeChinesePunctuation(
-        stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? ''))),
+      const cleanedContent = normalizeCjkQuotes(
+        normalizeChinesePunctuation(
+          stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? ''))),
+        ),
       );
       const finalContent = cleanedContent.trim()
         ? cleanedContent
