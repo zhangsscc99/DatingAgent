@@ -13,8 +13,8 @@ import type { ChatMessage } from '../src/types';
 /**
  * P230 — sidebar filter body-match contract. The 筛选对话 box now matches
  * the session's message text, not only its auto-derived title; rows kept
- * only by a body hit show a dim excerpt under the title, and a
- * visually-hidden live region announces the result count. Behavioural
+ * only by a body hit show a dim excerpt under the title, and a live-region
+ * status line announces the result count (made visible by P319). Behavioural
  * blocks exercise the pure helpers (vitest runs in node, no DOM renderer);
  * source guards — same approach as session-filter.test.ts — lock in the
  * Sidebar wiring.
@@ -182,9 +182,11 @@ describe('P230 · sidebar filter matches message body', () => {
       expect(sidebar).toContain('{bodyMatch && (');
     });
 
-    it('announces the result count in a visually-hidden live region', () => {
+    it('announces the result count in a live-region status line', () => {
       expect(sidebar).toContain('找到 ');
-      expect(sidebar).toContain('className="sr-only" role="status" aria-live="polite"');
+      expect(sidebar).toContain(
+        'className="recent-chat-filter-count" role="status" aria-live="polite"',
+      );
       // P245: zero-match announcements come from the filter-empty-hint li;
       // this region never emits a second generic no-match message.
       const region = sidebar.slice(

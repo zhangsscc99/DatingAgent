@@ -202,10 +202,12 @@
   color: var(--text-muted);
 }
 
+/* P319: the accent border-color used to repaint the 1px border pink under
+   the 2px accent outline — two stacked pink rings on focus. A single
+   outline ring is the focus affordance; the border stays neutral. */
 .recent-chat-filter:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
-  border-color: var(--accent);
 }
 
 .recent-chat-list {
@@ -215,6 +217,17 @@
   gap: 4px;
   max-height: 160px;
   overflow-y: auto;
+}
+
+/* P319: the filter match count — a plain-text status line (replaces the
+   old sr-only announcement), readable at ≥12px and ≥4.5:1 on the sidebar
+   surface; collapses to zero height while the box is blank. */
+.recent-chat-filter-count {
+  display: block;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
 }
 
 .recent-chat-empty {
@@ -333,6 +346,15 @@
   white-space: nowrap;
   width: 100%;
   font-weight: 500;
+}
+
+/* P319: a filter hit renders as a real <mark> — visible accent chip with
+   zero vertical padding, so the row's line height never changes. */
+.recent-chat-item mark {
+  padding: 0 1px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 3px;
 }
 
 /* P230: body-match excerpt under the title — one dim, truncated line. */

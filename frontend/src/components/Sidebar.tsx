@@ -8,6 +8,7 @@ import type { StoredChatSession } from '../lib/chatStorage';
 import { CLEAR_ALL_LABEL } from '../lib/copy';
 import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
 import { formatRelativeTime, isRenderableTimestamp } from '../lib/relativeTime';
+import { highlightSegments } from '../lib/messageSearch';
 import { filterRecentSessions, matchSessionMessage } from '../lib/sessionFilter';
 import { FILTER_SESSIONS_HINT, FILTER_SESSIONS_LABEL } from '../lib/searchLabels';
 import { nextSessionIndex, sessionNavDirection } from '../lib/sessionListNav';
@@ -219,6 +220,21 @@ export default function Sidebar({
   const [trashOpen, setTrashOpen] = useState(false);
   const visibleSessions = filterRecentSessions(recentSessions, filterQuery);
   const sessionGroups = groupSessionsByDay(visibleSessions);
+  const trimmedQuery = filterQuery.trim().toLowerCase();
+
+  // P319: the keyword a row matched on is wrapped in a real <mark> — in the
+  // title for title hits, in the P230 excerpt for body-only hits — so the
+  // rendered range covers exactly what filterRecentSessions searched.
+  const highlightHit = (text: string) =>
+    !trimmedQuery
+      ? text
+      : highlightSegments(text, filterQuery).map((segment, i) =>
+          segment.hit ? (
+            <mark key={i}>{segment.text}</mark>
+          ) : (
+            <Fragment key={i}>{segment.text}</Fragment>
+          ),
+        );
 
   // P164: reconcile local filter/rename state whenever the stored session
   // list changes (row delete, 清空全部, or the P156 cross-tab sync swapping the
@@ -441,7 +457,6 @@ export default function Sidebar({
                     // body shows why — one dim excerpt line under the title.
                     // Title hits and empty queries add nothing, so rows never
                     // shift when the box is blank.
-                    const trimmedQuery = filterQuery.trim().toLowerCase();
                     const bodyMatch =
                       trimmedQuery &&
                       !s.title.toLowerCase().includes(trimmedQuery)
@@ -486,10 +501,12 @@ export default function Sidebar({
                               title={s.title}
                               aria-current={s.id === activeSessionId ? 'true' : undefined}
                             >
-                              <span className="recent-chat-title">{s.title}</span>
+                              <span className="recent-chat-title">
+                                {highlightHit(s.title)}
+                              </span>
                               {bodyMatch && (
                                 <span className="recent-chat-excerpt">
-                                  {bodyMatch.excerpt}
+                                  {highlightHit(bodyMatch.excerpt)}
                                 </span>
                               )}
                               <span className="recent-chat-meta">
@@ -541,8 +558,10 @@ export default function Sidebar({
               mounting the section never announces a count. P245: a zero-match
               query is already announced by the filter-empty-hint li's own
               aria-live, so this region stays silent there instead of doubling
-              the empty-state copy with a second generic message. */}
-          <span className="sr-only" role="status" aria-live="polite">
+              the empty-state copy with a second generic message. P319: the
+              count is also a visible plain-text status line — it used to be
+              sr-only, i.e. zero visual weight. */}
+          <span className="recent-chat-filter-count" role="status" aria-live="polite">
             {filterQuery.trim() && visibleSessions.length > 0
               ? `找到 ${visibleSessions.length} 段对话`
               : ''}
