@@ -5,6 +5,23 @@
   min-height: 0;
 }
 
+/* P293: the memory receipt — one dim line pinned at the head of the
+ * conversation naming what the agent remembers. Same restrained tone as
+ * .offline-note, single-line with ellipsis so it can never push the
+ * layout or wrap on narrow screens. */
+.memory-receipt {
+  flex-shrink: 0;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* P24: positioning context for the floating scroll-to-bottom button. */
 .messages-wrap {
   flex: 1;

@@ -22,6 +22,7 @@ import {
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
 import { canGenerateReply, needsReply } from '../lib/pendingReply';
 import { isOnboardingComplete } from '../lib/profileStorage';
+import { memoryReceiptLine } from '../lib/memoryReceipt';
 import { hasInteracted } from '../lib/interactionState';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
@@ -173,6 +174,16 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
         m.content.length > 0,
     );
 
+  // P293: the memory receipt — one quiet line pinned at the head of the
+  // conversation naming what the agent already remembers (stored profile
+  // fields, the reply-length preference). Nothing renders before a
+  // conversation exists or while a session is still being restored, and
+  // nothing renders when there is nothing remembered.
+  const memoryReceipt =
+    !restoring && messages.length > 0
+      ? memoryReceiptLine(profile, replyLength)
+      : null;
+
   // P19: client-side search over the rendered conversation.
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -322,6 +333,14 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
 
   return (
     <div className="chat-window">
+      {memoryReceipt && (
+        <p
+          className="memory-receipt"
+          title="来自你的资料与本对话的偏好设置"
+        >
+          {memoryReceipt}
+        </p>
+      )}
       <div className="messages-wrap">
         {errorToast && (
           <ErrorToast

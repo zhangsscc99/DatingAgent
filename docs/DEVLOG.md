@@ -217,3 +217,4 @@
 2026-11-18 02:56 | P290 | 首屏唯一主CTA：欢迎区新增实心 data-primary-cta「说说你的情况」聚焦输入框；welcome-cta/profile-nudge-btn 降为描边+次级文字色；空输入发送键改次级灰底、有内容才恢复品牌实心
 2026-11-18 03:11 | P291 | 页脚改人话「● 在线/有点忙，稍等/暂时连不上，稍等再试」+role=status，level/status 只留 title/aria；长度切换改意图短语「回答适中/简短一些/详细一些」，参数名仅留 title/aria；新增 footer-copy.test.ts
 2026-11-18 03:29 | P292 | 中文语境成对弯引号与半角直引号归一为「…」：新增normalizeCjkQuotes接入清洗流水线，纯英文引用/孤立引号/围栏与行内代码/URL逐字节不动；新增reply-quote-normalize.test.ts
+2026-11-18 03:47 | P293 | 会话头部新增「已记住：…」回执行（最多2条，来自资料 goals/interests/personality 与非默认回复长度偏好），无内容/无对话/恢复中不渲染；新增 lib/memoryReceipt.ts 与 memory-receipt.test.ts（10例）
