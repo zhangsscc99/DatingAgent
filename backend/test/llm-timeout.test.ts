@@ -85,7 +85,13 @@ describe('LLM upstream timeout (P166)', () => {
     expect(typeof body.error).toBe('string');
     expect(body.error).toContain('timed out');
     expect(typeof body.requestId).toBe('string');
-    expect(elapsed).toBeLessThan(1000);
+    // Wide margin on purpose: the production default upstream timeout (30s)
+    // is far above this bound, so anything under ~1.5s still proves the
+    // client fast-fails on a stalled upstream instead of waiting out the
+    // default. A hard 1000ms wall-clock bound flaked under full parallel
+    // load (observed 1021ms with all functional assertions green).
+    expect(elapsed).toBeGreaterThan(0);
+    expect(elapsed).toBeLessThan(1500);
   });
 
   it('/api/chat/stream emits an error event then closes when upstream stalls', async () => {

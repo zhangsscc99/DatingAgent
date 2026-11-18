@@ -5,7 +5,7 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 
 ## [BLOCKING] 机器验收阻塞项
 
-- [ ] **DAE2E-20261118 · 全量回归不稳定：`llm-timeout.test.ts > /api/chat returns 504 JSON with requestId within ~1s when upstream stalls` 墙钟阈值抖动**（实测 elapsed=1021ms vs `toBeLessThan(1000)`，功能断言全通过；单文件隔离 2 次与全量重跑 1 次均 1437/1437 全绿 → 满载并行下的时序脆弱，非功能回归）｜verify: `npm test`（失败日志 `/www/hermes-home/run/fulle2e-dating-20261118T1933Z.log`，重跑证据 `fulle2e-dating-rerun-20261118T1940Z.log`）｜risk: high
+- [x] **DAE2E-20261118 · 全量回归不稳定：`llm-timeout.test.ts > /api/chat returns 504 JSON with requestId within ~1s when upstream stalls` 墙钟阈值抖动**（实测 elapsed=1021ms vs `toBeLessThan(1000)`，功能断言全通过；单文件隔离 2 次与全量重跑 1 次均 1437/1437 全绿 → 满载并行下的时序脆弱，非功能回归）｜verify: `npm test`（失败日志 `/www/hermes-home/run/fulle2e-dating-20261118T1933Z.log`，重跑证据 `fulle2e-dating-rerun-20261118T1940Z.log`）｜risk: high｜fixed
   修法方向：断言改成带余量（如 <1500ms）或事件驱动（mock 上游 stall + 等待 504 事件），不要用硬 1000ms 墙钟。
 
 - [x] **F01 · Session lifecycle** — `GET /api/sessions` returns `{count, oldestAgeSec}` (no PII), `DELETE /api/session/:id` → `{deleted:true|false}`, plus idle-TTL eviction (30 min) and a 500-session cap in `routes/app.ts`. Acceptance: created session disappears after `DELETE`; `GET /api/session/:id` then 404s; health still 200.
