@@ -221,6 +221,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   }, [sessionId, searchOpen, query, activeIndex]);
 
   useEffect(() => {
+    // P294: an empty conversation shows the welcome block pinned to the top —
+    // the sentinel sits below it, so scrolling to it on first mount clips the
+    // heading. Only chase the tail when there is something to chase.
+    if (messages.length === 0 && !loading) return;
     bottomRef.current?.scrollIntoView({
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
     });

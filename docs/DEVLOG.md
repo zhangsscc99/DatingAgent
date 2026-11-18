@@ -219,3 +219,4 @@
 2026-11-18 03:29 | P292 | 中文语境成对弯引号与半角直引号归一为「…」：新增normalizeCjkQuotes接入清洗流水线，纯英文引用/孤立引号/围栏与行内代码/URL逐字节不动；新增reply-quote-normalize.test.ts
 2026-11-18 03:47 | P293 | 会话头部新增「已记住：…」回执行（最多2条，来自资料 goals/interests/personality 与非默认回复长度偏好），无内容/无对话/恢复中不渲染；新增 lib/memoryReceipt.ts 与 memory-receipt.test.ts（10例）
 2026-11-18 04:01 | P285 | sidebar section renamed to 进阶工具; five tool labels switched to user-facing phrases via TOOL_LABELS; added sidebar-section-titles smoke test
+2026-11-18 04:16 | P294 | empty-chat first screen no longer auto-scrolls to bottom: scrollIntoView effect in ChatWindow gated on messages.length>0||loading; new render-level test welcome-scroll-reset.test.ts (3 cases); browser 390x844 scrollTop=0, h1 top>=.messages top
