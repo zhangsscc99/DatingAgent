@@ -239,6 +239,40 @@ describe('P319 · filter hits render as <mark>', () => {
   });
 });
 
+describe('P333 · 找到 N 段对话 count sits above the result list', () => {
+  it('renders the single count element after the filter input and before the first result card', async () => {
+    const { dom, root } = await mountSidebar();
+    await typeFilter(dom, '看展');
+
+    const counts = dom.document.querySelectorAll('.recent-chat-filter-count');
+    expect(counts, 'exactly one count element').toHaveLength(1);
+    const count = counts[0];
+    expect(count.textContent).toMatch(/^找到 \d+ 段对话$/);
+    expect(
+      count.getAttribute('role') === 'status' ||
+        count.getAttribute('aria-live'),
+    ).toBeTruthy();
+
+    const ordered = dom.document.querySelectorAll(
+      'input.recent-chat-filter, .recent-chat-filter-count, .recent-chat-item',
+    );
+    const filterInput = ordered.find((el) =>
+      el.classList.contains('recent-chat-filter'),
+    )!;
+    const firstItem = ordered.find((el) =>
+      el.classList.contains('recent-chat-item'),
+    )!;
+    const countIdx = ordered.indexOf(count);
+    expect(ordered.indexOf(filterInput)).toBeGreaterThanOrEqual(0);
+    expect(countIdx).toBeGreaterThan(ordered.indexOf(filterInput));
+    expect(countIdx).toBeLessThan(ordered.indexOf(firstItem));
+
+    await act(async () => {
+      (root as Root).unmount();
+    });
+  });
+});
+
 describe('P319 · 找到 N 段对话 count typography', () => {
   const body = ruleBody(sidebarCss, '.recent-chat-filter-count');
 

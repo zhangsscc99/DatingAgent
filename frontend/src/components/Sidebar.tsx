@@ -432,6 +432,20 @@ export default function Sidebar({
             }}
           />
           )}
+          {/* P230: announce how many conversations the filter matched, at
+              most once per query change; blank while the box is empty so
+              mounting the section never announces a count. P245: a zero-match
+              query is already announced by the filter-empty-hint li's own
+              aria-live, so this region stays silent there instead of doubling
+              the empty-state copy with a second generic message. P319: the
+              count is also a visible plain-text status line — it used to be
+              sr-only, i.e. zero visual weight. P333: render it above the
+              result list so the count is read before the hits, not after. */}
+          <span className="recent-chat-filter-count" role="status" aria-live="polite">
+            {filterQuery.trim() && visibleSessions.length > 0
+              ? `找到 ${visibleSessions.length} 段对话`
+              : ''}
+          </span>
           {/* P247: a cleared/fresh history used to vanish the whole section —
               keep the heading and fill the list slot with one dim line instead
               of blank space. */}
@@ -575,19 +589,6 @@ export default function Sidebar({
               ))}
             </ul>
           )}
-          {/* P230: announce how many conversations the filter matched, at
-              most once per query change; blank while the box is empty so
-              mounting the section never announces a count. P245: a zero-match
-              query is already announced by the filter-empty-hint li's own
-              aria-live, so this region stays silent there instead of doubling
-              the empty-state copy with a second generic message. P319: the
-              count is also a visible plain-text status line — it used to be
-              sr-only, i.e. zero visual weight. */}
-          <span className="recent-chat-filter-count" role="status" aria-live="polite">
-            {filterQuery.trim() && visibleSessions.length > 0
-              ? `找到 ${visibleSessions.length} 段对话`
-              : ''}
-          </span>
           {/* P265: the way back from a delete — visible whenever either list
               holds something, above the eviction notice; a totally empty
               section hides the row entirely. */}
