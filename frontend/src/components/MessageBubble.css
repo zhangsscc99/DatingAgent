@@ -423,6 +423,12 @@
   color: var(--text-secondary);
 }
 
+/* P331: inside the action row the age label shares the pills' line — the
+   standalone margin would push it a few px below the button tops. */
+.bubble-actions > .reply-meta {
+  margin-top: 0;
+}
+
 .reply-meta-tool {
   background: var(--accent-soft);
   border-radius: 8px;

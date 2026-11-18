@@ -184,6 +184,40 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
     ? new Date(createdAt).toISOString()
     : '';
 
+  const showReplyMeta =
+    !isUser &&
+    !message.streaming &&
+    !message.error &&
+    !message.duplicateRegen &&
+    typeof message.meta?.tokens === 'number';
+
+  /* P331: the age label used to sit under the action pills as a third bottom
+     line (body → buttons → time). It now rides inside .bubble-actions as the
+     row's first item — one 「刚刚 · 复制 · 换一个」 line. When no action row
+     renders it still appears on its own line under the body. */
+  const replyMeta = showReplyMeta ? (
+    <div
+      className="reply-meta"
+      aria-hidden="true"
+      title={
+        typeof message.meta?.latencyMs === 'number'
+          ? `${message.meta.tokens} tokens · ${formatLatencySeconds(message.meta.latencyMs)}`
+          : `${message.meta?.tokens} tokens`
+      }
+    >
+      {/* P304: the 「约 X 秒」 badge leaves the body visual hierarchy —
+          the row shows the reply's age (「刚刚」 right after it lands)
+          while the exact seconds + tokens live only in the title. */}
+      {createdAtAbsolute ? (
+        <time dateTime={createdAtIso} title={createdAtAbsolute}>
+          {formatRelativeTime(message.createdAt)}
+        </time>
+      ) : (
+        <span>刚刚</span>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div
       className={`bubble-row animate-in ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}`}
@@ -316,6 +350,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
         )}
         {(canCopy || canRegen) && (
           <div className="bubble-actions">
+            {replyMeta}
             {canCopy && (
               <button
                 type="button"
@@ -437,28 +472,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             </button>
           </div>
         )}
-        {!isUser && !message.streaming && !message.error && !message.duplicateRegen && typeof message.meta?.tokens === 'number' && (
-          <div
-            className="reply-meta"
-            aria-hidden="true"
-            title={
-              typeof message.meta.latencyMs === 'number'
-                ? `${message.meta.tokens} tokens · ${formatLatencySeconds(message.meta.latencyMs)}`
-                : `${message.meta.tokens} tokens`
-            }
-          >
-            {/* P304: the 「约 X 秒」 badge leaves the body visual hierarchy —
-                the row shows the reply's age (「刚刚」 right after it lands)
-                while the exact seconds + tokens live only in the title. */}
-            {createdAtAbsolute ? (
-              <time dateTime={createdAtIso} title={createdAtAbsolute}>
-                {formatRelativeTime(message.createdAt)}
-              </time>
-            ) : (
-              <span>刚刚</span>
-            )}
-          </div>
-        )}
+        {!(canCopy || canRegen) && replyMeta}
       </div>
     </div>
   );
