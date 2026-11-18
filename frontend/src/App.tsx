@@ -1032,7 +1032,10 @@ export default function App() {
     else setShowOnboarding(true);
   };
 
-  const handleQuickPrompt = (prompt: string) => sendMessage(prompt);
+  // P316: a sidebar prompt entry (快捷入口 or 进阶工具) fills the composer
+  // with a ready-to-edit draft — prefill only, the user still presses send.
+  const handleQuickPrompt = (prompt: string) =>
+    chatWindowRef.current?.prefillComposer(prompt);
 
   // P196: one setter shared by the header select and the settings sheet so
   // the i18n logic (state + persistence) stays in exactly one place.

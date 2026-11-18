@@ -585,14 +585,38 @@
   gap: 4px;
 }
 
-.tool-item {
+/* P316 — every 进阶工具 row is a real button; the <li> is only a list
+   slot, so the button owns the full-row hit area and interaction states. */
+.tool-entry {
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 8px 10px;
   font-size: 13px;
+  font-family: inherit;
+  text-align: left;
   color: var(--text-muted);
+  background: none;
+  border: none;
   border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tool-entry:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.tool-entry:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tool-entry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .sidebar-footer {
@@ -731,9 +755,14 @@
     color: var(--text-secondary);
   }
 
-  .profile-goals-text,
-  .tool-item {
+  .profile-goals-text {
     color: var(--text-secondary);
+  }
+
+  /* P316 — tool rows get the full 44px touch target on phones. */
+  .tool-entry {
+    color: var(--text-secondary);
+    min-height: 44px;
   }
 
   /* P259 — settings-path touch targets were 19–29px tall on phones;

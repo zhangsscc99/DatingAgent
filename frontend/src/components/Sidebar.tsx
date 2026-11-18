@@ -22,6 +22,7 @@ import {
 import type { TrashEntry } from '../lib/chatTrash';
 import TrashSheet from './TrashSheet';
 import { toolDisplayName } from '../lib/toolLabels';
+import { toolPromptFor } from '../lib/toolPrompts';
 import type { ToolInfo, UserProfile } from '../types';
 import './Sidebar.css';
 
@@ -645,13 +646,30 @@ export default function Sidebar({
         <section className="sidebar-section" aria-label="进阶工具">
           <h3>进阶工具</h3>
           <ul className="tool-list">
-            {(tools.length ? tools : TOOL_FALLBACK).map(
-              (t) => (
+            {(tools.length ? tools : TOOL_FALLBACK).map((t) => {
+              // P316: every row is a real button — it drops a ready-to-edit
+              // starter question into the composer through the same
+              // onQuickPrompt prefill path the 快捷入口 entries use (no
+              // auto-send; the user still presses send). A tool id with no
+              // mapped intent is skipped rather than left as a dead row.
+              const prompt = toolPromptFor(t.name);
+              if (!prompt) return null;
+              return (
                 <li key={t.name} className="tool-item">
-                  {toolDisplayName(t.name) ?? t.label}
+                  <button
+                    type="button"
+                    className="tool-entry"
+                    onClick={() => onQuickPrompt(prompt)}
+                    disabled={busy}
+                    aria-disabled={busy || undefined}
+                    title={busy ? '回复生成中，请稍候' : undefined}
+                    aria-label={`进阶工具：${toolDisplayName(t.name) ?? t.label}`}
+                  >
+                    {toolDisplayName(t.name) ?? t.label}
+                  </button>
                 </li>
-              ),
-            )}
+              );
+            })}
           </ul>
         </section>
       </div>

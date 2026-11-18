@@ -59,9 +59,11 @@ describe('P285 · sidebar section titles carry no all-caps English', () => {
 
   it('the five tool entries show the new labels, in order', () => {
     const html = renderSidebar();
-    const items = [...html.matchAll(/class="tool-item">([^<]+)</g)].map(
-      (m) => m[1],
-    );
+    // P316: each .tool-item li wraps a real .tool-entry button — the label
+    // is the button's text content.
+    const items = [
+      ...html.matchAll(/<button[^>]*class="tool-entry"[^>]*>([^<]+)<\/button>/g),
+    ].map((m) => m[1]);
     expect(items).toEqual(['改资料', '接话术', '排约会', '看匹配', '关系建议']);
   });
 

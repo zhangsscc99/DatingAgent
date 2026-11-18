@@ -129,6 +129,9 @@ interface Props {
  * at every breakpoint — nothing floats over .messages-wrap anymore. */
 export interface ChatWindowHandle {
   openSearch: () => void;
+  /** P316: drop a ready-to-edit prompt into the composer — the same
+   * inputRef.prefill path the welcome chips use; never auto-sends. */
+  prefillComposer: (text: string) => void;
 }
 
 const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
@@ -325,7 +328,13 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     setSearchOpen(true);
     setActiveIndex(0);
   }, []);
-  useImperativeHandle(ref, () => ({ openSearch }), [openSearch]);
+  const prefillComposer = useCallback((text: string) => {
+    inputRef.current?.prefill(text);
+  }, []);
+  useImperativeHandle(ref, () => ({ openSearch, prefillComposer }), [
+    openSearch,
+    prefillComposer,
+  ]);
 
   const nextMatch = () => {
     if (matchCount > 0) setActiveIndex((i) => (i + 1) % matchCount);
