@@ -5,7 +5,12 @@ import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { resolveFocusEntity } from '../lib/focusEntity.js';
 import { usageMetrics } from '../lib/metrics.js';
 import { matchesAnyReply } from '../lib/reply-dedupe.js';
-import { stripManualLabels, stripPromptEcho, stripStageDirections } from '../lib/reply-clean.js';
+import {
+  normalizeChinesePunctuation,
+  stripManualLabels,
+  stripPromptEcho,
+  stripStageDirections,
+} from '../lib/reply-clean.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
 
 /**
@@ -427,7 +432,9 @@ export class AgentHarness {
       // persisted; if cleaning empties it, fall back the same way.
       // P279: also strip manual-style labels (「解析：」「避坑指南：」and
       // leading emoji) so the persisted and final streamed text agree.
-      const cleanedContent = stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? '')));
+      const cleanedContent = normalizeChinesePunctuation(
+        stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? ''))),
+      );
       const finalContent = cleanedContent.trim()
         ? cleanedContent
         : fallbackFromToolResults(messages);

@@ -11,3 +11,6 @@ backend/src/generated/
 # local secrets/process config
 ecosystem.config.cjs
 scripts/make-ecosystem.py
+
+# walkthrough screenshots written by the product-walkthrough job (never committed)
+docs/runs/

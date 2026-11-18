@@ -60,3 +60,42 @@ export function stripPromptEcho(text: string): string {
   if (!match) return text;
   return text.slice(match[0].length).replace(/^[ \t\n]+/, '');
 }
+
+// P282: spans that must never be rewritten — fenced code blocks (unclosed
+// trailing fences included), inline `code`, and URLs.
+const PROTECTED_SPAN = /```[\s\S]*?(?:```|$)|`[^`\n]*`|https?:\/\/\S+/gu;
+
+// `,`/`?`/`!` convert when directly between two Han characters or directly
+// after a Han character at end-of-sentence (followed by whitespace or end).
+const HALF_AFTER_HAN = /(?<=\p{Script=Han})[,?!](?=[\p{Script=Han}\s]|$)/gu;
+// `:` converts only directly after a Han character when followed by a Han
+// character or whitespace, so「12:30」and「https://…」stay intact.
+const COLON_AFTER_HAN = /(?<=\p{Script=Han}):(?=[\p{Script=Han}\s])/gu;
+
+const FULL_WIDTH: Record<string, string> = { ',': '，', '?': '？', '!': '！' };
+
+function convertSegment(segment: string): string {
+  return segment
+    .replace(HALF_AFTER_HAN, (ch) => FULL_WIDTH[ch] ?? ch)
+    .replace(COLON_AFTER_HAN, '：');
+}
+
+/**
+ * P282 — the model occasionally leaks half-width `,` `?` `!` `:` next to Han
+ * characters (「等了,把手机放远一点?」). normalizeChinesePunctuation rewrites
+ * only those to full-width，？！： — pure-ASCII segments, fenced/inline code
+ * and URLs are returned byte-identical, and digit-adjacent marks like
+ * 「1,000」/「12:30」have no Han neighbour so they are never touched. The
+ * function is idempotent: full-width output no longer matches the rules.
+ */
+export function normalizeChinesePunctuation(text: string): string {
+  if (!/\p{Script=Han}/u.test(text)) return text;
+  let out = '';
+  let last = 0;
+  for (const match of text.matchAll(PROTECTED_SPAN)) {
+    out += convertSegment(text.slice(last, match.index));
+    out += match[0];
+    last = match.index + match[0].length;
+  }
+  return out + convertSegment(text.slice(last));
+}
