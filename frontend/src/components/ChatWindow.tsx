@@ -575,7 +575,9 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
         )}
 
         {!restoring && !searchOpen && messages.length === 0 && (
-          <div className="welcome animate-in">
+          // P337: `.hero` marks the empty-state content block — the first
+          // screen's vertical-balance contract measures its top/bottom gaps.
+          <div className="welcome hero animate-in">
             <h2>
               {profile?.name ? `你好，${profile.name}！` : '你好，我是 DatingAgent'}
             </h2>

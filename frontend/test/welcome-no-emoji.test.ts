@@ -22,7 +22,8 @@ const onboarding = read('components/ProfileOnboarding.tsx');
 const EMOJI = /\p{Extended_Pictographic}/u;
 
 const welcomeBlock = chatWindow.slice(
-  chatWindow.indexOf('className="welcome animate-in"'),
+  // P337: the welcome block also carries the `.hero` balance-hook class.
+  chatWindow.indexOf('className="welcome hero animate-in"'),
   chatWindow.indexOf('renderedMessages.map'),
 );
 

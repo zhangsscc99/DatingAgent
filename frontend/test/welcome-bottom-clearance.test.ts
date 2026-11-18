@@ -14,10 +14,18 @@ import { fileURLToPath } from 'node:url';
  * last card is fully visible at first paint and — whenever the column still
  * overflows — scrolling to the end leaves it clear of the input bar.
  *
+ * P337 — P336 collapsed the three feature cards into one quiet line, so the
+ * column no longer overflows at 390×844 and the composer-height pad lost
+ * its job: inside the centred block it pushed the visible content ~75px
+ * above middle and left a dead gap above the composer. The pad is now a
+ * modest near-symmetric one (24px) — the equal .messages bookends centre
+ * the block; the tightened top rhythm and the desktop rules below are
+ * unchanged.
+ *
  * No DOM renderer ships with this repo, so the geometry is asserted on the
  * resolved CSS values in the style of desktop-column-width.test.ts /
  * sidebar-390-overflow.test.ts: the composer height is derived from the
- * InputBar.css constants, and the welcome padding must meet or exceed it.
+ * InputBar.css constants, and the welcome padding now stays well under it.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -135,14 +143,19 @@ function composerHeightPx(): number {
 }
 
 describe('P307 · welcome bottom clearance (≤768px)', () => {
-  it('carries a padding-bottom at least as tall as the composer', () => {
+  it('keeps a modest scroll-end air gap — the composer-height pad is gone (P337)', () => {
     const welcome = ruleBody(mobileChat, '.welcome');
     expect(welcome).not.toBe('');
     const padBottom = paddingBottomPx(welcome);
     expect(padBottom).not.toBeNull();
     // Derived from InputBar.css: ~150px at ≤768px (measured 153px live).
+    // P337: the pad no longer needs to swallow the composer — the overflow
+    // it guarded is gone — it only leaves breathing room at scroll end:
+    // no less than the pad-top, and well under the composer's own height.
     expect(composerHeightPx()).toBeGreaterThanOrEqual(140);
-    expect(padBottom!).toBeGreaterThanOrEqual(composerHeightPx());
+    const padTop = boxTopPx(welcome, 'padding')!;
+    expect(padBottom!).toBeGreaterThanOrEqual(padTop);
+    expect(padBottom!).toBeLessThanOrEqual(composerHeightPx() / 2);
   });
 
   it('lifts the whole welcome block so the third card clears the composer at first paint', () => {

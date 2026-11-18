@@ -21,7 +21,8 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const chatWindow = readFileSync(join(SRC, 'components', 'ChatWindow.tsx'), 'utf8');
 
 const welcomeBlock = chatWindow.slice(
-  chatWindow.indexOf('className="welcome animate-in"'),
+  // P337: the welcome block also carries the `.hero` balance-hook class.
+  chatWindow.indexOf('className="welcome hero animate-in"'),
   chatWindow.indexOf('renderedMessages.map'),
 );
 
@@ -41,7 +42,7 @@ function renderEmptyState() {
 describe('P229 · empty-state hero copy carries no framework jargon', () => {
   it('renders none of the jargon strings in the empty-state markup', () => {
     const html = renderEmptyState();
-    expect(html).toContain('class="welcome animate-in"');
+    expect(html).toContain('class="welcome hero animate-in"');
     for (const word of JARGON) {
       expect(html).not.toContain(word);
     }

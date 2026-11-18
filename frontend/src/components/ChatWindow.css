@@ -355,16 +355,16 @@
     padding: 16px;
   }
 
-  /* P307 — at 390×844 the welcome column overflows the scrollport by ~69px
-     and the third feature card's bottom edge lands flush on the fixed-height
-     composer, so the first screen reads as half-loaded. The tightened
-     top-side rhythm lifts the whole welcome block ~40px so the last card
-     sits visibly above the composer at first paint, and the bottom padding
-     (≥ the ~153px composer height) guarantees that whenever the content
-     still overflows, scrolling to the end leaves the card fully clear of
-     the input bar. Desktop keeps its own padding/centering untouched. */
+  /* P337 — P336 collapsed the three feature cards into one quiet line, so
+     the welcome column no longer overflows the scrollport at 390×844 and
+     the P307 ≥150px bottom pad lost its job: living INSIDE the centred
+     block, it shoved the visible content ~75px above middle and left the
+     dead gap the walkthrough flagged. The pad now sits near-symmetric with
+     the top — enough scroll-end air to keep the block clear of the
+     composer — while the equal .messages bookends centre it. The tightened
+     top-side rhythm below is unchanged. */
   .welcome {
-    padding: 10px 12px 160px;
+    padding: 10px 12px 24px;
   }
 
   .welcome > p {
