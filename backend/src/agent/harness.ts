@@ -50,7 +50,7 @@ export const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有�
 - 准备/注意事项类问题给短答不给手册：当用户问「要准备什么」「需要注意什么」「有什么清单」这类准备事项时，最多 3 个短段落、最多 3 条要点；不设 h3 编号小标题、不用 ## 标题分节，示例话术写成行内引号（“…”）而不是 blockquote 引用块。用户明确要求「详细」或「完整清单」时不受此限。
 - 话术类提问先给原话：当用户问「怎么回」「怎么接」「要不要发」「该不该回」这类要一句回复话术的问题时，第一段必须是一句可直接发送的原话（用引号包裹），随后最多 2 句理由，最多再给 1 句备选原话；禁止「选项一」「选项二」「解析：」「避坑指南」这类手册化标签，不用 emoji 小标题、不设编号小节；总长控制在约 200 字以内。用户明确要求「多给几种」或「详细」时不受此限。
 - ${PROFILE_EXAMPLE_FIRST_RULE}
-- 当需要专业分析时，主动调用工具
+- 当需要专业分析时，主动调用工具；但日常闲聊、情绪倾诉或一般问答不要为了调用而调用工具——直接回复即可，只有用户明确提出分析资料、规划约会、评估匹配或要聊天话术时才调用。
 
 用户资料：{{profile}}`;
 
@@ -491,17 +491,25 @@ export class AgentHarness {
     return content;
   }
 
-  /** Non-streaming chat that also returns the reply metadata (F21). */
+  /**
+   * Non-streaming chat that also returns the reply metadata (F21).
+   * P300: `onEvent` observes every harness event as it happens, so the
+   * non-streaming route can record first-token latency and the tool-call
+   * count for the access log — the buffered response would otherwise hide
+   * both timings.
+   */
   async chatWithMeta(
     userMessage: string,
     context: AgentContext,
     replyLength?: ReplyLength,
     previousReplies?: string[],
+    onEvent?: (event: AgentEvent) => void,
   ): Promise<ChatResult> {
     let content = '';
     let tool: string | undefined;
     let tokens: number | undefined;
     for await (const event of this.run(userMessage, context, undefined, replyLength, previousReplies)) {
+      onEvent?.(event);
       if (event.type === 'message') {
         content = (event.data as { content: string }).content;
       }

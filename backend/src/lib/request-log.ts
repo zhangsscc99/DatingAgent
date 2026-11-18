@@ -12,6 +12,14 @@ export interface RequestLogLine {
   msgLen: number;
   /** P231: ms from request start to the first SSE event, when measured. */
   firstEventMs?: number;
+  /**
+   * P300: ms from request start to the first content-bearing event (the
+   * user-visible "first character"). Unlike firstEventMs — which fires on
+   * the instant `thinking` beat — this tracks real model latency.
+   */
+  firstTokenMs?: number;
+  /** P300: tool calls the turn executed (each costs an extra upstream round trip). */
+  toolCalls?: number;
 }
 
 /**
@@ -95,6 +103,14 @@ export function createRequestLogger(
       // the access log shows time-to-first-byte separately from total ms.
       const firstEventMs = res.locals.firstEventMs;
       if (typeof firstEventMs === 'number') line.firstEventMs = firstEventMs;
+
+      // P300: first content token and executed tool-call count, when the
+      // chat routes recorded them — separates model latency from the full
+      // request duration and exposes tool-turn double calls.
+      const firstTokenMs = res.locals.firstTokenMs;
+      if (typeof firstTokenMs === 'number') line.firstTokenMs = firstTokenMs;
+      const toolCalls = res.locals.toolCalls;
+      if (typeof toolCalls === 'number') line.toolCalls = toolCalls;
 
       try {
         // JSON.stringify escapes newlines, so a hostile path cannot forge extra lines.

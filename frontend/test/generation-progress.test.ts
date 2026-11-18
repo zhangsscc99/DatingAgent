@@ -41,6 +41,36 @@ describe('P272 · generationProgressLabel copy', () => {
   });
 });
 
+describe('P300 · progress visible from the first pending second', () => {
+  const app = read('App.tsx');
+  const bubble = read('components/MessageBubble.tsx');
+
+  it('the send path mounts a streaming thinking placeholder synchronously', () => {
+    // runSend appends the pending bubble before the fetch starts, so the
+    // progress label is on screen at t≈0 — not after the first SSE event.
+    expect(app).toContain('streaming: true');
+    expect(app).toContain("streamPhase: 'thinking'");
+  });
+
+  it('the progress label needs no waiting timer — it renders at t=0', () => {
+    // waitingLabel may be undefined on the very first frame; progressLabel
+    // alone still feeds the indicator slot.
+    expect(bubble).toContain('progressLabel ?? waitingLabel');
+    expect(generationProgressLabel(0, true)).toBe('正在组织答案');
+  });
+
+  it('the counter keeps updating as characters stream in', () => {
+    const counts = [1, 12, 37, 38, 500].map((n) => generationProgressLabel(n, true));
+    expect(counts).toEqual([
+      '已生成 1 字',
+      '已生成 12 字',
+      '已生成 37 字',
+      '已生成 38 字',
+      '已生成 500 字',
+    ]);
+  });
+});
+
 describe('P272 · wiring guards', () => {
   const bubble = read('components/MessageBubble.tsx');
 

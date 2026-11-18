@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AgentHarness, createSession, parseReplyLanguage, parseReplyLength } from '../agent/harness.js';
-import type { AgentContext, ChatResult, ReplyLanguage, UserProfile } from '../agent/types.js';
+import type { AgentContext, AgentEvent, ChatResult, ReplyLanguage, UserProfile } from '../agent/types.js';
 import { buildHealthReport, buildVerboseHealth } from '../lib/health.js';
 import { apiErrors } from '../lib/last-error.js';
 import { buildVersionReport } from '../lib/version.js';
@@ -79,6 +79,8 @@ function touchSession(id: string | undefined, now = Date.now()): AgentContext | 
 export interface AppOptions {
   llmConfigured?: boolean;
   llmModel?: string;
+  /** P300: access-log sink override for tests; defaults to stdout. */
+  requestLogWriter?: (line: string) => void;
 }
 
 /** Loopback-only guard for localhost admin surfaces (verbose health, metrics reset). */
@@ -110,6 +112,31 @@ function resolveChatSession(
   if (sessionId?.trim()) created.sessionId = sessionId;
   putSession(created);
   return created;
+}
+
+/**
+ * P300 — per-request recorder for the access-log latency fields. The first
+ * `delta`/`message` event carrying text is the user-visible first
+ * character; `tool_start` events count the extra upstream round trips a
+ * tool turn serialises. Both land on `res.locals`, which request-log.ts
+ * copies onto the JSON access line (`firstTokenMs`, `toolCalls`).
+ */
+function createChatLatencyRecorder(res: express.Response, startedAt: number) {
+  let firstTokenRecorded = false;
+  return {
+    onEvent(ev: AgentEvent): void {
+      if (!firstTokenRecorded && (ev.type === 'delta' || ev.type === 'message')) {
+        const content = (ev.data as { content?: unknown }).content;
+        if (typeof content === 'string' && content.length > 0) {
+          firstTokenRecorded = true;
+          res.locals.firstTokenMs = Date.now() - startedAt;
+        }
+      }
+      if (ev.type === 'tool_start') {
+        res.locals.toolCalls = (res.locals.toolCalls ?? 0) + 1;
+      }
+    },
+  };
 }
 
 export function createApp(options: AppOptions = {}) {
@@ -153,7 +180,7 @@ export function createApp(options: AppOptions = {}) {
     next();
   });
   // Registered before the body parser so even rejected payloads get a log line.
-  app.use(createRequestLogger());
+  app.use(createRequestLogger(options.requestLogWriter));
   // P147: clickjacking guard on every response — static, SPA and /api alike.
   app.use((_req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY');
@@ -358,9 +385,16 @@ export function createApp(options: AppOptions = {}) {
 
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
     const startedAt = Date.now();
+    const latency = createChatLatencyRecorder(res, startedAt);
 
     try {
-      const { content, meta } = await harness.chatWithMeta(sanitized, session, parseReplyLength(replyLength), avoidReplies);
+      const { content, meta } = await harness.chatWithMeta(
+        sanitized,
+        session,
+        parseReplyLength(replyLength),
+        avoidReplies,
+        latency.onEvent,
+      );
       usageMetrics.recordChat(Date.now() - startedAt, true);
       // F21: meta omitted entirely when tokens are unknown (badge stays hidden).
       const replyMeta =
@@ -432,6 +466,10 @@ export function createApp(options: AppOptions = {}) {
     // P231: first SSE event latency lands on the access log line as
     // `firstEventMs`, so tool-turn waits are measurable from the log.
     let firstEventRecorded = false;
+    // P300: first CONTENT event (delta/message) latency + executed tool
+    // count land as `firstTokenMs`/`toolCalls` — the user-visible first
+    // character and the double-upstream-call signal, respectively.
+    const latency = createChatLatencyRecorder(res, startedAt);
     try {
       for await (const ev of harness.run(sanitized, session, controller.signal, parseReplyLength(replyLength), avoidReplies)) {
         // Socket already closed: stop before writing to it again.
@@ -440,6 +478,7 @@ export function createApp(options: AppOptions = {}) {
           firstEventRecorded = true;
           res.locals.firstEventMs = Date.now() - startedAt;
         }
+        latency.onEvent(ev);
         let event = ev;
         if (event.type === 'done') {
           // F21: attach the request latency so the UI can show the meta badge.
