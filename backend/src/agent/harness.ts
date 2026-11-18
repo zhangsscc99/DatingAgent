@@ -77,6 +77,18 @@ const REPLY_LENGTH_DIRECTIVES: Record<ReplyLength, string> = {
   detailed: '\n\n请把回复写得更详细一些，给出更完整的步骤和例子。',
 };
 
+/**
+ * P301 — the 「回答适中」 tier appended nothing at all, so default replies
+ * ran 600+ characters across four dense paragraphs (≈1.5–2 phone screens,
+ * reading like an article instead of a chat answer). The default tier now
+ * carries its own length contract; concise/detailed keep their existing
+ * single-sentence hints. Kept free of the concise/detailed wording so the
+ * P196 prompt-equality assertions still pin the difference.
+ */
+export const DEFAULT_LENGTH_DIRECTIVE =
+  '\n\n回复长度（适中档）：控制在 320 字以内，最多 4 段，每段最多 2 句；' +
+  '不要小标题、编号清单或 emoji。';
+
 /** Accepted `replyLength` values on the chat endpoints. */
 export const REPLY_LENGTHS: readonly ReplyLength[] = ['concise', 'detailed'];
 
@@ -155,7 +167,7 @@ export function buildSystemPrompt(
   return (
     SYSTEM_PROMPT.replace('{{profile}}', JSON.stringify(profile, null, 2)) +
     LANGUAGE_DIRECTIVES[language] +
-    (replyLength ? REPLY_LENGTH_DIRECTIVES[replyLength] : '')
+    (replyLength ? REPLY_LENGTH_DIRECTIVES[replyLength] : DEFAULT_LENGTH_DIRECTIVE)
   );
 }
 

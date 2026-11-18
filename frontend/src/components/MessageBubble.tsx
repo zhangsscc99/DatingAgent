@@ -6,7 +6,7 @@ import type { ChatMessage } from '../types';
 import { copyText } from '../lib/clipboard';
 import { highlightSegments } from '../lib/messageSearch';
 import { normalizeMarkdownTables } from '../lib/markdownTables';
-import { shouldCollapseReply, visibleReplyContent } from '../lib/replyCollapse';
+import { replyCollapseReason, shouldCollapseReply, visibleReplyContent } from '../lib/replyCollapse';
 import { formatLatencySeconds, formatReplyLatency } from '../lib/relativeTime';
 import { generationProgressLabel } from '../lib/generationProgress';
 import {
@@ -126,6 +126,10 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
   // expanding swaps in the full text without touching the scroll position.
   const collapsible =
     !isUser && !message.streaming && !message.error && shouldCollapseReply(message.content);
+  // P301: a >3-paragraph reply collapses even under the char limit — its
+  // toggle reads 「展开更多」; the char-only path keeps 「展开全文」.
+  const paragraphCollapsed =
+    collapsible && replyCollapseReason(message.content) === 'paragraphs';
   if (collapsible && !replyExpanded) {
     markdownContent = normalizeMarkdownTables(visibleReplyContent(message.content, false));
   }
@@ -242,10 +246,22 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             className="collapse-toggle"
             onClick={() => setReplyExpanded((v) => !v)}
             aria-expanded={replyExpanded}
-            aria-label={replyExpanded ? '收起回复全文' : '展开回复全文'}
-            title={replyExpanded ? '收起' : '展开全文'}
+            aria-label={
+              replyExpanded
+                ? '收起回复全文'
+                : paragraphCollapsed
+                  ? '展开更多回复段落'
+                  : '展开回复全文'
+            }
+            title={
+              replyExpanded ? '收起' : paragraphCollapsed ? '展开更多' : '展开全文'
+            }
           >
-            {replyExpanded ? '收起' : '展开全文'}
+            {paragraphCollapsed ? (
+              replyExpanded ? '收起' : '展开更多'
+            ) : (
+              <>{replyExpanded ? '收起' : '展开全文'}</>
+            )}
           </button>
         )}
         {message.stopped && (

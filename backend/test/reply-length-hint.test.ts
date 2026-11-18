@@ -5,16 +5,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildSystemPrompt, parseReplyLength } from '../src/agent/harness.js';
 
 /**
- * P196 — reply-length hint plumbing. 默认 sends no field and builds the
- * unmodified system prompt; 详细/精简 append exactly one sentence. The route
- * block proves the optional field end-to-end against a stub upstream that
- * captures the system message the harness sends.
+ * P196 — reply-length hint plumbing. 详细/精简 append exactly one sentence;
+ * 默认 (no field) is identical to the two-argument call — since P301 it
+ * carries the moderate length directive, but never the concise/detailed
+ * wording. The route block proves the optional field end-to-end against a
+ * stub upstream that captures the system message the harness sends.
  */
 
 describe('P196 · buildSystemPrompt length directive', () => {
   const profile = { name: '小林', age: 28 };
 
-  it('默认 omits the hint — prompt identical to the two-argument call', () => {
+  it('默认 omits the concise/detailed hint — prompt identical to the two-argument call', () => {
     const base = buildSystemPrompt(profile, 'auto');
     expect(buildSystemPrompt(profile, 'auto', undefined)).toBe(base);
     expect(base).not.toContain('更精简');
@@ -111,7 +112,7 @@ describe('P196 · /api/chat replyLength end-to-end', () => {
     return messages?.[0]?.content ?? '';
   };
 
-  it('omits the hint on the default path (no field sent)', async () => {
+  it('omits the concise/detailed hint on the default path (no field sent)', async () => {
     const res = await postChat({ message: '默认长度' });
     expect(res.status).toBe(200);
     await res.text();
