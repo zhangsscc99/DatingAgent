@@ -79,7 +79,9 @@ describe('P205 · composer reply-length toggle', () => {
     it('renders in the composer tool row with the current 档位 in its name', () => {
       const html = renderBar({ replyLength: 'default' });
       expect(html).toContain('reply-length-toggle');
-      expect(html).toContain('aria-label="回复长度：默认，点击切换为精简"');
+      expect(html).toContain(
+        'aria-label="回复长度：回答适中（默认档），点击切换为回答简短一些（精简档）"',
+      );
       // It sits on the same flex row as the ⌨ hint button, before it.
       expect(html.indexOf('reply-length-toggle')).toBeLessThan(
         html.indexOf('input-hint-btn'),
@@ -88,16 +90,18 @@ describe('P205 · composer reply-length toggle', () => {
 
     it('names the click outcome for every 档位', () => {
       expect(replyLengthToggleAriaLabel('default')).toBe(
-        '回复长度：默认，点击切换为精简',
+        '回复长度：回答适中（默认档），点击切换为回答简短一些（精简档）',
       );
       expect(replyLengthToggleAriaLabel('concise')).toBe(
-        '回复长度：精简，点击切换为详细',
+        '回复长度：回答简短一些（精简档），点击切换为回答详细一些（详细档）',
       );
       expect(replyLengthToggleAriaLabel('detailed')).toBe(
-        '回复长度：详细，点击切换为默认',
+        '回复长度：回答详细一些（详细档），点击切换为回答适中（默认档）',
       );
       const html = renderBar({ replyLength: 'detailed' });
-      expect(html).toContain('aria-label="回复长度：详细，点击切换为默认"');
+      expect(html).toContain(
+        'aria-label="回复长度：回答详细一些（详细档），点击切换为回答适中（默认档）"',
+      );
     });
 
     it('carries no emoji glyphs, only text', () => {
@@ -182,64 +186,41 @@ describe('P205 · composer reply-length toggle', () => {
     });
   });
 
-  describe('P215 · narrow-width label keeps the unit word', () => {
-    it('renders a narrow-only short prefix that names the unit', () => {
-      const html = renderBar({ replyLength: 'default' });
-      // Both prefixes render in markup; CSS picks which one is visible.
-      expect(html).toContain('reply-length-prefix-narrow');
-      const narrow = html.slice(
-        html.indexOf('reply-length-prefix-narrow'),
-        html.indexOf('input-hint'),
-      );
-      expect(narrow).toContain('长度·');
-      expect(narrow).toContain('默认');
-      // The long prefix is still present for ≥431 px.
-      expect(html).toContain('回复长度·');
+  describe('P291 · visible copy speaks intent at every width', () => {
+    const toggleInnerText = (html: string) => {
+      const start = html.indexOf('reply-length-toggle');
+      const openEnd = html.indexOf('>', start);
+      return html.slice(openEnd + 1, html.indexOf('</button>', openEnd));
+    };
+
+    it('shows an intent phrase instead of the 档位 name', () => {
+      for (const [pref, label] of [
+        ['default', '回答适中'],
+        ['concise', '回答简短一些'],
+        ['detailed', '回答详细一些'],
+      ] as const) {
+        const text = toggleInnerText(renderBar({ replyLength: pref }));
+        expect(text).toBe(label);
+        // The visible text is the intent phrase — never a bare 档位 name.
+        expect(['默认', '精简', '详细']).not.toContain(text);
+      }
     });
 
-    it('the narrow label changes with the tier', () => {
-      for (const [pref, label] of [
-        ['default', '默认'],
-        ['concise', '精简'],
-        ['detailed', '详细'],
-      ] as const) {
-        const html = renderBar({ replyLength: pref });
-        const narrow = html.slice(
-          html.indexOf('reply-length-prefix-narrow'),
-          html.indexOf('input-hint'),
-        );
-        expect(narrow).toContain(`长度·`);
-        expect(narrow).toContain(label);
-      }
+    it('the intent phrase is self-describing — no width-dependent prefix spans', () => {
+      const html = renderBar({ replyLength: 'default' });
+      expect(html).not.toContain('reply-length-prefix');
+      const css = read('components/InputBar.css');
+      expect(css).not.toContain('.reply-length-prefix');
     });
 
     it('keeps the full aria-label at every width', () => {
       const html = renderBar({ replyLength: 'default' });
-      expect(html).toContain('aria-label="回复长度：默认，点击切换为精简"');
-      // The narrow span must not leak into the accessible name.
-      const narrow = html.slice(
-        html.indexOf('reply-length-prefix-narrow'),
-        html.indexOf('input-hint'),
-      );
-      expect(narrow).toContain('aria-hidden="true"');
-    });
-
-    it('CSS shows the short prefix only at ≤430 px', () => {
-      const css = read('components/InputBar.css');
-      expect(css).toMatch(
-        /\.reply-length-prefix-narrow\s*\{\s*display:\s*none/,
-      );
-      const media = css.match(
-        /@media \(max-width: 430px\) \{[\s\S]*?\n\}/,
-      )?.[0];
-      expect(media).toBeTruthy();
-      expect(media).toMatch(/\.reply-length-prefix\s*\{\s*display:\s*none/);
-      expect(media).toMatch(
-        /\.reply-length-prefix-narrow\s*\{\s*display:\s*inline/,
+      expect(html).toContain(
+        'aria-label="回复长度：回答适中（默认档），点击切换为回答简短一些（精简档）"',
       );
     });
 
-    it('默认 still sends no hint under the narrow label', () => {
+    it('默认 still sends no hint under the intent label', () => {
       const body = buildChatRequestBody({
         sessionId: 's-1',
         message: '你好',
@@ -276,7 +257,9 @@ describe('P205 · composer reply-length toggle', () => {
       // Sheet writes concise → App state updates → InputBar re-renders.
       const html = renderBar({ replyLength: 'concise' });
       expect(html).toContain('data-length="concise"');
-      expect(html).toContain('aria-label="回复长度：精简，点击切换为详细"');
+      expect(html).toContain(
+        'aria-label="回复长度：回答简短一些（精简档），点击切换为回答详细一些（详细档）"',
+      );
     });
   });
 });

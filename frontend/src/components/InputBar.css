@@ -305,26 +305,6 @@
   }
 }
 
-/* P215: the narrow-only short prefix stays hidden at ≥431 px so the toggle
-   reads 「回复长度·默认」 on wide viewports. */
-.reply-length-prefix-narrow {
-  display: none;
-}
-
-/* P215: at the P193 narrow breakpoint (≤430 px) the long prefix swaps for
-   the short one — the toggle reads 「长度·默认」 so the unit word survives
-   on phones instead of collapsing to a bare 「默认」 status label. The
-   aria-label still names the control in full. */
-@media (max-width: 430px) {
-  .reply-length-prefix {
-    display: none;
-  }
-
-  .reply-length-prefix-narrow {
-    display: inline;
-  }
-}
-
 /* P195: in the 431–599 px band the full placeholder wraps to three lines
    (~84 px scrollHeight) and the 60 px box clips the last line — grow the
    textarea only; the send button row and everything else stay put. Must

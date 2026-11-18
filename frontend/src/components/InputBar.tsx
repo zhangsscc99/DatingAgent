@@ -389,12 +389,6 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
             aria-label={replyLengthToggleAriaLabel(replyLength)}
             title={replyLengthToggleAriaLabel(replyLength)}
           >
-            <span className="reply-length-prefix" aria-hidden="true">
-              回复长度·
-            </span>
-            <span className="reply-length-prefix-narrow" aria-hidden="true">
-              长度·
-            </span>
             {replyLengthLabel(replyLength)}
           </button>
         )}

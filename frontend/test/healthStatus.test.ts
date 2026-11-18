@@ -37,18 +37,18 @@ describe('P27 · footerLevel / statusLabel', () => {
   it('is ok only when reachable with an ok status', () => {
     const s = snap({ status: 'ok', lastCheckedAt: 1 });
     expect(footerLevel(s)).toBe('ok');
-    expect(statusLabel(s)).toBe('运行正常');
+    expect(statusLabel(s)).toBe('● 在线');
   });
 
   it('warns on a degraded payload', () => {
     const s = snap({ status: 'degraded', lastCheckedAt: 1 });
     expect(footerLevel(s)).toBe('warn');
-    expect(statusLabel(s)).toBe('服务降级');
+    expect(statusLabel(s)).toBe('● 有点忙，稍等');
   });
 
   it('warns on fetch failure even when the last known status was ok', () => {
     const s = snap({ status: 'ok', reachable: false, lastCheckedAt: 2 });
     expect(footerLevel(s)).toBe('warn');
-    expect(statusLabel(s)).toBe('无法连接');
+    expect(statusLabel(s)).toBe('暂时连不上，稍等再试');
   });
 });
