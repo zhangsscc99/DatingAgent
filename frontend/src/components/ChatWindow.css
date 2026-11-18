@@ -194,8 +194,32 @@
     padding: 16px;
   }
 
+  /* P307 — at 390×844 the welcome column overflows the scrollport by ~69px
+     and the third feature card's bottom edge lands flush on the fixed-height
+     composer, so the first screen reads as half-loaded. The tightened
+     top-side rhythm lifts the whole welcome block ~40px so the last card
+     sits visibly above the composer at first paint, and the bottom padding
+     (≥ the ~153px composer height) guarantees that whenever the content
+     still overflows, scrolling to the end leaves the card fully clear of
+     the input bar. Desktop keeps its own padding/centering untouched. */
   .welcome {
-    padding: 24px 12px;
+    padding: 10px 12px 160px;
+  }
+
+  .welcome > p {
+    margin-bottom: 14px;
+  }
+
+  .welcome-cta {
+    margin-bottom: 18px;
+  }
+
+  .starter-chips {
+    margin: 10px 0 6px;
+  }
+
+  .welcome-features {
+    gap: 12px;
   }
 
   .welcome > p,

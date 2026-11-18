@@ -230,3 +230,4 @@
 2026-11-18 07:12 | P304 | 辅助操作药丸改实色文字：.copy-btn/.regen-btn/.collapse-toggle/.duplicate-retry-btn 用 --text-secondary 且去掉 opacity 0.55 渐显，.reply-meta 同步提色去 0.8；用户气泡 canCopy 加回 !isUser（不再渲染复制与 action row）；「约 X 秒」改为回复相对时间（新鲜回复「刚刚」），tokens+精确秒数移入 title；新增 frontend/test/message-actions.test.ts（8例），更新 P184/P218/P219/P212/P258 相关旧约测试；390x844 headless 实测 复制/换一个 rgb(74,74,88) on rgb(244,244,248) 对比度 7.94:1，用户气泡无 copy-btn/bubble-actions
 2026-11-18 07:32 | P305 | 主列与输入区统一宽度、消息区撑满视口并垂直居中单轮内容
 2026-11-18 07:49 | F06 | 回复清洗去掉全角句号/感叹号/问号后的半角空格，代码块与 URL 不动
+2026-11-18 08:16 | P307 | ≤768px 下 welcome 收紧顶部节奏（padding-top 24→10、副标题/CTA/chips 间距收紧、卡片 gap 16→12）并加 padding-bottom:160px（≥输入区153px）：390×844 实测第三卡 bottom 649.9 < 输入区 top 691（首屏净余 41px），滚到底卡片高出输入区 208px；1440×900 桌面不变；新增 frontend/test/welcome-bottom-clearance.test.ts（4例）
