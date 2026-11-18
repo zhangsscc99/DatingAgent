@@ -188,6 +188,10 @@ export default function App() {
   const [recentSessions, setRecentSessions] = useState(() => getRecentSessions());
   const [loading, setLoading] = useState(false);
   const [tools, setTools] = useState<ToolInfo[]>([]);
+  // P322: the sidebar needs to know an empty tools list is "still loading"
+  // vs "fetch settled with nothing" — the former paints skeleton rows, the
+  // latter falls back to the static entries.
+  const [toolsLoaded, setToolsLoaded] = useState(false);
   const [health, setHealth] = useState<{ llmConfigured: boolean; llmModel?: string } | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(() => loadProfile());
   // P255: the profile dialog is opt-in now — a first-time visitor lands on
@@ -291,7 +295,11 @@ export default function App() {
     fetch('/api/tools')
       .then((r) => r.json())
       .then((d) => setTools(d.tools ?? []))
-      .catch(() => {});
+      .catch(() => {})
+      // P322: success, failure, or an empty payload all end the loading
+      // state — the sidebar swaps its skeleton rows for real buttons (or
+      // its static TOOL_FALLBACK entries) instead of skeletons forever.
+      .finally(() => setToolsLoaded(true));
 
     fetch('/api/health')
       .then((r) => r.json())
@@ -1410,6 +1418,7 @@ export default function App() {
       </span>
       <Sidebar
         tools={tools}
+        toolsLoading={!toolsLoaded}
         profile={profile}
         recentSessions={recentSessions}
         activeSessionId={sessionId}

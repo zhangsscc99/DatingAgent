@@ -60,6 +60,12 @@ interface Props {
    * messages) demotes「+ 新对话」to a quiet outlined button — the composer's
    * send key is the only solid brand action until a conversation exists. */
   pristine?: boolean;
+  /** P322: true while the /api/tools request is still in flight — the tool
+   * list then renders five disabled aria-busy skeleton rows (real labels at
+   * the real row height) instead of a short/blank list. Once the fetch
+   * settles this goes false and the real buttons — or the TOOL_FALLBACK
+   * entries on failure — swap in with zero layout shift. */
+  toolsLoading?: boolean;
 }
 
 /** Label the persisted message count on a session row. Pure: treats
@@ -176,8 +182,10 @@ const QUICK_PROMPTS = [
 
 // P220: when /api/tools has not loaded yet, the 工具 list falls back to the
 // real capability names — never to the quick-prompt labels, which would
-// render the same text twice in the drawer.
-const TOOL_FALLBACK: ToolInfo[] = [
+// render the same text twice in the drawer. Exported: the one source of
+// truth for the five tool labels — P322's skeleton rows and the tests both
+// read this list instead of re-hardcoding names.
+export const TOOL_FALLBACK: ToolInfo[] = [
   { name: 'analyze_profile', label: '改资料', icon: '' },
   { name: 'coach_conversation', label: '接话术', icon: '' },
   { name: 'plan_date', label: '排约会', icon: '' },
@@ -207,6 +215,7 @@ export default function Sidebar({
   onClearTrash,
   busy = false,
   pristine = false,
+  toolsLoading = false,
 }: Props) {
   const sidebarRef = useRef<HTMLElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -677,8 +686,31 @@ export default function Sidebar({
 
         <section className="sidebar-section" aria-label="进阶工具">
           <h3>进阶工具</h3>
+          {/* P322: while /api/tools is in flight, paint the same five rows
+              as inert skeletons — real labels in the real slots, disabled +
+              aria-busy — so the drawer never looks like it only has two
+              tools, and the swap to the live buttons below never changes
+              the row count or height. A failed/empty response lands on the
+              same TOOL_FALLBACK entries as working buttons. */}
           <ul className="tool-list">
-            {(tools.length ? tools : TOOL_FALLBACK).map((t) => {
+            {toolsLoading && tools.length === 0
+              ? TOOL_FALLBACK.map((t) => {
+                  const label = toolDisplayName(t.name) ?? t.label;
+                  return (
+                    <li key={t.name} className="tool-item">
+                      <button
+                        type="button"
+                        className="tool-entry tool-entry-skeleton shimmer"
+                        disabled
+                        aria-busy="true"
+                        aria-label={`进阶工具：${label}`}
+                      >
+                        {label}
+                      </button>
+                    </li>
+                  );
+                })
+              : (tools.length ? tools : TOOL_FALLBACK).map((t) => {
               // P316: every row is a real button — it drops a ready-to-edit
               // starter question into the composer through the same
               // onQuickPrompt prefill path the 快捷入口 entries use (no

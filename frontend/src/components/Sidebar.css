@@ -654,6 +654,21 @@
   outline-offset: 2px;
 }
 
+/* P322 — while /api/tools is in flight the 进阶工具 list paints the same
+   five rows as inert skeletons: real labels on a --surface-hover fill at
+   the exact .tool-entry height (the mobile 44px touch target included),
+   so swapping in the live buttons never moves the section. The sweep
+   reuses the app-wide .shimmer rule/@keyframes and the --shimmer var
+   (SessionSkeleton.css); the disabled opacity softens to 0.75 so the
+   shimmer still reads. */
+.tool-entry-skeleton,
+.tool-entry-skeleton:disabled {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  cursor: wait;
+  opacity: 0.75;
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding-top: 16px;
