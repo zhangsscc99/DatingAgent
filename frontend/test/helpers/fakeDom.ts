@@ -335,6 +335,15 @@ export class FakeElement extends FakeNode {
   get nodeType() {
     return ELEMENT_NODE;
   }
+  /* No layout engine here, so rendered-text reads collapse onto the raw
+     text — innerText aliases textContent for tests that assert what the
+     user sees (e.g. the P341 bubble-collapse counter check). */
+  get innerText(): string {
+    return this.textContent;
+  }
+  set innerText(v: string) {
+    this.textContent = v;
+  }
   get className(): string {
     return this.getAttribute('class') ?? '';
   }

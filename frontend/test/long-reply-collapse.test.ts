@@ -15,13 +15,15 @@ import {
 import type { ChatMessage } from '../src/types';
 
 /**
- * P217 — replies past ~800 characters collapse to a preview with a
- * 「展开全文 / 收起」 toggle at the bottom of the bubble; shorter replies
- * render exactly as before. Vitest runs in node, so the collapsed default
- * is asserted on renderToStaticMarkup output (useState initial value is
- * the collapsed state), the expanded path goes through the same pure
- * helper the component renders, and the click wiring is pinned at source
- * level — the same pattern as the other component tests in this repo.
+ * P217 — replies past the collapse floor (~800 chars originally, ~400
+ * since P341 made the floor shared) collapse to a preview with a
+ * 「展开剩余 N 字 / 收起」 toggle at the bottom of the bubble; shorter
+ * replies render exactly as before. Vitest runs in node, so the
+ * collapsed default is asserted on renderToStaticMarkup output (useState
+ * initial value is the collapsed state), the expanded path goes through
+ * the same pure helper the component renders, and the click wiring is
+ * pinned at source level — the same pattern as the other component
+ * tests in this repo.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -51,16 +53,16 @@ const msg = (partial: Partial<ChatMessage>): ChatMessage => ({
 const render = (m: ChatMessage) =>
   renderToStaticMarkup(createElement(MessageBubble, { message: m }));
 
-describe('P217 · long assistant replies collapse behind 展开全文', () => {
+describe('P217 · long assistant replies collapse behind a preview', () => {
   it('fixture really is over the limit', () => {
     expect(LONG_REPLY.length).toBeGreaterThan(REPLY_COLLAPSE_CHARS);
-    expect(REPLY_COLLAPSE_CHARS).toBe(800);
+    expect(REPLY_COLLAPSE_CHARS).toBe(400);
   });
 
-  it('a >800-char reply is collapsed by default with a 展开全文 control', () => {
+  it('a >400-char reply is collapsed by default with a 展开剩余 N 字 control', () => {
     const html = render(msg({ content: LONG_REPLY }));
     expect(html).toContain('collapse-toggle');
-    expect(html).toContain('展开全文');
+    expect(html).toMatch(/展开剩余 \d+ 字/);
     expect(html).toContain('aria-expanded="false"');
     // The tail past the cut point is not in the rendered bubble.
     expect(html).not.toContain(TAIL);
@@ -76,14 +78,14 @@ describe('P217 · long assistant replies collapse behind 展开全文', () => {
     // aria-expanded follow it.
     expect(bubbleTsx).toContain('onClick={() => setReplyExpanded((v) => !v)}');
     expect(bubbleTsx).toContain("aria-expanded={replyExpanded}");
-    expect(bubbleTsx).toContain("{replyExpanded ? '收起' : '展开全文'}");
+    expect(bubbleTsx).toContain("{replyExpanded ? '收起' : expandLabel}");
   });
 
   it('a short reply renders no collapse control', () => {
     expect(SHORT_REPLY.length).toBeLessThanOrEqual(REPLY_COLLAPSE_CHARS);
     const html = render(msg({ content: SHORT_REPLY }));
     expect(html).not.toContain('collapse-toggle');
-    expect(html).not.toContain('展开全文');
+    expect(html).not.toContain('展开');
     expect(html).not.toContain('收起');
     expect(html).toContain(SHORT_REPLY.slice(0, 6));
   });
@@ -109,8 +111,8 @@ describe('P217 · long assistant replies collapse behind 展开全文', () => {
   });
 
   it('helper: threshold boundary and preview shape', () => {
-    expect(shouldCollapseReply('x'.repeat(800))).toBe(false);
-    expect(shouldCollapseReply('x'.repeat(801))).toBe(true);
+    expect(shouldCollapseReply('x'.repeat(400))).toBe(false);
+    expect(shouldCollapseReply('x'.repeat(401))).toBe(true);
     const preview = collapseReplyPreview(LONG_REPLY);
     expect(preview.endsWith('…')).toBe(true);
     expect(preview.length).toBeLessThanOrEqual(REPLY_COLLAPSE_CHARS + 1);

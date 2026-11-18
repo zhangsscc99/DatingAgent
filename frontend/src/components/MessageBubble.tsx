@@ -7,7 +7,7 @@ import { copyText } from '../lib/clipboard';
 import { highlightSegments } from '../lib/messageSearch';
 import { normalizeMarkdownTables } from '../lib/markdownTables';
 import { fillBracketSlots } from '../lib/replyPlaceholders';
-import { replyCollapseReason, shouldCollapseReply, visibleReplyContent } from '../lib/replyCollapse';
+import { hiddenReplyChars, shouldCollapseReply, visibleReplyContent } from '../lib/replyCollapse';
 import {
   formatLatencySeconds,
   formatRelativeTime,
@@ -146,10 +146,11 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
   // expanding swaps in the full text without touching the scroll position.
   const collapsible =
     !isUser && !message.streaming && !message.error && shouldCollapseReply(bodyText);
-  // P301: a >3-paragraph reply collapses even under the char limit — its
-  // toggle reads 「展开更多」; the char-only path keeps 「展开全文」.
-  const paragraphCollapsed =
-    collapsible && replyCollapseReason(bodyText) === 'paragraphs';
+  // P341: the toggle now states how much it hides — 「展开剩余 N 字」 —
+  // and the preview fades out at its bottom edge (CSS below) so the cut
+  // reads as "more below" instead of the reply's end.
+  const collapsedHiddenChars = collapsible ? hiddenReplyChars(bodyText) : 0;
+  const expandLabel = `展开剩余 ${collapsedHiddenChars} 字`;
   if (collapsible && !replyExpanded) {
     markdownContent = normalizeMarkdownTables(visibleReplyContent(bodyText, false));
   }
@@ -323,7 +324,15 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
           ) : (
             <>
               {bodyText && (
-                <div className={message.streaming ? 'markdown-streaming' : undefined}>
+                <div
+                  className={
+                    message.streaming
+                      ? 'markdown-streaming'
+                      : collapsible && !replyExpanded
+                        ? 'reply-preview-collapsed'
+                        : undefined
+                  }
+                >
                   <ReactMarkdown components={markdownComponents}>{markdownContent}</ReactMarkdown>
                 </div>
               )}
@@ -347,22 +356,10 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             className="collapse-toggle"
             onClick={() => setReplyExpanded((v) => !v)}
             aria-expanded={replyExpanded}
-            aria-label={
-              replyExpanded
-                ? '收起回复全文'
-                : paragraphCollapsed
-                  ? '展开更多回复段落'
-                  : '展开回复全文'
-            }
-            title={
-              replyExpanded ? '收起' : paragraphCollapsed ? '展开更多' : '展开全文'
-            }
+            aria-label={replyExpanded ? '收起回复' : `展开回复，剩余 ${collapsedHiddenChars} 字`}
+            title={replyExpanded ? '收起' : expandLabel}
           >
-            {paragraphCollapsed ? (
-              replyExpanded ? '收起' : '展开更多'
-            ) : (
-              <>{replyExpanded ? '收起' : '展开全文'}</>
-            )}
+            {replyExpanded ? '收起' : expandLabel}
           </button>
         )}
         {message.stopped && (

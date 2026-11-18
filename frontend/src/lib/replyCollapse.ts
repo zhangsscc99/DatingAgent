@@ -4,14 +4,20 @@
  * question used to come back as a ~3000-character listicle; the preview
  * keeps the first screen readable while the full text stays one click away.
  *
- * P301 — a second, tighter rule: even under the character limit, a reply
- * made of more than 3 non-empty paragraphs previews only its first three
- * behind a 「展开更多」 toggle. The 「回答适中」 tier used to return four
- * dense paragraphs that overflowed a phone screen.
+ * P301 — a second, tighter rule: a reply made of more than 3 non-empty
+ * paragraphs previews only its first three behind the same toggle. The
+ * 「回答适中」 tier used to return four dense paragraphs that overflowed
+ * a phone screen.
+ *
+ * P341 — the paragraph rule used to fire at any length, so a 175-char
+ * reply was already hiding its most specific 「可以这样说」 tail behind
+ * a silent 「展开更多」. Both rules now share one ~400-character floor —
+ * nothing at or under it ever collapses — and the toggle states what it
+ * hides: 「展开剩余 N 字」.
  */
 
-/** Replies at or under this length never collapse on characters alone. */
-export const REPLY_COLLAPSE_CHARS = 800;
+/** Replies at or under this length never collapse. */
+export const REPLY_COLLAPSE_CHARS = 400;
 
 /** Replies with more non-empty paragraphs than this collapse to a preview. */
 export const REPLY_COLLAPSE_PARAGRAPHS = 3;
@@ -64,19 +70,20 @@ export function collapseByParagraphs(
 }
 
 /**
- * Which rule triggered the collapse. 'paragraphs' renders a 「展开更多」
- * toggle; 'chars' keeps the original 「展开全文」 wording. The paragraph
- * rule wins when both fire — a many-paragraph reply reads long regardless
- * of its raw character count.
+ * Which rule triggered the collapse, or null when the reply is short
+ * enough to render whole. The character floor is checked first — P341:
+ * a short reply never collapses, however many paragraphs it has — then
+ * the paragraph rule wins over the char cut because a many-paragraph
+ * reply reads long regardless of where the raw cut would land.
  */
 export function replyCollapseReason(
   content: string,
   charLimit = REPLY_COLLAPSE_CHARS,
   maxParagraphs = REPLY_COLLAPSE_PARAGRAPHS,
 ): 'paragraphs' | 'chars' | null {
+  if (content.length <= charLimit) return null;
   if (paragraphCount(content) > maxParagraphs) return 'paragraphs';
-  if (content.length > charLimit) return 'chars';
-  return null;
+  return 'chars';
 }
 
 /** Only settled assistant replies past either limit collapse. */
@@ -118,4 +125,19 @@ export function visibleReplyContent(
   limit = REPLY_COLLAPSE_CHARS,
 ): string {
   return expanded ? content : collapseReplyPreview(content, limit);
+}
+
+/**
+ * P341 — how many characters the collapsed preview hides; the N in the
+ * 「展开剩余 N 字」 toggle. The preview's trailing '…' is a marker, not
+ * reply text, so it is not counted as shown.
+ */
+export function hiddenReplyChars(
+  content: string,
+  limit = REPLY_COLLAPSE_CHARS,
+): number {
+  if (!shouldCollapseReply(content, limit)) return 0;
+  const preview = collapseReplyPreview(content, limit);
+  const shown = preview.endsWith('…') ? preview.length - 1 : preview.length;
+  return Math.max(0, content.length - shown);
 }

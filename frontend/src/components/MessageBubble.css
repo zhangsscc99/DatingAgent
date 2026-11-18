@@ -321,7 +321,20 @@
   color: var(--text-muted);
 }
 
-/* P217: 「展开全文 / 收起」 affordance on collapsed long replies — same
+/* P341: the collapsed preview fades out over its last ~3em instead of
+   ending in a hard cut — a visible cue that more text sits behind the
+   「展开剩余 N 字」 toggle. Mask, not an overlay, so it follows the theme
+   and never covers the text with an opaque strip. */
+.bubble-content .reply-preview-collapsed {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 calc(100% - 3em),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 3em), transparent 100%);
+}
+
+/* P217: 「展开 / 收起」 affordance on collapsed long replies — same
    pill footprint as copy/regen but always visible since it gates content. */
 .collapse-toggle {
   display: inline-block;
