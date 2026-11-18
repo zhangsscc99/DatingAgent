@@ -174,14 +174,16 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
         m.content.length > 0,
     );
 
-  // P293: the memory receipt — one quiet line pinned at the head of the
-  // conversation naming what the agent already remembers (stored profile
-  // fields, the reply-length preference). Nothing renders before a
-  // conversation exists or while a session is still being restored, and
-  // nothing renders when there is nothing remembered.
+  // P293/P296: the memory receipt — one quiet line pinned at the head of
+  // the conversation naming what the agent already remembers (stored
+  // profile fields, the reply-length preference, and — for the default
+  // profile-less path — durable facts the user stated in this very
+  // conversation). Nothing renders before a conversation exists or while
+  // a session is still being restored, and nothing renders when there is
+  // nothing remembered.
   const memoryReceipt =
     !restoring && messages.length > 0
-      ? memoryReceiptLine(profile, replyLength)
+      ? memoryReceiptLine(profile, replyLength, messages)
       : null;
 
   // P19: client-side search over the rendered conversation.
