@@ -22,6 +22,7 @@ import {
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
 import { canGenerateReply, needsReply } from '../lib/pendingReply';
 import { isOnboardingComplete } from '../lib/profileStorage';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
   MEMORY_RECEIPT_PREFIX,
   memoryReceiptItems,
@@ -164,6 +165,11 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const wasRestoring = useRef(false);
   const wasLoading = useRef(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  // P321: at ≤480px the three welcome feature cards collapse to quiet
+  // single-line rows (CSS keys on .welcome-features[data-compact]) so the
+  // phone first screen keeps a single focus — the composer send key.
+  const compactFeatures = useMediaQuery('(max-width: 480px)');
 
   // P293/P296/P308: the memory receipt — a small icon capsule anchored at
   // the right of the session header area naming what the agent already
@@ -516,7 +522,12 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
               在下方输入框写下你的情况，回车发送即可开始。
             </p>
             {!profile?.name && onSetupProfile && (
-              <button type="button" className="welcome-cta" onClick={onSetupProfile}>
+              <button
+                type="button"
+                className="welcome-cta"
+                data-variant="link"
+                onClick={onSetupProfile}
+              >
                 完善资料，获得更个性化建议 →
               </button>
             )}
@@ -525,7 +536,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 <button
                   key={p.label}
                   type="button"
-                  className="starter-chip"
+                  className="starter-chip secondary"
                   aria-label={p.label}
                   onClick={() => inputRef.current?.prefill(p.prompt)}
                 >
@@ -533,7 +544,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 </button>
               ))}
             </div>
-            <div className="welcome-features">
+            <div
+              className="welcome-features"
+              data-compact={compactFeatures ? 'true' : undefined}
+            >
               <div className="feature">
                 <span aria-hidden="true">
                   <FeatureIcon iconKey="wrench" />

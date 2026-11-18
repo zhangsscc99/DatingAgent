@@ -260,6 +260,29 @@
   outline-offset: 2px;
 }
 
+/* P321: every rendered .welcome-cta carries data-variant="link" — the entry
+   is demoted once more, from the P290 outline button to a small text link,
+   so the composer's send key stays the welcome screen's only real button.
+   The base .welcome-cta chrome remains the stylesheet default; the variant
+   strips the box (border, padding, fill) leaving underlined text. */
+.welcome-cta[data-variant='link'] {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.welcome-cta[data-variant='link']:hover {
+  background: none;
+  transform: none;
+  color: var(--accent);
+}
+
 .welcome-features {
   display: flex;
   flex-direction: column;
@@ -290,6 +313,55 @@
 .feature p {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+/* P321 — ≤480px (390 target): the three tall feature cards flatten into
+   quiet single-line rows — icon plus the title, the description truncating
+   inline after it — so the phone first screen keeps one focus. The
+   [data-compact] attribute is driven by a (max-width: 480px) matchMedia in
+   ChatWindow (the same mechanism as the composer's narrowViewport). */
+.welcome-features[data-compact] {
+  gap: 2px;
+}
+
+.welcome-features[data-compact] .feature {
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+/* The icon span's 24px font-size would otherwise inflate the row's line
+   box; shrink it to the 16px glyph it wraps. */
+.welcome-features[data-compact] .feature > span {
+  display: inline-flex;
+  align-items: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.welcome-features[data-compact] .feature > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.welcome-features[data-compact] .feature strong {
+  flex-shrink: 0;
+  margin-bottom: 0;
+  font-size: 13px;
+}
+
+.welcome-features[data-compact] .feature p {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 768px) {
@@ -389,6 +461,13 @@
   font-size: 14px;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+/* P321: the three starter chips stay, but in the secondary text register —
+   muted label on a plain outline, never a fill that could read as a
+   competing CTA next to the composer's send key. */
+.starter-chip.secondary {
+  color: var(--text-secondary);
 }
 
 .starter-chip:hover {

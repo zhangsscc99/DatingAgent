@@ -157,10 +157,15 @@
 
 /* P290: an empty composer leaves the send key as a muted secondary button
    (same quiet surface as the tool row), not a faded brand-pink one — the
-   brand solid returns only once there is text to send. */
+   brand solid returns only once there is text to send.
+   P321: muted must not mean invisible — the quiet fill sat ~1.1:1 against
+   the --surface bar and read as a washed-out ghost, so the key now carries
+   a --text-muted ring (≥3:1 boundary contrast in every theme) while the
+   P290 surface-hover fill and no-accent contract stay. */
 .input-bar .input-send:disabled {
   background: var(--surface-hover);
   color: var(--text-muted);
+  border: 1px solid var(--text-muted);
   opacity: 1;
   cursor: not-allowed;
 }
