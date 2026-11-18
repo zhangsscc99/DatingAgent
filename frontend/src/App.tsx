@@ -1431,6 +1431,7 @@ export default function App() {
         onRestoreTrash={handleRestoreTrash}
         onClearTrash={handleClearTrash}
         busy={loading}
+        pristine={isPristine}
         onEditProfile={() => {
           openProfileDialog();
           closeSidebar();

@@ -27,6 +27,9 @@ import {
  *  - the welcome's start button is gone — passive .welcome-hint copy
  *    instead — leaving exactly ONE [data-primary-cta] element on the
  *    screen, the composer's send key;
+ *  - P320: the sidebar「+ 新对话」drops its solid brand fill for a
+ *    `secondary` outline while pristine — it was the second pink solid
+ *    competing with the composer CTA on the 1440×900 first screen;
  *  - one stored conversation brings every piece back unchanged.
  *
  * Same fake-DOM harness as header-brand-fit.test.ts: mount the real App,
@@ -177,6 +180,14 @@ describe('P312 · empty-state chrome', () => {
     // Empty list → no filter box.
     expect(qs('.recent-chat-filter')).toBeNull();
 
+    // P320: the sidebar「+ 新对话」is demoted to a quiet outlined button —
+    // it must not carry the solid brand style that competes with the
+    // composer's single primary CTA (P290's .welcome-cta demotion recipe).
+    const newChat = qs('.new-chat-btn');
+    expect(newChat, label).not.toBeNull();
+    expect(newChat!.classList.contains('secondary')).toBe(true);
+    expect(newChat!.hasAttribute('data-primary-cta')).toBe(false);
+
     // One primary action on the whole screen: the composer send key.
     const primaries = qsa('[data-primary-cta]');
     expect(primaries, label).toHaveLength(1);
@@ -235,6 +246,11 @@ describe('P312 · empty-state chrome', () => {
 
     expect(qs('.recent-chat-filter')).not.toBeNull();
 
+    // P320: with a conversation the sidebar button is the brand solid again.
+    const newChat = qs('.new-chat-btn');
+    expect(newChat).not.toBeNull();
+    expect(newChat!.classList.contains('secondary')).toBe(false);
+
     // The single primary CTA contract holds with a conversation too —
     // the welcome block itself is gone once messages exist.
     expect(qsa('[data-primary-cta]')).toHaveLength(1);
@@ -262,6 +278,8 @@ describe('P312 · empty-state chrome', () => {
     expect(status).not.toBeNull();
     expect(status!.textContent).toContain('顾问在线');
     expect(qs('.recent-chat-filter')).not.toBeNull();
+    // P320: brand solid returns with the first conversation.
+    expect(qs('.new-chat-btn')!.classList.contains('secondary')).toBe(false);
     expect(qsa('[data-primary-cta]')).toHaveLength(1);
 
     await unmountApp();

@@ -56,6 +56,10 @@ interface Props {
   onRestoreTrash?: (sessionId: string) => void;
   onClearTrash?: () => void;
   busy?: boolean;
+  /** P320: the pristine first screen (no stored conversations AND no
+   * messages) demotes「+ 新对话」to a quiet outlined button — the composer's
+   * send key is the only solid brand action until a conversation exists. */
+  pristine?: boolean;
 }
 
 /** Label the persisted message count on a session row. Pure: treats
@@ -202,6 +206,7 @@ export default function Sidebar({
   onRestoreTrash,
   onClearTrash,
   busy = false,
+  pristine = false,
 }: Props) {
   const sidebarRef = useRef<HTMLElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -356,7 +361,15 @@ export default function Sidebar({
           content height and scrolls internally, so the <aside> itself never
           overflows and the footer never scrolls away with the list. */}
       <div className="sidebar-body">
-        <button className="new-chat-btn" onClick={onNewChat} aria-label="开始新对话">
+        {/* P320: on the pristine first screen this is a secondary outline,
+            not a solid brand button — two pink solids used to compete with
+            the composer's single primary CTA (same demotion P290 gave
+            .welcome-cta). The brand fill returns with the first session. */}
+        <button
+          className={`new-chat-btn${pristine ? ' secondary' : ''}`}
+          onClick={onNewChat}
+          aria-label="开始新对话"
+        >
           + 新对话
         </button>
 

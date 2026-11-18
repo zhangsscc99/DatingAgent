@@ -50,6 +50,19 @@
   outline-offset: 2px;
 }
 
+/* P320: pristine first screen — demoted to a quiet outlined action (same
+   recipe as .welcome-cta / .profile-btn.secondary) so the composer's send
+   key stays the only solid brand button; hover still lifts it slightly. */
+.new-chat-btn.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.new-chat-btn.secondary:hover {
+  background: var(--accent-soft);
+}
+
 .profile-card {
   background: var(--bg);
   border: 1px solid var(--border);
