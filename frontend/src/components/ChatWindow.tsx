@@ -222,15 +222,30 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     }
   }, [sessionId, searchOpen, query, activeIndex]);
 
+  // P299: while `restoring` is up the bubbles are not in the DOM — the
+  // session skeleton stands in, so chasing the tail then lands on the
+  // placeholder and the commit that swaps in the real messages never
+  // re-fires the effect. A restored/switched conversation stayed pinned at
+  // scrollTop 0. Arm a one-shot jump instead and fire it on the first
+  // commit that renders the restored bubbles.
+  const restoredJump = useRef(false);
   useEffect(() => {
     // P294: an empty conversation shows the welcome block pinned to the top —
     // the sentinel sits below it, so scrolling to it on first mount clips the
     // heading. Only chase the tail when there is something to chase.
+    if (restoring) {
+      restoredJump.current = true;
+      return;
+    }
     if (messages.length === 0 && !loading) return;
+    const jump = restoredJump.current;
+    restoredJump.current = false;
     bottomRef.current?.scrollIntoView({
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+      // A reload lands straight on the latest reply — jumping, not
+      // smooth-scrolling, past what may be a long history.
+      behavior: jump || prefersReducedMotion() ? 'auto' : 'smooth',
     });
-  }, [messages, loading]);
+  }, [messages, loading, restoring]);
 
   // P24: reveal the jump button once the user scrolls well above the latest
   // message; hide it again near the bottom.
