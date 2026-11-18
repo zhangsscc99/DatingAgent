@@ -10,6 +10,7 @@ import {
   normalizeCjkQuotes,
   stripManualLabels,
   stripPromptEcho,
+  stripSpaceAfterCjkPunct,
   stripStageDirections,
 } from '../lib/reply-clean.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
@@ -447,7 +448,9 @@ export class AgentHarness {
       // leading emoji) so the persisted and final streamed text agree.
       const cleanedContent = normalizeCjkQuotes(
         normalizeChinesePunctuation(
-          stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? ''))),
+          stripSpaceAfterCjkPunct(
+            stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? ''))),
+          ),
         ),
       );
       const finalContent = cleanedContent.trim()

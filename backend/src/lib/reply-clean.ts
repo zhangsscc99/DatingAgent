@@ -142,6 +142,37 @@ function convertQuoteSegment(segment: string): string {
   return out + withCurly.slice(cursor);
 }
 
+// P306: a half-width space or nbsp directly after a full-width 。！？ is a
+// stray ASCII residue — remove it, but only on lines that contain Han
+// characters so predominantly English lines stay byte-identical.
+const SPACE_AFTER_CJK_END = /([。！？])[ \u00a0]+/g;
+
+function convertSpaceSegment(segment: string): string {
+  return segment
+    .split('\n')
+    .map((line) => (HAN_CHAR.test(line) ? line.replace(SPACE_AFTER_CJK_END, '$1') : line))
+    .join('\n');
+}
+
+/**
+ * P306 — the model sometimes leaves a half-width space or \u00a0 right
+ * after full-width 。！？ (「。 看展本身就是…」). stripSpaceAfterCjkPunct
+ * removes those spaces only on lines containing Han characters: fenced
+ * code blocks, inline `code`, URLs and predominantly-English lines pass
+ * through byte-identical. The function is idempotent.
+ */
+export function stripSpaceAfterCjkPunct(text: string): string {
+  if (!HAN_CHAR.test(text)) return text;
+  let out = '';
+  let last = 0;
+  for (const match of text.matchAll(PROTECTED_SPAN)) {
+    out += convertSpaceSegment(text.slice(last, match.index));
+    out += match[0];
+    last = match.index + match[0].length;
+  }
+  return out + convertSpaceSegment(text.slice(last));
+}
+
 /**
  * P292 — the model occasionally wraps Chinese phrases in English curly
  * “…” or half-width straight "…" quotes while the rest of the reply uses
