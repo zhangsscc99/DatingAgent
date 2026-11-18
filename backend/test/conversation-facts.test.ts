@@ -80,6 +80,55 @@ describe('P313 · conversation fact extraction', () => {
   });
 });
 
+describe('P323 · the Round-88 reagent — four turns that mostly matched nothing', () => {
+  /**
+   * 三天没回 was caught by the duration pattern, but 「一直是我主动」
+   * 「明天第一次约会，穿什么」 and 「要不要提前到」 matched neither the
+   * lexicon nor a pattern, so the session memory froze at one item. The
+   * clause fallback now admits one anchored fact per unmatched turn.
+   */
+  const fourTurns = [
+    { role: 'user' as const, content: '她三天没回我' },
+    { role: 'assistant' as const, content: '先别再发，给她一点空间。' },
+    { role: 'user' as const, content: '一直是我主动' },
+    { role: 'assistant' as const, content: '节奏失衡可以先点破。' },
+    { role: 'user' as const, content: '明天第一次约会，穿什么' },
+    { role: 'assistant' as const, content: '干净利落就好，别太用力。' },
+    { role: 'user' as const, content: '要不要提前到' },
+  ];
+
+  it('accumulates >= 3 distinct facts in mention order', () => {
+    const items = conversationFactItems(fourTurns);
+    expect(items.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(items).size).toBe(items.length);
+    expect(items).toEqual([
+      '三天没回',
+      '一直是我主动',
+      '明天第一次约会',
+      '要不要提前到',
+    ]);
+  });
+
+  it('assistant messages contribute nothing to the memory list', () => {
+    const items = conversationFactItems([
+      { role: 'assistant' as const, content: '明天要不要约她见面聊聊' },
+      { role: 'user' as const, content: '嗯' },
+    ]);
+    expect(items).toEqual([]);
+  });
+
+  it('boilerplate filler never becomes a fact', () => {
+    expect(
+      conversationFactItems([
+        { role: 'user' as const, content: '在吗' },
+        { role: 'user' as const, content: '谢谢' },
+        { role: 'user' as const, content: '你好' },
+        { role: 'user' as const, content: '怎么办' },
+      ]),
+    ).toEqual([]);
+  });
+});
+
 describe('P313 · /api/chat memory payload across three turns', () => {
   let server: ReturnType<ReturnType<typeof createApp>['listen']> | undefined;
   let baseUrl = '';
@@ -130,5 +179,20 @@ describe('P313 · /api/chat memory payload across three turns', () => {
     const first = await postChat('她三个小时没回消息了');
     const second = await postChat('对，三个小时没回', first.sessionId);
     expect(second.memory!.count).toBe(first.memory!.count);
+  });
+
+  it('P323 — four turns report >= 3 memories with no duplicates', async () => {
+    const first = await postChat('她三天没回我');
+    await postChat('一直是我主动', first.sessionId);
+    await postChat('明天第一次约会，穿什么', first.sessionId);
+    const fourth = await postChat('要不要提前到', first.sessionId);
+    expect(fourth.memory).toBeDefined();
+    expect(fourth.memory!.count).toBeGreaterThanOrEqual(3);
+    expect(new Set(fourth.memory!.items).size).toBe(fourth.memory!.items.length);
+    const joined = fourth.memory!.items.join('；');
+    const hits = ['三天没回', '一直是我主动', '明天第一次约会', '要不要提前到'].filter(
+      (k) => joined.includes(k),
+    );
+    expect(hits.length).toBeGreaterThanOrEqual(3);
   });
 });

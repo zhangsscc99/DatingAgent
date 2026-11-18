@@ -193,7 +193,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
       : [];
   const memoryReceipt =
     receiptItems.length > 0
-      ? `${MEMORY_RECEIPT_PREFIX}${receiptItems.join('、')}`
+      ? `${MEMORY_RECEIPT_PREFIX}${receiptItems.join('；')}`
       : null;
   const handleDismissFact = (item: string) => {
     setDismissedFacts(dismissReceiptItem(item));

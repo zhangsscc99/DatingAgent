@@ -3,11 +3,15 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import ChatWindow from '../src/components/ChatWindow';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   CONVERSATION_FACT_LEXICON,
   MEMORY_RECEIPT_MAX_ITEMS,
   MEMORY_RECEIPT_PREFIX,
   conversationFactItems,
+  memoryReceiptItems,
   memoryReceiptLine,
   rememberedItems,
 } from '../src/lib/memoryReceipt';
@@ -84,14 +88,18 @@ describe('P293 · memory receipt line derivation', () => {
     expect(line).toContain('徒步');
   });
 
-  it('caps the receipt at two items when more fields exist', () => {
-    const items = rememberedItems({
-      goals: '想认真谈恋爱',
-      interests: ['徒步'],
-      personality: '慢热',
-    });
+  it('caps the receipt at MEMORY_RECEIPT_MAX_ITEMS items when more fields exist', () => {
+    const items = rememberedItems(
+      {
+        goals: '想认真谈恋爱',
+        interests: ['徒步'],
+        personality: '慢热',
+      },
+      'detailed',
+    );
     expect(items).toHaveLength(MEMORY_RECEIPT_MAX_ITEMS);
-    expect(items.join('')).not.toContain('慢热');
+    // The fourth candidate — the reply-length preference — is cut.
+    expect(items.join('')).not.toContain('回答详细一些');
   });
 
   it('returns null when there is nothing remembered', () => {
@@ -189,8 +197,8 @@ describe('P296 · durable facts mined from user messages', () => {
       { role: 'user', content: '周末想去看展，之前说过加班' },
       { role: 'user', content: '还想去徒步' },
     ]);
-    // 加班 first (mentioned first), 看展 second; repeats deduped; 徒步 cut by cap.
-    expect(items).toEqual(['加班', '看展']);
+    // 加班 first (mentioned first), 看展 second, 徒步 third; repeats deduped.
+    expect(items).toEqual(['加班', '看展', '徒步']);
     expect(items.length).toBeLessThanOrEqual(MEMORY_RECEIPT_MAX_ITEMS);
     // Every emitted fact is a lexicon entry.
     for (const item of items) {
@@ -232,7 +240,7 @@ describe('P296 · durable facts mined from user messages', () => {
         interests: ['徒步', '摄影'],
         personality: '慢热',
       }),
-    ).toBe('记得你提到：目标「想认真谈恋爱」、喜欢「徒步、摄影」');
+    ).toBe('记得你提到：目标「想认真谈恋爱」；喜欢「徒步、摄影」；性格「慢热」');
     expect(memoryReceiptLine(null)).toBeNull();
     expect(memoryReceiptLine(null, 'concise')).toBe('记得你提到：偏好回答简短一些');
   });
@@ -243,9 +251,9 @@ describe('P296 · durable facts mined from user messages', () => {
       'default',
       [{ id: 'u1', role: 'user', content: '周末想去徒步再看展' }],
     );
-    expect(line).toBe('记得你提到：喜欢「徒步」、看展');
+    expect(line).toBe('记得你提到：喜欢「徒步」；看展');
     expect(line!.match(/徒步/g)).toHaveLength(1);
-    expect(line!.split('、').length).toBeLessThanOrEqual(
+    expect(line!.split('；').length).toBeLessThanOrEqual(
       MEMORY_RECEIPT_MAX_ITEMS,
     );
   });
@@ -387,5 +395,79 @@ describe('P296 · rendered receipt without a stored profile', () => {
     const markup = renderChat({ messages: [] as ChatMessage[], profile: null });
     expect(markup).not.toContain('memory-receipt');
     expect(markup).not.toContain('记得你提到');
+  });
+});
+
+describe('P323 · the Round-88 reagent — four turns, three remembered facts', () => {
+  /**
+   * The live walkthrough sent 三天没回 / 一直是我主动 / 明天第一次约会，
+   * 穿什么 / 要不要提前到 and the receipt froze at 「三天没回」 — the
+   * other three turns matched neither the lexicon nor a pattern. The
+   * clause fallback now admits one anchored fact per turn and the cap
+   * rises to three so the accumulation is visible.
+   */
+  const p323Turns: ChatMessage[] = [
+    { id: 'u1', role: 'user', content: '她三天没回我' },
+    { id: 'a1', role: 'assistant', content: '先别再发，给她一点空间。' },
+    { id: 'u2', role: 'user', content: '一直是我主动' },
+    { id: 'a2', role: 'assistant', content: '节奏失衡可以先点破。' },
+    { id: 'u3', role: 'user', content: '明天第一次约会，穿什么' },
+    { id: 'a3', role: 'assistant', content: '干净利落就好，别太用力。' },
+    { id: 'u4', role: 'user', content: '要不要提前到' },
+    { id: 'a4', role: 'assistant', content: '提前五到十分钟刚好。' },
+  ];
+
+  it('the receipt accumulates at least three distinct facts across four turns', () => {
+    const items = memoryReceiptItems(null, 'default', p323Turns);
+    expect(items.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(items).size).toBe(items.length);
+    expect(items).toContain('三天没回');
+    expect(items).toContain('一直是我主动');
+    expect(items).toContain('明天第一次约会');
+  });
+
+  it('the rendered line names >= 3 fragments joined by ；', () => {
+    const line = memoryReceiptLine(null, 'default', p323Turns);
+    expect(line).not.toBeNull();
+    expect(line!.startsWith(MEMORY_RECEIPT_PREFIX)).toBe(true);
+    const fragments = ['三天没回', '一直是我主动', '明天第一次约会', '要不要提前到'];
+    const hits = fragments.filter((f) => line!.includes(f));
+    expect(hits.length).toBeGreaterThanOrEqual(3);
+    // Full-width semicolons separate the named facts, one per boundary.
+    expect(line!.split('；').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('every unmatched turn still contributes exactly one clause fact', () => {
+    const items = conversationFactItems(p323Turns, 10);
+    expect(items).toEqual([
+      '三天没回',
+      '一直是我主动',
+      '明天第一次约会',
+      '要不要提前到',
+    ]);
+  });
+
+  it('390-wide: still a single capsule whose text can never wrap past one line', () => {
+    stubStorage();
+    const markup = renderChat({ messages: p323Turns, profile: null });
+    expect(markup.match(/class="memory-capsule"/g)).toHaveLength(1);
+    // The pill text ellipsises inside its capsule, so a three-fact line
+    // stays one quiet line at 390×844 — never a second wrapped line.
+    const css = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        '..',
+        'src',
+        'components',
+        'ChatWindow.css',
+      ),
+      'utf8',
+    );
+    const textRule = /\.memory-capsule-text\s*\{([^}]*)\}/.exec(css)![1];
+    expect(textRule).toContain('white-space: nowrap');
+    expect(textRule).toContain('overflow: hidden');
+    expect(textRule).toContain('text-overflow: ellipsis');
+    const capsuleRule = /\.memory-capsule\s*\{([^}]*)\}/.exec(css)![1];
+    expect(capsuleRule).toContain('max-width: 100%');
   });
 });

@@ -28,10 +28,16 @@ import { replyLengthLabel, type ReplyLengthPreference } from './replyLength';
  * still matched nothing. Two intent patterns now admit it too, so every
  * turn contributes a fact. Verbs are deliberately narrow: 「想约」
  * 「想带」 stay out so the lexicon/「带…」 hits keep their cleaner labels.
+ *
+ * P323 — the walkthrough reproduced a fourth time (「三天没回 / 一直是
+ * 我主动 / 明天第一次约会，穿什么 / 要不要提前到」): three of the four
+ * turns matched nothing at all, so the receipt froze at one fact. A
+ * generic clause fallback now names one fact per otherwise-unmatched
+ * turn, and the receipt cap rises to three so the growth is visible.
  */
 
 export const MEMORY_RECEIPT_PREFIX = '记得你提到：';
-export const MEMORY_RECEIPT_MAX_ITEMS = 2;
+export const MEMORY_RECEIPT_MAX_ITEMS = 3;
 
 /**
  * P296 — curated keywords spanning interests / plans / feelings / work /
@@ -92,6 +98,37 @@ export const CONVERSATION_FACT_PATTERNS: readonly RegExp[] = [
   /要不要(?:再|补|继续|主动|直接|先)[^，。！？!?；;：:、\s]{0,8}/g,
 ];
 
+/**
+ * P323 — generic fallback anchors: a clause becomes a fact when it names
+ * a time cue, an agency cue, or a dating/plan cue. 「最近」 is deliberately
+ * absent — as a generic sentence opener it admitted filler like
+ * 「最近在聊一个同事」, which is precisely the kind of non-fact the
+ * receipt must never name.
+ */
+const CONVERSATION_FACT_ANCHORS =
+  /今天|明天|后天|昨天|周末|下周|第一次|刚才|一直|总是|是我|主动|要不要|该不该|怎么回|说什么|穿什么|约会|见面|约她|约他|告白|表白|聊天|回消息/;
+
+/**
+ * P323 — open deliberations stay out, the same boundary the curated
+ * 「要不要(再|…)」 pattern documents: 「要不要约出来」「要不要一起去」
+ * ask whether to act at all and are not facts; 「要不要提前到」 asks how
+ * to act and stays admissible.
+ */
+const CONVERSATION_FACT_OPEN_DELIBERATION =
+  /(?:要不要|该不该)(?:约|见|表白|告白|问|一起|聊)/;
+
+/** P323 — boilerplate openers the receipt must never name. */
+const CONVERSATION_FACT_FILLER: readonly string[] = [
+  '你好',
+  '在吗',
+  '谢谢',
+  '怎么办',
+  '我该怎么办',
+];
+
+/** Clause boundaries for the P323 fallback split. */
+const CONVERSATION_FACT_CLAUSE = /[^，。！？；、,.!?;\n]+/g;
+
 /** One receipt item must stay short enough for a single quiet line. */
 const VALUE_MAX_CHARS = 20;
 
@@ -124,13 +161,15 @@ interface FactCandidate {
 }
 
 /**
- * P296/P313 — durable facts named in the user's own messages, in the
- * order the user first mentioned them, deduped, clipped short, capped at
- * `maxItems`. Assistant text never contributes: the receipt must only
- * echo what the user actually said. Candidates within one message are
- * sorted by position — longer span first on a tie — and a span
- * overlapping an already-accepted one is dropped, so 「三个小时没回我消息」
- * yields 「三个小时没回」 alone, never 「没回我消息」 on top.
+ * P296/P313/P323 — durable facts named in the user's own messages, in
+ * the order the user first mentioned them, deduped, clipped short,
+ * capped at `maxItems`. Assistant text never contributes: the receipt
+ * must only echo what the user actually said. Candidates within one
+ * message are sorted by position — longer span first on a tie — and a
+ * span overlapping an already-accepted one is dropped, so 「三个小时没回我消息」
+ * yields 「三个小时没回」 alone, never 「没回我消息」 on top. When a
+ * message admits no lexicon/pattern fact at all, the first anchored
+ * clause stands in as that turn's fact.
  */
 export function conversationFactItems(
   messages:
@@ -181,6 +220,36 @@ export function conversationFactItems(
       accepted.push([candidate.index, candidate.end]);
       seen.add(key);
       items.push(clip(candidate.label));
+    }
+
+    // P323 — a turn that admitted nothing still contributes one named
+    // fact: the first clause carrying an anchor becomes the label. A
+    // clause covering a matched-but-rejected span (e.g. a fact already
+    // remembered in an earlier turn) defers to the lexicon/pattern
+    // label. Bare questions with no anchor and boilerplate fillers fail
+    // the anchor/stop-list checks on their own.
+    if (accepted.length === 0) {
+      for (const clause of text.matchAll(CONVERSATION_FACT_CLAUSE)) {
+        if (items.length >= maxItems) break;
+        const index = clause.index;
+        if (index === undefined) continue;
+        const label = clause[0].trim();
+        const clipped = clip(label);
+        if (clipped.length < 2 || clipped.length > VALUE_MAX_CHARS) continue;
+        if (CONVERSATION_FACT_FILLER.includes(label.toLowerCase())) continue;
+        if (CONVERSATION_FACT_OPEN_DELIBERATION.test(label)) continue;
+        if (!CONVERSATION_FACT_ANCHORS.test(label)) continue;
+        if (
+          candidates.some((c) => index < c.end && c.index < index + clause[0].length)
+        ) {
+          continue;
+        }
+        const key = clipped.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        items.push(clipped);
+        break;
+      }
     }
   }
   return items;
@@ -252,5 +321,5 @@ export function memoryReceiptLine(
   messages?: readonly Pick<ChatMessage, 'role' | 'content'>[],
 ): string | null {
   const items = memoryReceiptItems(profile, replyLength, messages);
-  return items.length > 0 ? `${MEMORY_RECEIPT_PREFIX}${items.join('、')}` : null;
+  return items.length > 0 ? `${MEMORY_RECEIPT_PREFIX}${items.join('；')}` : null;
 }

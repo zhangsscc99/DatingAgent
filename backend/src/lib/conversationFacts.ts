@@ -7,10 +7,14 @@ import type { Message } from '../agent/types.js';
  * backend kept no memory at all. Facts are now extracted per turn from
  * the retained conversation history — lexicon hits plus a small set of
  * curated patterns — deduped and surfaced as `memory` on chat replies so
- * every distinct fact is admitted to be remembered.
+ * every distinct fact is admitted to be remembered. P323 adds a generic
+ * clause fallback so a turn that matches nothing still contributes one
+ * anchored fact — 「一直是我主动」「明天第一次约会」「要不要提前到」
+ * all matched nothing before.
  *
- * Twin of frontend/src/lib/memoryReceipt.ts — keep the lexicon and
- * patterns in sync so the receipt and the API agree on what counts.
+ * Twin of frontend/src/lib/memoryReceipt.ts — keep the lexicon,
+ * patterns and fallback rules in sync so the receipt and the API agree
+ * on what counts.
  */
 
 /** Curated keywords spanning interests / plans / feelings / work / dating. */
@@ -67,6 +71,37 @@ export const CONVERSATION_FACT_PATTERNS: readonly RegExp[] = [
   // second char keeps 「要不要约出来」「要不要一起去」 out.
   /要不要(?:再|补|继续|主动|直接|先)[^，。！？!?；;：:、\s]{0,8}/g,
 ];
+
+/**
+ * P323 — generic fallback anchors: a clause becomes a fact when it names
+ * a time cue, an agency cue, or a dating/plan cue. 「最近」 is deliberately
+ * absent — as a generic sentence opener it admitted filler like
+ * 「最近在聊一个同事」, which is precisely the kind of non-fact the
+ * receipt must never name.
+ */
+const CONVERSATION_FACT_ANCHORS =
+  /今天|明天|后天|昨天|周末|下周|第一次|刚才|一直|总是|是我|主动|要不要|该不该|怎么回|说什么|穿什么|约会|见面|约她|约他|告白|表白|聊天|回消息/;
+
+/**
+ * P323 — open deliberations stay out, the same boundary the curated
+ * 「要不要(再|…)」 pattern documents: 「要不要约出来」「要不要一起去」
+ * ask whether to act at all and are not facts; 「要不要提前到」 asks how
+ * to act and stays admissible.
+ */
+const CONVERSATION_FACT_OPEN_DELIBERATION =
+  /(?:要不要|该不该)(?:约|见|表白|告白|问|一起|聊)/;
+
+/** P323 — boilerplate openers the receipt must never name. */
+const CONVERSATION_FACT_FILLER: readonly string[] = [
+  '你好',
+  '在吗',
+  '谢谢',
+  '怎么办',
+  '我该怎么办',
+];
+
+/** Clause boundaries for the P323 fallback split. */
+const CONVERSATION_FACT_CLAUSE = /[^，。！？；、,.!?;\n]+/g;
 
 /** How many facts a session admits it remembers. */
 export const MEMORY_FACTS_MAX_ITEMS = 12;
@@ -154,6 +189,36 @@ export function conversationFactItems(
       accepted.push([candidate.index, candidate.end]);
       seen.add(key);
       items.push(clip(candidate.label));
+    }
+
+    // P323 — a turn that admitted nothing still contributes one named
+    // fact: the first clause carrying an anchor becomes the label. A
+    // clause covering a matched-but-rejected span (e.g. a fact already
+    // remembered in an earlier turn) defers to the lexicon/pattern
+    // label. Bare questions with no anchor and boilerplate fillers fail
+    // the anchor/stop-list checks on their own.
+    if (accepted.length === 0) {
+      for (const clause of text.matchAll(CONVERSATION_FACT_CLAUSE)) {
+        if (items.length >= maxItems) break;
+        const index = clause.index;
+        if (index === undefined) continue;
+        const label = clause[0].trim();
+        const clipped = clip(label);
+        if (clipped.length < 2 || clipped.length > VALUE_MAX_CHARS) continue;
+        if (CONVERSATION_FACT_FILLER.includes(label.toLowerCase())) continue;
+        if (CONVERSATION_FACT_OPEN_DELIBERATION.test(label)) continue;
+        if (!CONVERSATION_FACT_ANCHORS.test(label)) continue;
+        if (
+          candidates.some((c) => index < c.end && c.index < index + clause[0].length)
+        ) {
+          continue;
+        }
+        const key = clipped.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        items.push(clipped);
+        break;
+      }
     }
   }
   return items;
