@@ -5,21 +5,27 @@
  * (App owns it) that drains automatically when the turn ends, and the
  * composer copy says so.
  *
+ * P310 — …but only once drafts are actually parked. While the queue is
+ * empty the row stays silent: the pending AI bubble already owns progress
+ * copy (「正在组织答案」/「已生成 N 字」), and a global "reply generating"
+ * line rendered directly under the user's just-sent bubble read like the
+ * message had never gone out.
+ *
  * The queue is memory-only on purpose: a hard refresh drops it entirely
  * rather than resurrecting a half-sent state.
  */
 
-/** Persistent composer hint while a reply streams (queue may be empty). */
-export const STREAMING_QUEUE_HINT = '回复生成中，完成后将自动发送';
-
 /**
- * The line under the composer while streaming: the auto-send promise plus,
- * once anything is queued, how many drafts are still waiting.
+ * The line under the composer while streaming. Empty while the queue is
+ * empty (P310); once drafts are parked it acknowledges them by count and
+ * names when they go out — 「结束后发送」, never a global auto-send
+ * promise, which read like the already-sent user message was itself
+ * still waiting.
  */
 export function queueHintText(queuedCount: number): string {
   return queuedCount > 0
-    ? `${STREAMING_QUEUE_HINT} · 还有 ${queuedCount} 条待发`
-    : STREAMING_QUEUE_HINT;
+    ? `已排队 ${queuedCount} 条，本条回复结束后发送`
+    : '';
 }
 
 /**

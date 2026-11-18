@@ -7,6 +7,8 @@ import {
   GENERATION_PROGRESS_ORGANIZING,
   generationProgressLabel,
 } from '../src/lib/generationProgress';
+import * as sendQueue from '../src/lib/sendQueue';
+import { queueHintText } from '../src/lib/sendQueue';
 
 /**
  * P272 — during a long reply the bubble offered only 「停止生成」 and no
@@ -97,5 +99,63 @@ describe('P272 · wiring guards', () => {
       bubble.indexOf('className="generation-progress"') + 60,
     );
     expect(div).toContain('aria-hidden="true"');
+  });
+});
+
+describe('P310 · composer hint only acknowledges real queued drafts', () => {
+  const bar = read('components/InputBar.tsx');
+  const sendQueueSrc = read('lib/sendQueue.ts');
+
+  it('the empty-queue composer copy is empty', () => {
+    expect(queueHintText(0)).toBe('');
+  });
+
+  it('the queued copy names the count and never says 「自动发送」', () => {
+    for (const n of [1, 2, 5]) {
+      const text = queueHintText(n);
+      expect(text).toContain('已排队');
+      expect(text).toContain(String(n));
+      expect(text).not.toContain('自动发送');
+    }
+  });
+
+  it('no exported copy constant contains 「自动发送」', () => {
+    const exportedStrings = Object.values(sendQueue).filter(
+      (v): v is string => typeof v === 'string',
+    );
+    for (const s of exportedStrings) expect(s).not.toContain('自动发送');
+    expect(sendQueueSrc).not.toContain('自动发送');
+    expect(bar).not.toContain('自动发送');
+  });
+
+  it('InputBar renders the hint only when queuedCount > 0', () => {
+    const row = bar.slice(bar.indexOf('className="busy-enter-hint"'));
+    // The text node and the 取消排队 button are both gated on a real
+    // queue; streaming alone renders an empty (but still reserved) row.
+    expect(row).toContain('queuedCount > 0 && queueHintText(queuedCount)');
+    expect(row).toContain('queuedCount > 0 && onCancelQueue');
+    // The row keeps its live-region contract for the queued notice.
+    expect(row).toContain('role="status"');
+    expect(row).toContain('aria-live="polite"');
+  });
+
+  it('the pending AI bubble keeps the 「正在…」 progress label', () => {
+    expect(generationProgressLabel(0, true)).toContain('正在');
+    expect(generationProgressLabel(12, true)).toBe('已生成 12 字');
+  });
+
+  it('progress copy renders inside the assistant bubble, never under a user bubble', () => {
+    const bubble = read('components/MessageBubble.tsx');
+    const chatWindow = read('components/ChatWindow.tsx');
+    // The label only exists for non-user streaming messages, and it is
+    // rendered inside the bubble's generation-progress / streaming
+    // indicator — the composer hint row never enters the message list.
+    expect(bubble).toContain(
+      'generationProgressLabel(message.content.length, !isUser && !!message.streaming)',
+    );
+    expect(bubble).toContain('className="generation-progress"');
+    expect(bubble).toContain('showStreamingIndicator =\n    !isUser');
+    expect(chatWindow).not.toContain('busy-enter-hint');
+    expect(bubble).not.toContain('busy-enter-hint');
   });
 });

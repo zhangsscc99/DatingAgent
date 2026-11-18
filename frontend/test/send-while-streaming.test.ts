@@ -15,20 +15,19 @@ import {
   FakeEvent,
   type FakeDom,
 } from './helpers/fakeDom';
-import {
-  queueHintText,
-  restoreQueuedDraft,
-  STREAMING_QUEUE_HINT,
-} from '../src/lib/sendQueue';
+import { queueHintText, restoreQueuedDraft } from '../src/lib/sendQueue';
 
 /**
  * P244 — pressing Enter while a reply was still streaming used to be a
  * silent no-op: no queue, no explanation of where the draft would go.
  * Submissions during a stream now join an in-app FIFO — the composer shows
- * 「回复生成中，完成后将自动发送」 plus 「还有 N 条待发」, and the queue
- * drains in order as each turn ends. 「取消排队」 drops the queue and
- * hands the text back to the composer. The P224 invariant still holds: a
- * second send must never abort or overlap the in-flight stream.
+ * 「已排队 N 条，本条回复结束后发送」 once drafts are parked, and the queue
+ * drains in order as each turn ends. P310 keeps the row silent while the
+ * queue is empty: a global "reply generating" line under the just-sent
+ * user bubble read like the message never went out. 「取消排队」 drops
+ * the queue and hands the text back to the composer. The P224 invariant
+ * still holds: a second send must never abort or overlap the in-flight
+ * stream.
  *
  * Vitest runs in node with no DOM, so the app mounts against a minimal fake
  * DOM (see ./helpers/fakeDom.ts) plus a controllable slow SSE fetch mock.
@@ -178,8 +177,10 @@ describe('P244 · send while a reply is still streaming', () => {
     });
     expect(bubbles()).toHaveLength(2);
 
-    // (a) the composer copy now promises the queue, not a shrug.
-    expect(hint()).toContain(STREAMING_QUEUE_HINT);
+    // (a) P310: with nothing queued the composer says nothing — progress
+    //     belongs to the pending AI bubble, not a line under the user's
+    //     own bubble that reads like the send never happened.
+    expect(hint()).toBe('');
     expect(cancelButton()).toBeNull(); // nothing queued yet
 
     // --- Enter mid-stream queues the draft ------------------------------
@@ -190,7 +191,8 @@ describe('P244 · send while a reply is still streaming', () => {
     // (b) the queued outcome: draft leaves the box, the hint counts it,
     //     no second turn starts and the in-flight stream is untouched.
     expect((qs('textarea') as FakeElement).value).toBe('');
-    expect(hint()).toContain('还有 1 条待发');
+    expect(hint()).toContain('已排队 1 条');
+    expect(hint()).not.toContain('自动发送');
     expect(cancelButton()?.textContent).toBe('取消排队');
     expect(streams).toHaveLength(1);
     expect(bubbles()).toHaveLength(2);
@@ -204,7 +206,7 @@ describe('P244 · send while a reply is still streaming', () => {
     await click(sendDuringStream);
     await flush();
     expect((qs('textarea') as FakeElement).value).toBe('');
-    expect(hint()).toContain('还有 2 条待发');
+    expect(hint()).toContain('已排队 2 条');
     expect(streams).toHaveLength(1);
     expect(bubbles()).toHaveLength(2);
 
@@ -213,7 +215,7 @@ describe('P244 · send while a reply is still streaming', () => {
     expect(streams).toHaveLength(2);
     expect(bubbles()).toHaveLength(4); // u1 + a1 + u2 + streaming a2
     expect(bubbles()[2].textContent).toContain(M2);
-    expect(hint()).toContain('还有 1 条待发');
+    expect(hint()).toContain('已排队 1 条');
 
     // --- second turn finishes: the last queued draft goes out ----------
     await finishStream(streams[1], '周末约电影可以，先问她想看哪部。');
@@ -290,15 +292,14 @@ describe('P244 · send while a reply is still streaming', () => {
     await type(M6);
     await pressEnter();
     await flush();
-    expect(hint()).toContain('还有 2 条待发');
+    expect(hint()).toContain('已排队 2 条');
 
     // 取消排队 → queue dropped, both drafts restored oldest-first, and
-    // the hint falls back to the bare streaming copy.
+    // the hint falls silent again (P310: empty queue = empty row).
     await click(cancelButton());
     await flush();
     expect((qs('textarea') as FakeElement).value).toBe(`${M5}\n${M6}`);
-    expect(hint()).toContain(STREAMING_QUEUE_HINT);
-    expect(hint()).not.toContain('条待发');
+    expect(hint()).toBe('');
     expect(cancelButton()).toBeNull();
 
     // The stream ends: nothing auto-sends, the restored draft stays put.
@@ -318,11 +319,13 @@ describe('P244 · send while a reply is still streaming', () => {
   });
 
   describe('queue helpers', () => {
-    it('queueHintText counts the waiting drafts', () => {
-      expect(STREAMING_QUEUE_HINT).toBe('回复生成中，完成后将自动发送');
-      expect(queueHintText(0)).toBe('回复生成中，完成后将自动发送');
-      expect(queueHintText(1)).toBe('回复生成中，完成后将自动发送 · 还有 1 条待发');
-      expect(queueHintText(2)).toBe('回复生成中，完成后将自动发送 · 还有 2 条待发');
+    it('queueHintText counts the waiting drafts and stays silent when empty', () => {
+      // P310: an empty queue renders no copy at all, and the queued
+      // acknowledgement never contains 「自动发送」.
+      expect(queueHintText(0)).toBe('');
+      expect(queueHintText(1)).toBe('已排队 1 条，本条回复结束后发送');
+      expect(queueHintText(2)).toBe('已排队 2 条，本条回复结束后发送');
+      expect(queueHintText(2)).not.toContain('自动发送');
     });
 
     it('restoreQueuedDraft rejoins cancelled drafts ahead of the current text', () => {

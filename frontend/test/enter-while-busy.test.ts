@@ -6,15 +6,17 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import InputBar, { runComposerEnter } from '../src/components/InputBar';
-import { STREAMING_QUEUE_HINT } from '../src/lib/sendQueue';
+import { queueHintText } from '../src/lib/sendQueue';
 
 /**
  * P203 → P244 — Enter pressed while a reply is streaming is no longer a
  * silent no-op (P203 flashed a hint and dropped the send; P244 turns the
  * same keystroke into a queued draft that auto-sends when the turn ends).
- * The composer stays editable while streaming, the queue hint names the
- * auto-send plus the waiting count, and 「取消排队」 hands queued drafts
- * back. Shift+Enter and IME-composing Enters still belong to the textarea.
+ * The composer stays editable while streaming, the queue hint counts the
+ * parked drafts, and 「取消排队」 hands queued drafts back. P310 keeps
+ * the row silent while nothing is queued — a global "reply generating"
+ * line under the user's own bubble read like the send never happened.
+ * Shift+Enter and IME-composing Enters still belong to the textarea.
  *
  * Vitest runs in node: markup assertions go through renderToStaticMarkup
  * and the keystroke path is exercised through the real `runComposerEnter`
@@ -63,7 +65,7 @@ describe('P244 · Enter while a reply is streaming queues the draft', () => {
   });
 
   describe('rendered markup (renderToStaticMarkup)', () => {
-    it('keeps the textarea editable while streaming and shows the queue copy', () => {
+    it('keeps the textarea editable while streaming and leaves the hint row empty', () => {
       const markup = renderToStaticMarkup(
         createElement(InputBar, { onSend: noop, streaming: true, onStop: noop }),
       );
@@ -72,10 +74,11 @@ describe('P244 · Enter while a reply is streaming queues the draft', () => {
       expect(taTag).not.toContain(' disabled');
       expect(taTag).toContain('aria-disabled="false"');
       expect(markup).toContain('aria-label="停止生成"');
-      // P244: the reserved hint row names the auto-send instead of a shrug.
+      // P310: with an empty queue the reserved row renders no copy at
+      // all — nothing that reads like the send is still waiting.
       expect(markup).toContain('class="busy-enter-hint"');
-      expect(markup).toContain(STREAMING_QUEUE_HINT);
-      expect(markup).not.toContain('条待发');
+      expect(markup).not.toContain('已排队');
+      expect(markup).not.toContain('自动发送');
       expect(markup).not.toContain('取消排队');
     });
 
@@ -89,7 +92,8 @@ describe('P244 · Enter while a reply is streaming queues the draft', () => {
           onCancelQueue: () => ['a', 'b'],
         }),
       );
-      expect(markup).toContain('还有 2 条待发');
+      expect(markup).toContain('已排队 2 条');
+      expect(markup).not.toContain('自动发送');
       expect(markup).toContain('queue-cancel-btn');
       expect(markup).toContain('取消排队');
     });
@@ -99,7 +103,7 @@ describe('P244 · Enter while a reply is streaming queues the draft', () => {
         createElement(InputBar, { onSend: noop }),
       );
       expect(markup).toContain('class="busy-enter-hint"');
-      expect(markup).not.toContain(STREAMING_QUEUE_HINT);
+      expect(markup).not.toContain('已排队');
       expect(markup).not.toContain('取消排队');
     });
 
@@ -142,9 +146,13 @@ describe('P244 · Enter while a reply is streaming queues the draft', () => {
     it('renders the hint line as a live region bound to the queue copy', () => {
       expect(bar).toContain('className="busy-enter-hint"');
       expect(bar).toContain('role="status"');
-      expect(bar).toContain('queueHintText(queuedCount)');
+      expect(bar).toContain('aria-live="polite"');
+      // P310: the copy only exists behind a real queue — streaming alone
+      // with queuedCount === 0 renders no text node.
+      expect(bar).toContain('queuedCount > 0 && queueHintText(queuedCount)');
       expect(bar).toContain('queue-cancel-btn');
       expect(bar).not.toContain('BUSY_ENTER_HINT');
+      expect(queueHintText(0)).toBe('');
     });
 
     it('reserves the hint row height in CSS so show/hide causes no shift', () => {

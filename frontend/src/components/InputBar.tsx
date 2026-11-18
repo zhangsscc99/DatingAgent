@@ -481,12 +481,14 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           </button>
         )}
       </div>
-      {/* P203/P244: fixed-height row under the composer — empty while idle
-          so the hint never shifts the textarea, send button, or message
-          list. While a reply streams it promises the queued auto-send and
-          counts the waiting drafts; 「取消排队」 hands them back. */}
+      {/* P203/P244/P310: fixed-height row under the composer — empty while
+          idle AND while streaming with nothing queued, so the hint never
+          shifts the textarea, send button, or message list. Progress copy
+          belongs to the pending AI bubble; this row only speaks once
+          drafts are actually parked, acknowledging them by count.
+          「取消排队」 hands them back. */}
       <div className="busy-enter-hint" role="status" aria-live="polite">
-        {streaming ? queueHintText(queuedCount) : ''}
+        {streaming && queuedCount > 0 && queueHintText(queuedCount)}
         {streaming && queuedCount > 0 && onCancelQueue && (
           <button
             type="button"

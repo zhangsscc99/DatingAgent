@@ -785,8 +785,9 @@ export default function App() {
       // The synchronous ref closes that window — a turn in flight can only
       // be ended by the explicit 停止 button, never by another send.
       // P244: instead of dropping that send, park it in the pending queue —
-      // the composer promises 「完成后将自动发送」. Queueing while items are
-      // already waiting (even between turns) keeps strict FIFO order.
+      // the composer acknowledges it as 「已排队 N 条」 (P310). Queueing
+      // while items are already waiting (even between turns) keeps strict
+      // FIFO order.
       if (loading || replyInFlightRef.current || pendingQueueRef.current.length > 0) {
         enqueuePending(prompt);
         return;
