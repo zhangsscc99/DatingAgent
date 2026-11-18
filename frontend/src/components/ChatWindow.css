@@ -212,31 +212,12 @@
   color: var(--accent);
 }
 
-/* P290: the welcome screen's single brand-solid action — focuses the
-   composer. Everything else on the first screen is outline or text. */
-.welcome-primary-cta {
-  display: block;
+/* P312: the brand action moved to the composer's send key — what stays
+   in the welcome block is passive guidance pointing at it, same muted
+   register as the subtitle. */
+.welcome > p.welcome-hint {
   margin: 0 auto 14px;
-  padding: 12px 28px;
-  background: var(--accent);
-  color: var(--on-accent);
-  border: none;
-  border-radius: var(--radius);
-  font-size: 14px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s;
-}
-
-.welcome-primary-cta:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.welcome-primary-cta:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  font-size: 13px;
 }
 
 /* P290: demoted to a quiet secondary action — plain outline and muted

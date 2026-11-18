@@ -1390,6 +1390,12 @@ export default function App() {
   };
 
   const headerStatus = headerStatusCopy(health?.llmConfigured === true);
+  // P312: the pristine first screen (no stored conversations AND no
+  // messages) drops chrome that has nothing to act on — the header
+  // export/copy buttons and the 顾问在线 status go with it; the sidebar
+  // filter keys off its own empty list. Everything returns the moment a
+  // conversation or a message exists.
+  const isPristine = recentSessions.length === 0 && messages.length === 0;
 
   return (
     <div className="app">
@@ -1670,6 +1676,7 @@ export default function App() {
                   <option value="en">English</option>
                 </select>
               </label>
+              {!isPristine && (
               <button
                 type="button"
                 className={`export-btn${exportState === 'done' ? ' done' : ''}${
@@ -1721,6 +1728,8 @@ export default function App() {
                       : '导出 Markdown'}
                 </span>
               </button>
+              )}
+              {!isPristine && (
               <button
                 type="button"
                 className={`export-json-btn${jsonExportState === 'done' ? ' done' : ''}${
@@ -1772,6 +1781,8 @@ export default function App() {
                       : '导出 JSON'}
                 </span>
               </button>
+              )}
+              {!isPristine && (
               <button
                 type="button"
                 data-testid="copy-markdown"
@@ -1825,6 +1836,7 @@ export default function App() {
                       : '复制 Markdown'}
                 </span>
               </button>
+              )}
             </HeaderMoreMenu>
             <span className="export-status" role="status" aria-live="polite">
               {copyExportState === 'done'
@@ -1841,19 +1853,23 @@ export default function App() {
                           ? '导出失败'
                           : ''}
             </span>
-            <div
-              className="header-status"
-              role="status"
-              aria-live="polite"
-              title={headerStatus.detail}
-              aria-label={headerStatus.detail}
-            >
-              <span
-                className={`status-dot ${health?.llmConfigured ? 'live' : 'mock'}`}
-                aria-hidden="true"
-              />
-              {headerStatus.label}
-            </div>
+            {/* P312: on the pristine first screen the status line has no
+                conversation to speak for — it returns with the chrome. */}
+            {!isPristine && (
+              <div
+                className="header-status"
+                role="status"
+                aria-live="polite"
+                title={headerStatus.detail}
+                aria-label={headerStatus.detail}
+              >
+                <span
+                  className={`status-dot ${health?.llmConfigured ? 'live' : 'mock'}`}
+                  aria-hidden="true"
+                />
+                {headerStatus.label}
+              </div>
+            )}
           </div>
         </header>
         <ServiceBanner

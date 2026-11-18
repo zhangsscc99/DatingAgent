@@ -10,13 +10,13 @@ import { draftStorageKey, DEFAULT_DRAFT_ID } from '../src/lib/chatDrafts';
 import type { ChatMessage } from '../src/types';
 
 /**
- * P290 — first screen had two competing brand actions: the dashed accent
- * 「完善资料」 welcome chip and the solid pink send key (visible even while
- * disabled), so the eye had no landing point. The welcome block now renders
- * exactly one brand-solid `data-primary-cta` button (「说说你的情况」, which
- * focuses the composer); 「完善资料」 / the profile nudge are quiet outline
- * actions in muted text, and the empty-composer send key is a muted
- * secondary fill that only turns brand solid once text exists.
+ * P290 — the first screen gets exactly one brand-solid `data-primary-cta`
+ * action; every other control on it is outline or text. P312 moved that
+ * single action into the composer itself: the send key now carries the
+ * marker (muted secondary fill while the box is empty, brand solid once
+ * text exists), and the welcome block's duplicate「开始」button was
+ * replaced by passive guidance copy — .welcome renders no button that
+ * focuses or submits the composer.
  *
  * Vitest runs in node with no DOM — markup assertions go through
  * renderToStaticMarkup (same as interrupted-turn-restore.test.ts) and the
@@ -29,6 +29,7 @@ const read = (file: string) => readFileSync(join(SRC, file), 'utf8');
 const chatWindowTsx = read('components/ChatWindow.tsx');
 const chatWindowCss = read('components/ChatWindow.css');
 const inputBarCss = read('components/InputBar.css');
+const inputBarTsx = read('components/InputBar.tsx');
 
 /** Declaration bodies of every `selector { … }` — exact selector match. */
 function ruleBodies(css: string, selector: string): string[] {
@@ -78,20 +79,44 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('P290 · one primary CTA on the empty welcome screen', () => {
-  it('renders exactly one [data-primary-cta] element on the first screen', () => {
+describe('P290/P312 · one primary CTA on the first screen — the composer send key', () => {
+  it('renders exactly one [data-primary-cta] element, on the send button', () => {
     const markup = renderWelcome();
     expect(markup.match(/data-primary-cta/g)).toHaveLength(1);
-    const cta = buttonTag(markup, 'welcome-primary-cta');
-    expect(cta).toContain('data-primary-cta');
-    expect(markup).toContain('说说你的情况');
+    const send = buttonTag(markup, 'input-send');
+    expect(send).toContain('data-primary-cta');
+    // The marker lives inside the composer, not the welcome column.
+    const welcome = markup.slice(
+      markup.indexOf('class="welcome'),
+      markup.indexOf('class="input-bar'),
+    );
+    expect(welcome).not.toContain('data-primary-cta');
   });
 
-  it('the primary CTA is the only brand-solid button in the welcome CSS', () => {
-    const rule = ruleBody(chatWindowCss, '.welcome-primary-cta');
+  it('the welcome block carries passive guidance copy, not a start button', () => {
+    const markup = renderWelcome();
+    expect(markup).toContain('class="welcome-hint"');
+    expect(markup).toContain('在下方输入框');
+    expect(markup).not.toContain('welcome-primary-cta');
+    expect(markup).not.toContain('说说你的情况');
+    // The hint is a paragraph, and nothing in .welcome submits/focuses the
+    // composer — the source block carries no inputRef hand-off.
+    const welcomeBlock = chatWindowTsx.slice(
+      chatWindowTsx.indexOf('className="welcome'),
+      chatWindowTsx.indexOf('starter-chips'),
+    );
+    expect(welcomeBlock).toContain('<p className="welcome-hint">');
+    expect(welcomeBlock).not.toContain('inputRef');
+    expect(welcomeBlock).not.toContain('onSend');
+  });
+
+  it('the send key is the only brand-solid action; no welcome button keeps the fill', () => {
+    const rule = ruleBody(inputBarCss, '.input-bar .input-send');
     expect(rule).toContain('background: var(--accent)');
     expect(rule).toContain('color: var(--on-accent)');
-    // No other welcome button keeps a solid accent fill.
+    // The retired welcome button's rules are gone and no other welcome
+    // control picked the accent fill up.
+    expect(ruleBody(chatWindowCss, '.welcome-primary-cta')).toBe('');
     for (const secondary of ['.welcome-cta', '.starter-chip', '.profile-nudge-btn']) {
       expect(ruleBody(chatWindowCss, secondary)).not.toContain(
         'background: var(--accent)',
@@ -99,24 +124,16 @@ describe('P290 · one primary CTA on the empty welcome screen', () => {
     }
   });
 
-  it('the primary CTA hands focus to the composer', () => {
-    const ctaBlock = chatWindowTsx.slice(
-      chatWindowTsx.indexOf('data-primary-cta'),
-      chatWindowTsx.indexOf('说说你的情况'),
-    );
-    expect(ctaBlock).toContain('inputRef.current?.focus()');
-  });
-
-  it('still renders exactly one [data-primary-cta] without the profile entry', () => {
-    // onSetupProfile absent → no welcome-cta; the count must stay one.
+  it('the marker stays on the send key with or without the profile entry', () => {
     const markup = renderToStaticMarkup(
       createElement(ChatWindow, { messages: [], loading: false, onSend: noop }),
     );
     expect(markup.match(/data-primary-cta/g)).toHaveLength(1);
+    expect(buttonTag(markup, 'input-send')).toContain('data-primary-cta');
     expect(markup).not.toContain('welcome-cta');
   });
 
-  it('renders no [data-primary-cta] once a conversation exists', () => {
+  it('still renders exactly one [data-primary-cta] once a conversation exists', () => {
     const messages: ChatMessage[] = [
       { id: 'u1', role: 'user', content: '她说明天要加班' },
       { id: 'a1', role: 'assistant', content: '先接住她的情绪…' },
@@ -124,7 +141,19 @@ describe('P290 · one primary CTA on the empty welcome screen', () => {
     const markup = renderToStaticMarkup(
       createElement(ChatWindow, { messages, loading: false, onSend: noop }),
     );
-    expect(markup).not.toContain('data-primary-cta');
+    expect(markup.match(/data-primary-cta/g)).toHaveLength(1);
+    expect(buttonTag(markup, 'input-send')).toContain('data-primary-cta');
+    expect(markup).not.toContain('welcome-hint');
+  });
+
+  it('marks only the send button — the streaming stop key carries no marker', () => {
+    expect(inputBarTsx.indexOf('data-primary-cta')).toBe(
+      inputBarTsx.lastIndexOf('data-primary-cta'),
+    );
+    const sendIdx = inputBarTsx.indexOf('data-primary-cta');
+    const stopIdx = inputBarTsx.indexOf('input-send input-stop');
+    expect(sendIdx).toBeGreaterThan(-1);
+    expect(sendIdx).toBeLessThan(stopIdx);
   });
 });
 
@@ -140,6 +169,16 @@ describe('P290 · every other first-screen action is secondary', () => {
     const cta = buttonTag(markup, 'welcome-cta');
     expect(cta).toContain('class="welcome-cta"');
     expect(markup).toContain('完善资料，获得更个性化建议');
+  });
+
+  it('the welcome hint reads as muted guidance, not a control', () => {
+    const rule = ruleBody(chatWindowCss, '.welcome > p.welcome-hint');
+    expect(rule).not.toBe('');
+    // Passive copy: no accent, no border, no cursor affordance.
+    expect(rule).not.toContain('var(--accent)');
+    expect(rule).not.toContain('cursor');
+    const markup = renderWelcome();
+    expect(markup).toContain('<p class="welcome-hint">');
   });
 
   it('the profile nudge is absent on the empty first screen and muted when it appears', () => {
@@ -178,7 +217,6 @@ describe('P290 · every other first-screen action is secondary', () => {
 
   it('both surfaces keep a visible focus ring', () => {
     for (const [css, sel] of [
-      [chatWindowCss, '.welcome-primary-cta:focus-visible'],
       [chatWindowCss, '.welcome-cta:focus-visible'],
       [inputBarCss, '.input-bar .input-send:focus-visible'],
     ] as const) {

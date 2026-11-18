@@ -362,6 +362,9 @@ export default function Sidebar({
               </button>
             )}
           </div>
+          {/* P312: an empty list has nothing to filter — the box mounts
+              again with the first conversation. */}
+          {recentSessions.length > 0 && (
           <input
             type="text"
             className="recent-chat-filter"
@@ -389,6 +392,7 @@ export default function Sidebar({
               }
             }}
           />
+          )}
           {/* P247: a cleared/fresh history used to vanish the whole section —
               keep the heading and fill the list slot with one dim line instead
               of blank space. */}

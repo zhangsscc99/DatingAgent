@@ -447,9 +447,12 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
             the disabled send) and the stop button sits beside it. A second
             send attempt is therefore blocked at the control, at submit(),
             and again at App's sendMessage — never reaching streamReply. */}
+        {/* P312: the composer's send key is the first screen's single
+            primary action — the welcome block carries no button at all. */}
         <button
           type="button"
           className="input-send"
+          data-primary-cta
           onClick={submit}
           disabled={sendBlocked || !text.trim()}
           aria-label="发送消息"
