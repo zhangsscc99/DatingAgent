@@ -51,6 +51,10 @@
   background: var(--assistant-bg);
   border: 1px solid var(--border);
   border-bottom-left-radius: 4px;
+  /* P311: hard cap on the reply card — inside the shared column it never
+     reaches this (600−32−10 = 558px), but the bound keeps CJK lines
+     readable even if the column is widened again later. */
+  max-width: min(100%, 680px);
 }
 
 .bubble-content p {

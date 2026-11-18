@@ -169,7 +169,10 @@
 }
 
 .welcome {
-  max-width: 520px;
+  /* P311: on desktop the welcome card rides the same reading column as
+     the bubbles and the composer — --column-max is only defined ≥769px,
+     so the 520px fallback keeps the mobile card unchanged. */
+  max-width: var(--column-max, 520px);
   margin: auto;
   text-align: center;
   padding: 40px 20px;

@@ -16,11 +16,15 @@ import {
  * P305 — at 1440×900 the bubble column measured ~740 px while the composer
  * spanned the whole ~1130 px main area, so their left/right edges never
  * lined up, and a single exchange left half a screen of blank under it.
- * The fix introduces --column-max (880 px): .messages > * and the new
- * .input-column wrapper both resolve max-width through it, ::before/::after
- * bookends in .messages grow into the free space so short content lands
- * vertically centred, and nothing below the cap changes — the rules are
+ * The fix introduces --column-max: .messages > * and the new .input-column
+ * wrapper both resolve max-width through it, ::before/::after bookends in
+ * .messages grow into the free space so short content lands vertically
+ * centred, and nothing below the cap changes — the rules are
  * width:100%-based so ≤768px layout is byte-identical.
+ * P311 narrowed the token 880→600 px and moved it inside a
+ * (min-width: 769px) :root block, so the variable is undefined under the
+ * mobile breakpoint and every reference falls back to its pre-column
+ * value (desktop-measure.test.ts pins the new reading-column geometry).
  *
  * No DOM renderer ships with this repo, so "widths differ by ≤ 8 px" is
  * asserted on the resolved CSS values (computed-style source level), plus a
@@ -104,11 +108,18 @@ const columnMaxRaw = /--column-max:\s*([0-9.]+)px/.exec(indexCss)?.[1];
 const columnMax = columnMaxRaw ? parseFloat(columnMaxRaw) : null;
 
 describe('P305 · shared centred column', () => {
-  it('defines a single --column-max token in :root', () => {
+  it('defines a single --column-max token, declared for desktop only', () => {
     expect(columnMax).not.toBeNull();
-    expect(columnMax!).toBeGreaterThanOrEqual(760);
-    expect(columnMax!).toBeLessThanOrEqual(920);
-    expect(ruleBody(indexCss, ':root')).toContain('--column-max');
+    // P311: the column is capped for CJK line length — the full geometry
+    // is pinned in desktop-measure.test.ts.
+    expect(columnMax!).toBeGreaterThanOrEqual(520);
+    expect(columnMax!).toBeLessThanOrEqual(680);
+    // The token lives inside the ≥769px :root block so it is undefined
+    // under the mobile breakpoint and every var() reference keeps its
+    // pre-column fallback.
+    const desktop = mediaBlock(indexCss, '(min-width: 769px)');
+    expect(ruleBody(desktop, ':root')).toContain('--column-max');
+    expect(topLevel(indexCss)).not.toMatch(/--column-max:\s*[0-9.]+px/);
   });
 
   it('the message scroll area constrains every row to the shared column', () => {

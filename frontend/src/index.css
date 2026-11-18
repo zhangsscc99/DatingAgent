@@ -42,11 +42,27 @@
   --shimmer: rgba(255, 255, 255, 0.7);
   --radius: 12px;
   --font: 'Inter', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', 'WenQuanYi Micro Hei', system-ui, -apple-system, sans-serif;
-  /* P305: the one centred column shared by the message list and the
-     composer — both resolve their max-width through this variable so the
-     left/right edges always match. Below 880px of available width it binds
-     nothing, so narrow-screen layout is untouched. */
-  --column-max: 880px;
+  /* P305/P311: --column-max is the one centred column shared by the
+     message list, the composer and the welcome card — every one of them
+     resolves its max-width through this variable so the left/right edges
+     always match. It is declared only inside the (min-width: 769px)
+     block below, so under the mobile breakpoint the variable is
+     undefined and each reference falls back to its pre-column behaviour
+     (uncapped rows, the 520px welcome card) — the narrow-screen layout
+     stays identical. */
+}
+
+/* P311: ONE desktop reading column. At 1440×900 the AI bubble card
+   measured ~738px (≈50 CJK chars per line) against a ~944px composer
+   and a ~446px welcome card — three different columns. Capping the
+   shared token at 600px puts the assistant bubble at
+   600−32(avatar)−10(gap) = 558px outer / 524px text ≈ 37 chars per 14px
+   line, lands the textarea on the exact same left/right edges as the
+   message column, and grows the welcome card to the same box. */
+@media (min-width: 769px) {
+  :root {
+    --column-max: 600px;
+  }
 }
 
 @media (max-width: 768px) {

@@ -365,3 +365,15 @@
     min-height: 88px;
   }
 }
+
+/* P311: on desktop the tool row drops to its own line so the textarea
+   spans the whole shared --column-max and its left/right edges line up
+   with the message column above; the controls stay clustered at the
+   right edge, where the send key already sat. The ≤768px block applies
+   the same wrap on phones. */
+@media (min-width: 769px) {
+  .input-tools {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+}
