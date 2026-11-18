@@ -141,8 +141,13 @@
   transform: translateY(-1px);
 }
 
+/* P290: an empty composer leaves the send key as a muted secondary button
+   (same quiet surface as the tool row), not a faded brand-pink one — the
+   brand solid returns only once there is text to send. */
 .input-bar .input-send:disabled {
-  opacity: 0.4;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  opacity: 1;
   cursor: not-allowed;
 }
 
@@ -158,8 +163,11 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/* P290: accent outline stays visible on both the brand-solid enabled key
+   and the muted disabled one (the outline is drawn outside the box, on the
+   page surface — a white --on-accent ring was invisible on light surfaces). */
 .input-bar .input-send:focus-visible {
-  outline: 2px solid var(--on-accent);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 

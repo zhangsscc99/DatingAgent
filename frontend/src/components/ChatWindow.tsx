@@ -380,6 +380,18 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 ))}
               </div>
             )}
+            {/* P290: the empty welcome screen gets exactly one brand-solid
+                action — the hero CTA focuses the composer; every other
+                control on this screen is an outline or text button so the
+                eye has a single landing point. */}
+            <button
+              type="button"
+              className="welcome-primary-cta"
+              data-primary-cta
+              onClick={() => inputRef.current?.focus()}
+            >
+              说说你的情况
+            </button>
             {!profile?.name && onSetupProfile && (
               <button type="button" className="welcome-cta" onClick={onSetupProfile}>
                 完善资料，获得更个性化建议 →
