@@ -6,6 +6,7 @@ import { resolveFocusEntity } from '../lib/focusEntity.js';
 import { usageMetrics } from '../lib/metrics.js';
 import { matchesAnyReply } from '../lib/reply-dedupe.js';
 import {
+  fillBracketSlots,
   normalizeChinesePunctuation,
   normalizeCjkQuotes,
   stripManualLabels,
@@ -465,10 +466,14 @@ export class AgentHarness {
       // persisted; if cleaning empties it, fall back the same way.
       // P279: also strip manual-style labels (「解析：」「避坑指南：」and
       // leading emoji) so the persisted and final streamed text agree.
-      const cleanedContent = normalizeCjkQuotes(
-        normalizeChinesePunctuation(
-          stripSpaceAfterCjkPunct(
-            stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? ''))),
+      // P334: any leftover […]/【…】 template slot becomes a generic phrase —
+      // the reply is promised to be sendable as-is.
+      const cleanedContent = fillBracketSlots(
+        normalizeCjkQuotes(
+          normalizeChinesePunctuation(
+            stripSpaceAfterCjkPunct(
+              stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? ''))),
+            ),
           ),
         ),
       );

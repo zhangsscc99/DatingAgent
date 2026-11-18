@@ -39,7 +39,7 @@ describe('P304 copy button leaves user bubbles', () => {
     // hiding the button on assistant messages too.
     expect(canCopyExpr).toContain('!message.streaming');
     expect(canCopyExpr).toContain('!message.error');
-    expect(canCopyExpr).toContain('message.content.trim().length > 0');
+    expect(canCopyExpr).toContain('bodyText.trim().length > 0');
   });
 
   it('renders the single assistant copy button inside .bubble-actions', () => {

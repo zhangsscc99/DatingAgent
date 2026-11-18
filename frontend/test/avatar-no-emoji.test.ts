@@ -67,7 +67,7 @@ describe('P202 · document title, header brand and assistant avatar are emoji-fr
 
   it('user message text is never routed through the markdown/table normaliser', () => {
     expect(bubble).toContain(
-      'isUser ? message.content : normalizeMarkdownTables(message.content)',
+      'isUser ? bodyText : normalizeMarkdownTables(bodyText)',
     );
   });
 });

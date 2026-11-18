@@ -105,7 +105,7 @@ describe('P217 · long assistant replies collapse behind 展开全文', () => {
     expect(gate).toContain('!isUser');
     expect(gate).toContain('!message.streaming');
     expect(gate).toContain('!message.error');
-    expect(gate).toContain('shouldCollapseReply(message.content)');
+    expect(gate).toContain('shouldCollapseReply(bodyText)');
   });
 
   it('helper: threshold boundary and preview shape', () => {

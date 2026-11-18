@@ -6,6 +6,7 @@ import type { ChatMessage } from '../types';
 import { copyText } from '../lib/clipboard';
 import { highlightSegments } from '../lib/messageSearch';
 import { normalizeMarkdownTables } from '../lib/markdownTables';
+import { fillBracketSlots } from '../lib/replyPlaceholders';
 import { replyCollapseReason, shouldCollapseReply, visibleReplyContent } from '../lib/replyCollapse';
 import {
   formatLatencySeconds,
@@ -85,19 +86,22 @@ const markdownComponents: Components = {
 
 function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, busy = false, highlightQuery, waitingLabel }: Props) {
   const isUser = message.role === 'user';
+  // P334: a template slot that survived the backend pass (「看那个[某部电影/展]」)
+  // must still never reach the DOM — render/copy the rewritten text instead.
+  const bodyText = isUser ? message.content : fillBracketSlots(message.content);
   // Assistant bubbles render through ReactMarkdown, so the whole bubble is
   // flagged instead of marking inline hits (P19).
   const searchHit =
     !isUser &&
     !!highlightQuery &&
-    message.content.toLowerCase().includes(highlightQuery.toLowerCase());
+    bodyText.toLowerCase().includes(highlightQuery.toLowerCase());
   const showStreamingIndicator =
     !isUser && message.streaming && !message.content && message.streamPhase;
   const showCursor = !isUser && message.streaming && !!message.content && !message.error;
   // P272: a quiet progress signal for the whole pending window —
   // undefined the instant `streaming` flips off. P318: the in-stream line
   // paints GENERATION_PROGRESS_WRITING, not the raw character count.
-  const progressLabel = generationProgressLabel(message.content.length, !isUser && !!message.streaming);
+  const progressLabel = generationProgressLabel(bodyText.length, !isUser && !!message.streaming);
 
   const [copyState, setCopyState] = useState<CopyState>('idle');
   const resetTimer = useRef<number | null>(null);
@@ -115,34 +119,34 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
   useEffect(() => clearResetTimer, [clearResetTimer]);
 
   const handleCopy = useCallback(async () => {
-    const ok = await copyText(message.content);
+    const ok = await copyText(bodyText);
     clearResetTimer();
     setCopyState(ok ? 'copied' : 'failed');
     resetTimer.current = window.setTimeout(() => {
       setCopyState('idle');
       resetTimer.current = null;
     }, COPY_FEEDBACK_MS);
-  }, [clearResetTimer, message.content]);
+  }, [clearResetTimer, bodyText]);
 
   // P304: user bubbles never offer 复制 — copying a sentence you just sent
   // is meaningless and the pill stretched the pink bubble taller.
   const canCopy =
-    !isUser && !message.streaming && !message.error && message.content.trim().length > 0;
+    !isUser && !message.streaming && !message.error && bodyText.trim().length > 0;
 
   // P197: GFM pipe tables degrade to bullet lists — react-markdown has no
   // remark-gfm, so raw `|---|` rows would collapse into pipe soup.
-  let markdownContent = isUser ? message.content : normalizeMarkdownTables(message.content);
+  let markdownContent = isUser ? bodyText : normalizeMarkdownTables(bodyText);
 
   // P217: settled assistant replies past the limit collapse to a preview;
   // expanding swaps in the full text without touching the scroll position.
   const collapsible =
-    !isUser && !message.streaming && !message.error && shouldCollapseReply(message.content);
+    !isUser && !message.streaming && !message.error && shouldCollapseReply(bodyText);
   // P301: a >3-paragraph reply collapses even under the char limit — its
   // toggle reads 「展开更多」; the char-only path keeps 「展开全文」.
   const paragraphCollapsed =
-    collapsible && replyCollapseReason(message.content) === 'paragraphs';
+    collapsible && replyCollapseReason(bodyText) === 'paragraphs';
   if (collapsible && !replyExpanded) {
-    markdownContent = normalizeMarkdownTables(visibleReplyContent(message.content, false));
+    markdownContent = normalizeMarkdownTables(visibleReplyContent(bodyText, false));
   }
 
   const canRegen =
@@ -285,7 +289,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             />
           ) : (
             <>
-              {message.content && (
+              {bodyText && (
                 <div className={message.streaming ? 'markdown-streaming' : undefined}>
                   <ReactMarkdown components={markdownComponents}>{markdownContent}</ReactMarkdown>
                 </div>
@@ -294,7 +298,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             </>
           )}
         </div>
-        {progressLabel && message.content.length > 0 && (
+        {progressLabel && bodyText.length > 0 && (
           <div className="generation-progress" aria-hidden="true">
             <span>{GENERATION_PROGRESS_WRITING}</span>
             <span className="streaming-dots" aria-hidden="true">

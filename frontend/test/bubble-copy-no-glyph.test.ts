@@ -87,7 +87,7 @@ describe('P218 · bubble copy button has no ⧉ glyph', () => {
     const handlerStart = tsx.indexOf('const handleCopy');
     expect(handlerStart).toBeGreaterThan(-1);
     const handler = tsx.slice(handlerStart, tsx.indexOf('}, [', handlerStart));
-    expect(handler).toContain('copyText(message.content)');
+    expect(handler).toContain('copyText(bodyText)');
     expect(handler).toContain("setCopyState(ok ? 'copied' : 'failed')");
     expect(tsx).toContain('const COPY_FEEDBACK_MS = 1500');
     // The aria-live status line that announces the copied state stays put.

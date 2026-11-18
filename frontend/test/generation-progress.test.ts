@@ -95,13 +95,13 @@ describe('P272 · wiring guards', () => {
   const bubble = read('components/MessageBubble.tsx');
 
   it('the bubble derives the label from streaming state + content length', () => {
-    expect(bubble).toContain('generationProgressLabel(message.content.length');
+    expect(bubble).toContain('generationProgressLabel(bodyText.length');
     expect(bubble).toContain('!!message.streaming');
   });
 
   it('the counter line only exists while streaming with content', () => {
     expect(bubble).toContain('className="generation-progress"');
-    expect(bubble).toContain('progressLabel && message.content.length > 0');
+    expect(bubble).toContain('progressLabel && bodyText.length > 0');
   });
 
   it('the empty-content placeholder folds progress into the single label slot', () => {
@@ -169,7 +169,7 @@ describe('P310 · composer hint only acknowledges real queued drafts', () => {
     // rendered inside the bubble's generation-progress / streaming
     // indicator — the composer hint row never enters the message list.
     expect(bubble).toContain(
-      'generationProgressLabel(message.content.length, !isUser && !!message.streaming)',
+      'generationProgressLabel(bodyText.length, !isUser && !!message.streaming)',
     );
     expect(bubble).toContain('className="generation-progress"');
     expect(bubble).toContain('showStreamingIndicator =\n    !isUser');

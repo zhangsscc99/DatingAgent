@@ -209,3 +209,105 @@ export function normalizeCjkQuotes(text: string): string {
   }
   return out + convertQuoteSegment(text.slice(last));
 }
+
+// P334: an unfilled slot looks like […] or 【…】 — 1–20 chars inside, no
+// newline. The lookahead keeps Markdown link targets [text](url) intact.
+const SLOT_BRACKET = /\[([^\][\n]{1,20})\](?!\s*\()|【([^【】\n]{1,20})】(?!\s*\()/g;
+const HAS_BRACKET = /[[【]/;
+
+// Measure words a quantified fallback phrase can start with (一部电影).
+const SLOT_MEASURE = '个家部场首本杯顿份条道只次回种样位段层间趟句件张碗瓶双对副支所些';
+const QUANTIFIED_PHRASE = new RegExp(`^一[${SLOT_MEASURE}]`);
+
+// A trailing quantifier phrase — 「那个」「一家很棒的」 — belongs to the
+// slot itself: dropping it keeps a quantified replacement from doubling up
+// (「看那个一部电影」→「看一部电影」). The quantifier is required, so a bare
+// adjective like 「一直很棒的」 stays to describe the replacement; the
+// leading-char stoplist keeps clause openers like 「我最近很火的」 from
+// being eaten as the adjective.
+const SLOT_INTRO = new RegExp(
+  `(?:[那这一俩几][${SLOT_MEASURE}])` +
+    `(?:(?![你我他她它这那把被让请跟和与在看听吃喝玩逛买送约说问想找带做去来是有没最刚已正])` +
+    `[^，。！？：；、\\n\\s]{2,4}的)?` +
+    `[ \\t]*$`,
+);
+
+// Common slot nouns → a generic phrase that always reads as a finished
+// sentence. Matched against the first alternative inside the bracket.
+const SLOT_PHRASES: ReadonlyArray<readonly [RegExp, string]> = [
+  [/展|画廊|美术馆|博物馆/, '一个新开的展'],
+  [/电影|影片|院线/, '一部电影'],
+  [/咖啡|下午茶|甜品|奶茶|餐|饭|火锅|烧烤|日料|小吃|菜|店|馆|吧|食堂|居酒屋/, '一家挺有氛围的小店'],
+  [/公园|景点|去处|江边|海边|湖|山|徒步|露营|野餐|城市|地方|位置|地址|地点|哪儿|哪里|某地|某处/, '一个附近不错的地方'],
+  [/演出|演唱会|脱口秀|话剧|音乐剧|乐队|live|livehouse|音乐节/i, '一场不错的演出'],
+  [/歌|专辑|曲子/, '一首新歌'],
+  [/书|小说|漫画|文章|播客/, '一本不错的书'],
+  [/礼物|惊喜/, '一份小礼物'],
+  [/运动|健身|球|游泳|瑜伽|爬山|活动|项目/, '一个轻松的活动'],
+  [/话题|开场|问题|梗/, '一个轻松的话题'],
+  [/时间|日期|时候|周[几末]|哪天|某日|某天|何时/, '周六下午'],
+  [/游戏|剧本杀|密室/, '一个新出的游戏'],
+];
+
+// Mapped phrases are self-contained noun phrases — a preceding 「那个」 or
+// 「一家很棒的」 belongs to the slot and gets dropped. A bare generic fill
+// (「朋友」) keeps it, since it correctly describes the inserted noun.
+const SELF_CONTAINED = new Set<string>([...SLOT_PHRASES.map(([, p]) => p), '附近一家不错的店']);
+
+function slotFallback(inner: string): string {
+  // 「某部电影/展」 lands on the movie phrase via its first alternative.
+  const first = inner.split(/[/／|｜、,，;；]/u)[0]?.trim() ?? '';
+  for (const [pattern, phrase] of SLOT_PHRASES) {
+    if (pattern.test(first)) return phrase;
+  }
+  // Generic fill: drop the placeholder marker 某 and repair a leading
+  // measure word (某个App → 一个App); a footnote marker ^x unwraps to x.
+  const filled = first
+    .replace(/^某+/u, '')
+    .replace(new RegExp(`^([${SLOT_MEASURE}])`, 'u'), '一$1')
+    .replace(/^\^+/u, '');
+  // Nothing sensible — empty, a bare xxx/*** marker or pure punctuation.
+  if (!filled || /^[xX＊*_\s]+$/.test(filled) || !/[\p{L}\p{N}]/u.test(filled)) {
+    return '附近一家不错的店';
+  }
+  return filled;
+}
+
+function fillSlotSegment(segment: string): string {
+  let out = '';
+  let last = 0;
+  for (const match of segment.matchAll(SLOT_BRACKET)) {
+    const phrase = slotFallback(match[1] ?? match[2] ?? '');
+    out += segment.slice(last, match.index);
+    last = match.index + match[0].length;
+    if (SELF_CONTAINED.has(phrase) || QUANTIFIED_PHRASE.test(phrase)) {
+      out = out.replace(SLOT_INTRO, '');
+    }
+    out += phrase;
+  }
+  return out + segment.slice(last);
+}
+
+/**
+ * P334 — the model sometimes emits copy-ready lines with the template slot
+ * still in place (「一直想去看那个[某部电影/展]」「发现一家很棒的[咖啡馆/展览]」),
+ * leaking the fill-in-the-blank structure the product promises to hide.
+ * fillBracketSlots rewrites every surviving […]/【…】 slot (1–20 chars, no
+ * newline; Markdown link targets [text](url) excluded) into a generic
+ * phrase that reads correctly in the sentence: the deterministic table
+ * covers the usual venue/activity slots, the generic fallback unwraps the
+ * first alternative (某个X → 一个X), and a slot with nothing sensible falls
+ * back to 「附近一家不错的店」. Fenced/inline code and URLs pass through
+ * untouched, no bracket pair survives, and the function is idempotent.
+ */
+export function fillBracketSlots(text: string): string {
+  if (!HAS_BRACKET.test(text)) return text;
+  let out = '';
+  let last = 0;
+  for (const match of text.matchAll(PROTECTED_SPAN)) {
+    out += fillSlotSegment(text.slice(last, match.index));
+    out += match[0];
+    last = match.index + match[0].length;
+  }
+  return out + fillSlotSegment(text.slice(last));
+}
