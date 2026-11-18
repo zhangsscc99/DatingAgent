@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url';
  * P311 — at 1440×900 the desktop rendered three different columns: AI
  * bubbles ~738 px (≈50 CJK characters per line), the composer textarea
  * ~944 px and the welcome/suggestion card ~446 px. The fix keeps ONE
- * shared reading column: --column-max (600 px) is declared only inside
+ * shared reading column: --column-max (600 px, raised to 720 px by
+ * P342) is declared only inside
  * the (min-width: 769px) :root block, so it caps .messages > *, the
  * .input-column wrapper and — via var(--column-max, 520px) — .welcome.
  * The composer tool row wraps under the textarea at ≥769px so the field
@@ -28,17 +29,21 @@ import { fileURLToPath } from 'node:url';
  *
  * No layout engine ships with this repo, so widths are resolved from the
  * declared CSS values — the same style as desktop-column-width.test.ts.
- * The arithmetic stated here:
  *
- *   column        = --column-max                          = 600 px
+ * P342 widened --column-max 600→720 px: at 1440×900 the 600 px column
+ * left ~290 px of dead margin on each side of the ~1180 px main area,
+ * the empty-state column read as narrow, and the sidebar's dashed
+ * 「完善资料」 card duplicated the welcome link. The widened arithmetic:
+ *
+ *   column        = --column-max                          = 720 px
  *   gutter        = .messages/.input-bar padding-inline   = 66 px (≥42)
  *   avatar        = absolute at row.left − 42, out of flow
- *   bubble outer  = min(column, 100% of row)              = 600 px
- *   bubble text   = outer − 2·16 padding − 2·1 border      = 566 px
- *   CJK per line  = ⌊text / font-size⌋ = ⌊566 / 14⌋         = 40 ≤ 40
- *   textarea      = .input-column width (tools wrapped)    = 600 px
+ *   bubble outer  = min(column, 100% of row)              = 720 px
+ *   bubble text   = outer − 2·16 padding − 2·1 border      = 686 px
+ *   CJK per line  = ⌊text / font-size⌋ = ⌊686 / 14⌋         = 49 ≤ 50
+ *   textarea      = .input-column width (tools wrapped)    = 720 px
  *   bubble.left   = row.left = column.left = textarea.left → Δ 0
- *   welcome outer = var(--column-max, 520px) on desktop    = 600 px
+ *   welcome outer = var(--column-max, 520px) on desktop    = 720 px
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -163,10 +168,11 @@ const bubbleOuterPx = columnMax ?? 0;
 describe('P311 · one desktop reading column', () => {
   it('declares --column-max for the desktop breakpoint only', () => {
     expect(columnMax).not.toBeNull();
-    // A reading column: wide enough for prose, narrow enough that the
-    // CJK assertions below stay honest.
-    expect(columnMax!).toBeGreaterThanOrEqual(480);
-    expect(columnMax!).toBeLessThanOrEqual(680);
+    // A reading column: P342's ≥680 px floor kills the dead right margin
+    // the 600 px column left at 1440, and the cap keeps the CJK
+    // assertions below honest.
+    expect(columnMax!).toBeGreaterThanOrEqual(680);
+    expect(columnMax!).toBeLessThanOrEqual(760);
     const desktop = mediaBlock(indexCss, DESKTOP_QUERY);
     expect(ruleBody(desktop, ':root')).toContain('--column-max');
     // No px value at top level → undefined <769px → mobile unchanged.
@@ -178,7 +184,7 @@ describe('P311 · one desktop reading column', () => {
     // that is itself capped at --column-max.
     expect(assistantCapDecl).toBe('100%');
     expect(bubbleOuterPx).toBe(columnMax);
-    expect(bubbleOuterPx).toBeLessThanOrEqual(680);
+    expect(bubbleOuterPx).toBeLessThanOrEqual(760);
     expect(bubbleOuterPx).toBeGreaterThan(0);
   });
 
@@ -226,9 +232,9 @@ describe('P311 · one desktop reading column', () => {
     const borderPx =
       pxDecl(ruleBody(bubbleCss, '.bubble.assistant'), 'border') ?? 0;
     const textWidth = bubbleOuterPx - 2 * padX - 2 * borderPx;
-    // 600 − 32 − 2 = 566 → ⌊566/14⌋ = 40.
+    // 720 − 32 − 2 = 686 → ⌊686/14⌋ = 49.
     const charsPerLine = Math.floor(textWidth / fontSize);
-    expect(charsPerLine).toBeLessThanOrEqual(40);
+    expect(charsPerLine).toBeLessThanOrEqual(50);
     // Robustness: the bubble box itself never exceeds the shared column.
     expect(bubbleOuterPx).toBeLessThanOrEqual(columnMax!);
   });

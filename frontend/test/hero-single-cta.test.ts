@@ -1,12 +1,13 @@
 /// <reference types="node" />
 import { afterAll, describe, expect, it, vi } from 'vitest';
-import { createElement, act } from 'react';
+import { createElement, act, Fragment } from 'react';
 import type { Root } from 'react-dom/client';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { installFakeDom, type FakeDom, type FakeElement } from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
+import Sidebar from '../src/components/Sidebar';
 import type { ChatMessage } from '../src/types';
 
 /**
@@ -440,6 +441,166 @@ describe('P336 · the send key clears >=3:1 against its composer background', ()
       const tinted = compositeOver(resolveColor(vars, spot), surface);
       const accent = resolveColor(vars, 'var(--accent)');
       expect(tinted, name).not.toBe(accent);
+    }
+  });
+});
+
+/**
+ * P342/P344 — the desktop edition of the same defect, measured at
+ * 1440×900 (docs/runs/walk-1795033913-d1.png, walk-1795041074-d1.png):
+ * the sidebar's dashed「完善资料，获得更个性化建议」card and the welcome
+ * block's same-copy footnote link rendered at once — two entries for one
+ * action — while the 600 px content column sat inside the ~1180 px main
+ * area leaving a dead right-side void.
+ *
+ * Contract asserted here:
+ *  1. At 1440 the mounted sidebar + welcome screen holds exactly ONE
+ *     focusable control whose label contains「完善资料」— the welcome
+ *     footnote link. The sidebar card is not rendered at ≥769px at all
+ *     (non-render, so the column reflows with no hole); below the
+ *     breakpoint the drawer keeps it — mobile is unchanged.
+ *  2. The empty-state column — `.welcome`/`hero`, the `.messages`
+ *     content column and the composer's `.input-column` (textarea) — all
+ *     resolve to the shared --column-max ≥ 720 px, so the textarea stays
+ *     the first screen's single obvious focal point and the widths match
+ *     within the ≤8 px tolerance.
+ *  3. The column is centred by symmetric auto margins on every strip —
+ *     the block's right gap equals its left gap (Δ 0 ≤ 10% of 1440).
+ */
+describe('P342 · one 「完善资料」 entry and a widened column at 1440×900', () => {
+  const DESKTOP_W = 1440;
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qs = (sel: string) =>
+    dom.document.querySelector(sel) as FakeElement | null;
+  const qsa = (sel: string) => dom.document.querySelectorAll(sel);
+
+  /** The real first screen: persistent aside + empty ChatWindow. */
+  const mountScreen = async (widthPx: number) => {
+    dom = installFakeDom();
+    const mq = mediaQueryForWidth(widthPx);
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    vi.stubGlobal('matchMedia', mq);
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(
+          Fragment,
+          null,
+          createElement(Sidebar, {
+            tools: [],
+            onQuickPrompt: () => {},
+            onNewChat: () => {},
+            onEditProfile: () => {},
+          }),
+          createElement(ChatWindow, {
+            messages: [] as ChatMessage[],
+            loading: false,
+            onSend: () => {},
+            onSetupProfile: () => {},
+          }),
+        ),
+      );
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const unmount = async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    dom.document.body.textContent = '';
+  };
+
+  /** Resolve a `max-width:` declaration to px — a literal, or
+   *  var(--name[, fallback]) followed to its px declaration in index.css. */
+  function resolveMaxWidthPx(css: string, selector: string): number | null {
+    const decl = /max-width:\s*([^;]+)/.exec(ruleBody(css, selector))?.[1];
+    if (!decl) return null;
+    const text = decl.trim();
+    const px = /^([0-9.]+)px$/.exec(text);
+    if (px) return parseFloat(px[1]);
+    const varRef = /^var\((--[\w-]+)\s*(?:,\s*([^()]+))?\)$/.exec(text);
+    if (!varRef) return null;
+    const hit = new RegExp(
+      `${varRef[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:\\s*([0-9.]+)px`,
+    ).exec(indexCss);
+    if (hit) return parseFloat(hit[1]);
+    const fallback = varRef[2] && /^([0-9.]+)px$/.exec(varRef[2].trim());
+    return fallback ? parseFloat(fallback[1]) : null;
+  }
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('exactly ONE focusable「完善资料」control renders across sidebar + main', async () => {
+    await mountScreen(DESKTOP_W);
+    const controls = qsa('button, a[href], [role="button"]').filter(
+      (el) => isFocusable(el) && inFirstViewport(el),
+    );
+    const entries = controls.filter((el) =>
+      (el.getAttribute('aria-label') ?? el.textContent).includes('完善资料'),
+    );
+    expect(
+      entries.length,
+      `「完善资料」controls: ${entries
+        .map((el) => `${el.className}:${el.textContent}`)
+        .join(' | ')}`,
+    ).toBe(1);
+    // …and the survivor is the welcome block's footnote link.
+    expect(entries[0].classList.contains('welcome-cta')).toBe(true);
+    // The sidebar's dashed card is not mounted at all — not hidden, not
+    // inert: the column reflows with no hole where it used to sit.
+    expect(qs('.profile-setup-btn')).toBeNull();
+    expect(qs('.profile-card')).toBeNull();
+    await unmount();
+  });
+
+  it('the mobile drawer keeps its「完善资料」card (no regression)', async () => {
+    await mountScreen(VIEWPORT_W);
+    const card = qs('.profile-setup-btn');
+    expect(card).not.toBeNull();
+    expect(card!.textContent).toContain('完善资料');
+    await unmount();
+  });
+
+  it('the welcome column is ≥680px and the composer/messages columns match ≤8px', () => {
+    const welcome = resolveMaxWidthPx(chatWindowCss, '.welcome');
+    const messages = resolveMaxWidthPx(chatWindowCss, '.messages > *');
+    const composer = resolveMaxWidthPx(inputBarCss, '.input-column');
+    expect(welcome).not.toBeNull();
+    // .hero rides .welcome — the one widened empty-state column.
+    expect(welcome!).toBeGreaterThanOrEqual(680);
+    expect(messages).not.toBeNull();
+    expect(composer).not.toBeNull();
+    expect(messages!).toBeGreaterThanOrEqual(680);
+    expect(composer!).toBeGreaterThanOrEqual(680);
+    // P344: textarea width vs the .messages content column — both resolve
+    // the shared --column-max, Δ 0.
+    expect(Math.abs(composer! - messages!)).toBeLessThanOrEqual(8);
+  });
+
+  it('the centred column leaves equal left/right gaps (Δ ≤ 10% viewport)', () => {
+    // Symmetric auto margins centre each strip's shared column inside the
+    // same content box, so the right void equals the left one: Δ = 0.
+    for (const [css, sel] of [
+      [chatWindowCss, '.messages > *'],
+      [chatWindowCss, '.welcome'],
+      [inputBarCss, '.input-column'],
+    ] as const) {
+      const body = ruleBody(css, sel);
+      const centred =
+        /(?:^|;)\s*margin\s*:\s*auto/.test(body) ||
+        (/margin-left\s*:\s*auto/.test(body) &&
+          /margin-right\s*:\s*auto/.test(body));
+      expect(centred, `${sel} must keep symmetric auto margins`).toBe(true);
     }
   });
 });

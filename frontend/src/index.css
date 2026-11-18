@@ -55,13 +55,17 @@
 /* P311: ONE desktop reading column. At 1440×900 the AI bubble card
    measured ~738px (≈50 CJK chars per line) against a ~944px composer
    and a ~446px welcome card — three different columns. Capping the
-   shared token at 600px puts the assistant bubble at
+   shared token at 600px put the assistant bubble at
    600−32(avatar)−10(gap) = 558px outer / 524px text ≈ 37 chars per 14px
-   line, lands the textarea on the exact same left/right edges as the
-   message column, and grows the welcome card to the same box. */
+   line, landed the textarea on the exact same left/right edges as the
+   message column, and grew the welcome card to the same box.
+   P342 widened the token 600→720px: at 1440px the 600px column left
+   ~290px of dead margin per side inside the ~1180px main area (the
+   walkthrough's "主列窄右侧空"), and a reading column up to ~49 CJK
+   chars per line is still inside the comfortable band. */
 @media (min-width: 769px) {
   :root {
-    --column-max: 600px;
+    --column-max: 720px;
   }
 }
 

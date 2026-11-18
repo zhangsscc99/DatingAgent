@@ -22,6 +22,7 @@ import {
 } from '../lib/sidebarListState';
 import type { TrashEntry } from '../lib/chatTrash';
 import TrashSheet from './TrashSheet';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { toolDisplayName } from '../lib/toolLabels';
 import { toolPromptFor } from '../lib/toolPrompts';
 import type { ToolInfo, UserProfile } from '../types';
@@ -232,6 +233,10 @@ export default function Sidebar({
   const [, setEvictionTick] = useState(0);
   // P265: open state for the 回收站 sheet anchored under 最近对话.
   const [trashOpen, setTrashOpen] = useState(false);
+  // P342: ≥769px is the desktop breakpoint (same query as --column-max and
+  // the P281 collapse) — the no-profile 「完善资料」 card stays out of the
+  // persistent aside so the welcome footnote link is the one entry.
+  const wideViewport = useMediaQuery('(min-width: 769px)');
   const visibleSessions = filterRecentSessions(recentSessions, filterQuery);
   const sessionGroups = groupSessionsByDay(visibleSessions);
   const trimmedQuery = filterQuery.trim().toLowerCase();
@@ -651,8 +656,13 @@ export default function Sidebar({
         ) : (
           /* P255: no profile yet — the card keeps a 「完善资料」 entry so the
            * dialog stays reachable mid-conversation, after the welcome CTA
-           * has scrolled away. */
-          onEditProfile && (
+           * has scrolled away.
+           * P342: on the desktop breakpoint the card duplicates the welcome
+           * block's same-copy link on the first screen, so it only renders
+           * below 769px — where the aside is a closed drawer and never
+           * competes with the welcome entry. Not rendering it (vs
+           * display:none) keeps the sidebar column reflowed with no hole. */
+          onEditProfile && !wideViewport && (
             <section className="sidebar-section profile-card" aria-label="我的资料">
               <button
                 type="button"

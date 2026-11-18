@@ -25,6 +25,8 @@ import {
  * (min-width: 769px) :root block, so the variable is undefined under the
  * mobile breakpoint and every reference falls back to its pre-column
  * value (desktop-measure.test.ts pins the new reading-column geometry).
+ * P342 widened the token 600→720 px — the measured defect at 1440×900
+ * was a 600 px column inside the ~1180 px main area.
  *
  * No DOM renderer ships with this repo, so "widths differ by ≤ 8 px" is
  * asserted on the resolved CSS values (computed-style source level), plus a
@@ -110,10 +112,11 @@ const columnMax = columnMaxRaw ? parseFloat(columnMaxRaw) : null;
 describe('P305 · shared centred column', () => {
   it('defines a single --column-max token, declared for desktop only', () => {
     expect(columnMax).not.toBeNull();
-    // P311: the column is capped for CJK line length — the full geometry
-    // is pinned in desktop-measure.test.ts.
-    expect(columnMax!).toBeGreaterThanOrEqual(520);
-    expect(columnMax!).toBeLessThanOrEqual(680);
+    // P311: the column is capped for CJK line length; P342 raised the cap
+    // to 720 px so the 1440px first screen loses its dead right margin —
+    // the full geometry is pinned in desktop-measure.test.ts.
+    expect(columnMax!).toBeGreaterThanOrEqual(680);
+    expect(columnMax!).toBeLessThanOrEqual(760);
     // The token lives inside the ≥769px :root block so it is undefined
     // under the mobile breakpoint and every var() reference keeps its
     // pre-column fallback.
