@@ -2818,3 +2818,5 @@ P301（长文）、P315（用户头像）、P316（进阶工具）、P318（「�
 - **P335（P3，balance）** 「换一个」零成本无限重摇，无冷却无次数（`game-balance-analyst` 支配策略）。
 - **P336（P3，visual）** 手机首屏主 CTA 不唯一（P321 复现，断言与视觉权重脱节）。
 - **P337（P3，visual）** 手机首屏中部留白失衡、发送键在空态像禁用。
+
+⚠️ 全量 E2E 失败：`llm-timeout.test.ts` › "504 JSON within ~1s when upstream stalls"（elapsed 1021ms > 1000ms，功能断言通过；commit `c005f65`，2026-11-18T19:33Z，已建阻塞项 DAE2E-20261118）
