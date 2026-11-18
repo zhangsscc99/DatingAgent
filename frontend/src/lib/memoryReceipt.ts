@@ -21,6 +21,13 @@ import { replyLengthLabel, type ReplyLengthPreference } from './replyLength';
  * patterns whose matched span becomes the fact label, so one fact per
  * turn is admitted. Twin of backend/src/lib/conversationFacts.ts — keep
  * the lexicon and patterns in sync.
+ *
+ * P317 — the same walkthrough reproduced once more (Round 87, reagent
+ * 「三小时没回消息 / 想问她在干嘛 / 周末看展」): the wait already matched,
+ * but the user's stated intent — 「想问她在干嘛」「要不要再发一条」 —
+ * still matched nothing. Two intent patterns now admit it too, so every
+ * turn contributes a fact. Verbs are deliberately narrow: 「想约」
+ * 「想带」 stay out so the lexicon/「带…」 hits keep their cleaner labels.
  */
 
 export const MEMORY_RECEIPT_PREFIX = '记得你提到：';
@@ -76,6 +83,13 @@ export const CONVERSATION_FACT_PATTERNS: readonly RegExp[] = [
   /(?:[0-9]+|[一二两三四五六七八九十半几]+)个?(?:分钟|小时|钟头|星期|个月|天|周|月|年)(?:没|不)(?:回|理|复|接|睬|应|找)/g,
   // 没回消息 / 不回我微信 — silence without a stated duration.
   /(?:没|不)回(?:我|她|他|ta)?(?:消息|微信|电话|信息)/g,
+  // 想问她在干嘛 / 想请她吃饭 — an intent or wonder the user stated.
+  // 「想约」「想带」 are excluded on purpose: the lexicon and the 「带…」
+  // pattern above already name those facts with cleaner labels.
+  /想(?:问|邀|请|见|送|表白|复合|确认|知道)[^，。！？!?；;：:、\s]{0,10}/g,
+  // 要不要再发一条 / 要不要主动一点 — an open deliberation. Narrow
+  // second char keeps 「要不要约出来」「要不要一起去」 out.
+  /要不要(?:再|补|继续|主动|直接|先)[^，。！？!?；;：:、\s]{0,8}/g,
 ];
 
 /** One receipt item must stay short enough for a single quiet line. */

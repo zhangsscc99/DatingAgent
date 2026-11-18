@@ -59,6 +59,13 @@ export const CONVERSATION_FACT_PATTERNS: readonly RegExp[] = [
   /(?:[0-9]+|[一二两三四五六七八九十半几]+)个?(?:分钟|小时|钟头|星期|个月|天|周|月|年)(?:没|不)(?:回|理|复|接|睬|应|找)/g,
   // 没回消息 / 不回我微信 — silence without a stated duration.
   /(?:没|不)回(?:我|她|他|ta)?(?:消息|微信|电话|信息)/g,
+  // 想问她在干嘛 / 想请她吃饭 — an intent or wonder the user stated.
+  // 「想约」「想带」 are excluded on purpose: the lexicon and the 「带…」
+  // pattern above already name those facts with cleaner labels.
+  /想(?:问|邀|请|见|送|表白|复合|确认|知道)[^，。！？!?；;：:、\s]{0,10}/g,
+  // 要不要再发一条 / 要不要主动一点 — an open deliberation. Narrow
+  // second char keeps 「要不要约出来」「要不要一起去」 out.
+  /要不要(?:再|补|继续|主动|直接|先)[^，。！？!?；;：:、\s]{0,8}/g,
 ];
 
 /** How many facts a session admits it remembers. */

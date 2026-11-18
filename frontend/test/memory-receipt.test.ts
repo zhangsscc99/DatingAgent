@@ -303,6 +303,75 @@ describe('P313 · three turns each carrying a distinct fact', () => {
   });
 });
 
+describe('P317 · the Round-87 reagent — three turns, three distinct facts', () => {
+  /**
+   * The live walkthrough sent 三小时没回消息 / 想问她在干嘛 / 周末看展 and
+   * the receipt surfaced only 「看展」. The wait already matched after
+   * P313; the stated intent 「想问她在干嘛」 matched nothing and was
+   * dropped. Fixture phrasing mirrors the round-87 probe.
+   */
+  const p317Turns: ChatMessage[] = [
+    { id: 'u1', role: 'user', content: '今天约她，她三小时没回消息，我有点慌。' },
+    { id: 'a1', role: 'assistant', content: '先别急着补发，给她一点空间。' },
+    { id: 'u2', role: 'user', content: '要不要再发一条？想问她在干嘛' },
+    { id: 'a2', role: 'assistant', content: '不建议现在追问，先稳住。' },
+    { id: 'u3', role: 'user', content: '周末本来约她去看展' },
+    { id: 'a3', role: 'assistant', content: '轻轻确认一句就好。' },
+  ];
+
+  it('the receipt names at least two different fact keywords', () => {
+    const line = memoryReceiptLine(null, 'default', p317Turns);
+    expect(line).not.toBeNull();
+    const hits = ['没回', '要不要', '想问', '看展'].filter((k) =>
+      line!.includes(k),
+    );
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('every turn admits a fact — the intent 想问她在干嘛 no longer drops', () => {
+    const items = conversationFactItems(p317Turns, 10);
+    expect(items).toContain('三小时没回');
+    expect(items).toContain('看展');
+    expect(items.some((i) => i.includes('想问'))).toBe(true);
+    expect(items.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('stated intents are facts, but lexicon hits keep their cleaner labels', () => {
+    // 「想约她去看展」 still surfaces as 看展, not a re-labelled intent.
+    expect(
+      conversationFactItems(
+        [{ role: 'user', content: '周末本来想约她去看展' }],
+        10,
+      ),
+    ).toEqual(['看展']);
+    expect(
+      conversationFactItems(
+        [{ role: 'user', content: '下次见面我想带闺蜜一起去' }],
+        10,
+      ),
+    ).toEqual(['带闺蜜']);
+    // …and a bare 「要不要约出来」 is not a fact on its own.
+    expect(
+      conversationFactItems(
+        [{ role: 'user', content: '周末要不要约出来' }],
+        10,
+      ),
+    ).toEqual([]);
+  });
+
+  it('renders the capsule with a clickable 记忆 management entry and >= 2 facts', () => {
+    stubStorage();
+    expect(loadProfile()).toBeNull();
+    const markup = renderChat({ messages: p317Turns, profile: null });
+    expect(markup).toContain('<button type="button" class="memory-capsule"');
+    expect(markup).toContain('aria-label="管理记忆"');
+    const hits = ['没回', '要不要', '想问', '看展'].filter((k) =>
+      markup.includes(k),
+    );
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe('P296 · rendered receipt without a stored profile', () => {
   it('three turns of concrete facts renders the line for an empty-profile user', () => {
     stubStorage();

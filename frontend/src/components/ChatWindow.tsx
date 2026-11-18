@@ -415,6 +415,20 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
               </svg>
               <span className="memory-capsule-text">{memoryReceipt}</span>
+              <svg
+                className="memory-capsule-chevron"
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
             </button>
             {memoryOpen && (
               <div className="memory-panel" role="group" aria-label="已记住的内容">

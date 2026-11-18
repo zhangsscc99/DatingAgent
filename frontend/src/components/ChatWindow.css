@@ -65,6 +65,19 @@
   text-overflow: ellipsis;
 }
 
+/* P317 — the capsule is the 管理记忆 entry, but a static-looking pill gave
+ * no hint it opens the remembered list; a small chevron signals the
+ * expand/collapse affordance and flips while the panel is open. */
+.memory-capsule-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+
+.memory-capsule[aria-expanded='true'] .memory-capsule-chevron {
+  transform: rotate(180deg);
+}
+
 /* Click-expanded management list — one row per remembered item, each
  * with its own delete control. */
 .memory-panel {
@@ -343,6 +356,18 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* P317 — memory management is a touch flow on phones: the capsule and
+     the per-item delete buttons get full 44px targets (label size and
+     pill shape unchanged). */
+  .memory-capsule {
+    min-height: 44px;
+  }
+
+  .memory-panel-delete {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
