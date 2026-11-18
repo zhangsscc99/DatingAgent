@@ -75,9 +75,11 @@ const COLON_AFTER_HAN = /(?<=\p{Script=Han}):(?=[\p{Script=Han}\s])/gu;
 const FULL_WIDTH: Record<string, string> = { ',': '，', '?': '？', '!': '！' };
 
 function convertSegment(segment: string): string {
-  return segment
-    .replace(HALF_AFTER_HAN, (ch) => FULL_WIDTH[ch] ?? ch)
-    .replace(COLON_AFTER_HAN, '：');
+  return convertQuoteSegment(
+    segment
+      .replace(HALF_AFTER_HAN, (ch) => FULL_WIDTH[ch] ?? ch)
+      .replace(COLON_AFTER_HAN, '：'),
+  );
 }
 
 /**
@@ -87,6 +89,13 @@ function convertSegment(segment: string): string {
  * and URLs are returned byte-identical, and digit-adjacent marks like
  * 「1,000」/「12:30」have no Han neighbour so they are never touched. The
  * function is idempotent: full-width output no longer matches the rules.
+ *
+ * P289 — the same input-method residue also produced paired half-width
+ * straight "…" around Chinese phrases (「而不是"完成任务"」). This function
+ * now runs the P292 pair conversion too — Chinese-context pairs are
+ * normalised to 「…」 (the corner-bracket style the rest of the product
+ * already uses), and a stray space after an opening mark before a latin
+ * word (「" rejection"」) is dropped. Unpaired marks stay literal.
  */
 export function normalizeChinesePunctuation(text: string): string {
   if (!/\p{Script=Han}/u.test(text)) return text;
@@ -113,10 +122,16 @@ function isCjkQuoteContext(segment: string, open: number, close: number, inner: 
   return HAN_CHAR.test(inner) || hanAdjacent(segment, open - 1) || hanAdjacent(segment, close + 1);
 }
 
+// P289: a space right after the opening mark in front of a latin word is
+// stray input-method residue (「" rejection"」) — drop the space, keep the
+// word. Applied only to pairs being rewritten to 「」, so English-context
+// quotes keep their original spacing byte-identical.
+const INNER_LATIN_LEAD_SPACE = /^[ \t]+(?=[A-Za-z])/;
+
 function convertQuoteSegment(segment: string): string {
   const withCurly = segment.replace(CURLY_QUOTE_PAIR, (match, inner: string, offset: number) =>
     isCjkQuoteContext(segment, offset, offset + match.length - 1, inner)
-      ? `「${inner}」`
+      ? `「${inner.replace(INNER_LATIN_LEAD_SPACE, '')}」`
       : match,
   );
   // Straight `"` has no distinct open/close glyph — pair each `"` with the
@@ -136,7 +151,9 @@ function convertQuoteSegment(segment: string): string {
     const inner = withCurly.slice(open + 1, close);
     out +=
       withCurly.slice(cursor, open) +
-      (isCjkQuoteContext(withCurly, open, close, inner) ? `「${inner}」` : `"${inner}"`);
+      (isCjkQuoteContext(withCurly, open, close, inner)
+        ? `「${inner.replace(INNER_LATIN_LEAD_SPACE, '')}」`
+        : `"${inner}"`);
     cursor = close + 1;
   }
   return out + withCurly.slice(cursor);

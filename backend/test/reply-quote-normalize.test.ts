@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeCjkQuotes, stripSpaceAfterCjkPunct } from '../src/lib/reply-clean.js';
+import {
+  normalizeChinesePunctuation,
+  normalizeCjkQuotes,
+  stripSpaceAfterCjkPunct,
+} from '../src/lib/reply-clean.js';
 
 /**
  * P292 — the model sometimes wraps Chinese phrases in English curly “…”
@@ -9,6 +13,58 @@ import { normalizeCjkQuotes, stripSpaceAfterCjkPunct } from '../src/lib/reply-cl
  * fenced/inline code and URLs pass through byte-identical, and the
  * function is idempotent.
  */
+/**
+ * P289 — live replies rendered paired half-width straight quotes around
+ * Chinese phrases (「而不是"完成任务"」) plus a stray space after the
+ * opening mark before a latin word (「翻译成" rejection"」).
+ * normalizeChinesePunctuation now rewrites Chinese-context pairs to 「…」
+ * and drops that inner leading space; pure-English lines, fenced/inline
+ * code and URLs pass through byte-identical, unpaired marks stay literal.
+ */
+describe('P289 · normalizeChinesePunctuation normalizes CJK-context straight quotes', () => {
+  it('removes every half-width " and every `" ` shape, keeping quotes paired', () => {
+    const cleaned = normalizeChinesePunctuation('把"沉默"翻译成" rejection"');
+    expect(cleaned).toBe('把「沉默」翻译成「rejection」');
+    expect(cleaned.match(/"/g) ?? []).toHaveLength(0);
+    expect(cleaned.match(/" /g) ?? []).toHaveLength(0);
+    const opens = (cleaned.match(/「/g) ?? []).length;
+    expect(opens).toBeGreaterThan(0);
+    expect((cleaned.match(/」/g) ?? []).length).toBe(opens);
+  });
+
+  it('returns a purely English sentence byte-identical', () => {
+    const line = 'He said "hello" to me.';
+    expect(normalizeChinesePunctuation(line)).toBe(line);
+  });
+
+  it('does not touch quotes inside fenced code blocks', () => {
+    const block = '```\nconst a = "b";\n```';
+    expect(normalizeChinesePunctuation(block)).toBe(block);
+    const reply = `解释如下：\n${block}\n明白"了"吗`;
+    expect(normalizeChinesePunctuation(reply)).toBe(`解释如下：\n${block}\n明白「了」吗`);
+  });
+
+  it('does not touch quotes inside a URL on a Chinese line', () => {
+    const reply = '看这个 https://example.com/a?b="c" 链接，懂"了"没';
+    expect(normalizeChinesePunctuation(reply)).toBe(
+      '看这个 https://example.com/a?b="c" 链接，懂「了」没',
+    );
+  });
+
+  it('leaves unpaired straight quotes literal', () => {
+    expect(normalizeChinesePunctuation('他说"算了')).toBe('他说"算了');
+  });
+
+  it('keeps English-context pairs and their spacing on a Chinese line', () => {
+    expect(normalizeChinesePunctuation('可以说 "hello" 打招呼')).toBe('可以说 "hello" 打招呼');
+  });
+
+  it('is idempotent', () => {
+    const once = normalizeChinesePunctuation('把"沉默"翻译成" rejection"');
+    expect(normalizeChinesePunctuation(once)).toBe(once);
+  });
+});
+
 describe('P292 · normalizeCjkQuotes converts Chinese-context pairs to 「」', () => {
   it('converts a curly “…” pair wrapping Chinese text', () => {
     expect(normalizeCjkQuotes('关键是让它自然流动，而不是“完成任务”。')).toBe(
