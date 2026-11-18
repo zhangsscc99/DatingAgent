@@ -12,6 +12,7 @@ import {
   formatRelativeTime,
   isRenderableTimestamp,
 } from '../lib/relativeTime';
+import { formatAbsolute } from '../lib/absoluteTime';
 import {
   GENERATION_PROGRESS_WRITING,
   generationProgressLabel,
@@ -172,6 +173,16 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
   const handleToggleVersion = useCallback(() => {
     onToggleReplyVersion?.(message.id);
   }, [onToggleReplyVersion, message.id]);
+
+  // P329: the meta row's age label becomes a real <time> so hover/long-press
+  // surfaces the absolute date and machines get an ISO stamp. A corrupt
+  // timestamp yields '' — the old 刚刚 <span> renders instead, so no empty
+  // title attribute ever reaches the DOM.
+  const createdAt = message.createdAt;
+  const createdAtAbsolute = formatAbsolute(createdAt);
+  const createdAtIso = isRenderableTimestamp(createdAt)
+    ? new Date(createdAt).toISOString()
+    : '';
 
   return (
     <div
@@ -439,11 +450,13 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             {/* P304: the 「约 X 秒」 badge leaves the body visual hierarchy —
                 the row shows the reply's age (「刚刚」 right after it lands)
                 while the exact seconds + tokens live only in the title. */}
-            <span>
-              {isRenderableTimestamp(message.createdAt)
-                ? formatRelativeTime(message.createdAt)
-                : '刚刚'}
-            </span>
+            {createdAtAbsolute ? (
+              <time dateTime={createdAtIso} title={createdAtAbsolute}>
+                {formatRelativeTime(message.createdAt)}
+              </time>
+            ) : (
+              <span>刚刚</span>
+            )}
           </div>
         )}
       </div>

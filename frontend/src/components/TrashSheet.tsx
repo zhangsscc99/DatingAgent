@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { startDialogDismiss } from '../lib/dialogDismiss';
 import { formatRelativeTime } from '../lib/relativeTime';
+import { trashDaysLeft } from '../lib/absoluteTime';
+import { TRASH_TTL_MS } from '../lib/chatTrash';
 import type { TrashEntry } from '../lib/chatTrash';
 import ConfirmDialog from './ConfirmDialog';
 import './TrashSheet.css';
@@ -55,6 +57,9 @@ export default function TrashSheet({
 
   if (!open) return null;
 
+  // P329: one snapshot per render so every row's 「剩 N 天」 agrees.
+  const now = Date.now();
+
   return (
     <div
       className="settings-overlay trash-overlay"
@@ -88,7 +93,8 @@ export default function TrashSheet({
                   <span className="trash-row-title">{entry.title}</span>
                   <span className="trash-row-meta">
                     {entry.messageCount} 条消息 · 删除于{' '}
-                    {formatRelativeTime(entry.deletedAt)}
+                    {formatRelativeTime(entry.deletedAt)} · 剩{' '}
+                    {trashDaysLeft(entry.deletedAt, now, TRASH_TTL_MS)} 天
                   </span>
                 </div>
                 <button
