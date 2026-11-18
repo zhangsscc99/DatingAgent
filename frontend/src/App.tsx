@@ -971,6 +971,11 @@ export default function App() {
         // the restored content and stays hidden behind the error UI.
         previousVersion: original,
         newerVersion: undefined,
+        // P332: the incoming reply is the next version — the badge counts
+        // generations from 1, so a bubble that never regenerated stays
+        // undefined (and unlabeled). Restored below if the stream fails or
+        // echoes the same text back.
+        versionIndex: (target.versionIndex ?? 1) + 1,
       });
       replyInFlightRef.current = true;
       setLoading(true);
@@ -987,6 +992,7 @@ export default function App() {
               error: true,
               errorDetail: outcome.errorText,
               retryPrompt: prompt,
+              versionIndex: original.versionIndex,
             });
           } else if (
             outcome.status === 'ok' &&
@@ -1008,6 +1014,7 @@ export default function App() {
               retryPrompt: undefined,
               previousVersion: undefined,
               newerVersion: undefined,
+              versionIndex: original.versionIndex,
               duplicateRegen: true,
             });
           }

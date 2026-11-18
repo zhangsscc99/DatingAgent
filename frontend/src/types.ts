@@ -51,6 +51,14 @@ export interface ChatMessage {
    */
   newerVersion?: ReplyVersionSnapshot;
   /**
+   * P332: 1-based index of the reply version currently on screen — the first
+   * generation leaves it undefined (no 「第 N 版」 label), each successful
+   * 换一个 bumps it, and the P276 swap carries it through the parked
+   * snapshots so the badge always names the displayed text. In-memory only:
+   * serializeMessages drops it like the version slots.
+   */
+  versionIndex?: number;
+  /**
    * P284: the last 「换一个」 came back identical to the version it replaced.
    * The bubble keeps the original text, hides the fake fresh latency row and
    * shows 「这一版和上一版一样，再试一次？」 instead. In-memory only.
@@ -71,6 +79,8 @@ export interface ReplyVersionSnapshot {
   toolEvents?: ToolEvent[];
   meta?: ReplyMeta;
   stopped?: boolean;
+  /** P332: the versionIndex this snapshot was showing when parked. */
+  versionIndex?: number;
 }
 
 export interface ToolEvent {

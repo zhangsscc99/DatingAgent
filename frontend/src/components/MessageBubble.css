@@ -274,6 +274,16 @@
 /* P276: the 恢复上一版/查看新版 pill reuses .regen-btn's exact footprint —
    .version-toggle is a semantic hook only, no extra rules needed. */
 
+/* P332: 「第 N 版」 is read-only context, not a fourth pill — same 11px
+   subdued text as .reply-meta so it reads as a caption trailing the action
+   buttons rather than something tappable. */
+.version-badge {
+  align-self: center;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
 /* P26: in-place status line while the replacement reply streams in. */
 .regen-status {
   margin-top: 8px;

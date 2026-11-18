@@ -17,6 +17,7 @@ export function versionSnapshotOf(message: ChatMessage): ReplyVersionSnapshot {
     toolEvents: message.toolEvents,
     meta: message.meta,
     stopped: message.stopped,
+    versionIndex: message.versionIndex,
   };
 }
 
@@ -30,6 +31,7 @@ function applySnapshot(
     toolEvents: snapshot.toolEvents,
     meta: snapshot.meta,
     stopped: snapshot.stopped,
+    versionIndex: snapshot.versionIndex,
   };
 }
 

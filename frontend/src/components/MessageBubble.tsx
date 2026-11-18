@@ -162,6 +162,10 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
   // only exists while one of the two slots is populated, and never on a
   // bubble that is streaming/regenerating/errored.
   const viewingPrevious = message.newerVersion !== undefined;
+  // P332: 「第 N 版」 counts generations from 1; the first version wears no
+  // label at all, so only a bumped/restored index renders the badge.
+  const versionIndex = message.versionIndex ?? 1;
+  const showVersionBadge = !isUser && versionIndex > 1;
   const canToggleVersion =
     !isUser &&
     !message.streaming &&
@@ -448,6 +452,11 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
                 </svg>
                 {viewingPrevious ? '查看新版' : '恢复上一版'}
               </button>
+            )}
+            {showVersionBadge && (
+              <span className="version-badge" aria-label={`当前为第 ${versionIndex} 版回复`}>
+                {`第 ${versionIndex} 版`}
+              </span>
             )}
             <span className="copy-status" role="status" aria-live="polite">
               {copyState === 'copied' ? '已复制到剪贴板' : copyState === 'failed' ? '复制失败' : ''}
