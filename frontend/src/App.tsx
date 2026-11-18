@@ -80,6 +80,11 @@ import {
   type ConfirmRequest,
 } from './lib/confirmCopy';
 import { pushInputHistory } from './lib/inputHistory';
+import {
+  isCollapsed,
+  saveCollapsed,
+  sidebarToggleLabel,
+} from './lib/sidebarCollapse';
 import { regeneratePromptFor } from './lib/regenerate';
 import { toggleReplyVersion, versionSnapshotOf } from './lib/replyVersions';
 import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
@@ -189,6 +194,10 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // P281: desktop collapse — the preference is read in the initial state so
+  // the very first paint already lays out collapsed/expanded correctly and
+  // nothing jumps after mount. The mobile drawer is a separate path.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => isCollapsed());
   const [exportState, setExportState] = useState<'idle' | 'done' | 'failed'>('idle');
   const [copyExportState, setCopyExportState] = useState<'idle' | 'done' | 'failed'>('idle');
   const [jsonExportState, setJsonExportState] = useState<'idle' | 'done' | 'failed'>('idle');
@@ -1113,6 +1122,13 @@ export default function App() {
 
   const closeSidebar = () => setSidebarOpen(false);
 
+  const toggleSidebarCollapse = () => {
+    setSidebarCollapsed((v) => {
+      saveCollapsed(!v);
+      return !v;
+    });
+  };
+
   const streamAnnouncement = appendModelWaitHint(
     buildStreamAnnouncement(streamingPhase, waitingElapsedMs, currentToolLabel, streamingToolPhase),
     waitingElapsedMs,
@@ -1342,6 +1358,7 @@ export default function App() {
         activeSessionId={sessionId}
         open={sidebarOpen}
         isMobile={isMobile}
+        collapsed={sidebarCollapsed}
         onClose={closeSidebar}
         onQuickPrompt={(prompt) => {
           if (!canRunQuickPrompt(loading)) return;
@@ -1409,6 +1426,40 @@ export default function App() {
                 onClick={() => setSidebarOpen((v) => !v)}
               >
                 <span className="menu-icon" aria-hidden="true" />
+              </button>
+            )}
+            {/* P281: the desktop collapse toggle lives in the header so it
+                stays reachable while the sidebar is collapsed; the mobile
+                breakpoint keeps its own 打开菜单 drawer button instead. */}
+            {!isMobile && (
+              <button
+                type="button"
+                className="sidebar-collapse-btn"
+                aria-label={sidebarToggleLabel(sidebarCollapsed)}
+                aria-expanded={!sidebarCollapsed}
+                aria-controls="app-sidebar"
+                title={sidebarToggleLabel(sidebarCollapsed)}
+                onClick={toggleSidebarCollapse}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="4" width="18" height="16" rx="2" />
+                  <path d="M9 4v16" />
+                  <path
+                    d={
+                      sidebarCollapsed ? 'M13 9l2.5 3-2.5 3' : 'M15.5 9l-2.5 3 2.5 3'
+                    }
+                  />
+                </svg>
               </button>
             )}
             <div className="header-title">

@@ -35,6 +35,9 @@ interface Props {
   activeSessionId?: string | null;
   open?: boolean;
   isMobile?: boolean;
+  /** P281: desktop-only collapse — the aside zeroes its width and goes inert;
+   * ignored below the mobile breakpoint (the drawer owns open/close there). */
+  collapsed?: boolean;
   onClose?: () => void;
   onQuickPrompt: (prompt: string) => void;
   onNewChat: () => void;
@@ -182,6 +185,7 @@ export default function Sidebar({
   activeSessionId,
   open = false,
   isMobile = false,
+  collapsed = false,
   onClose,
   onQuickPrompt,
   onNewChat,
@@ -307,12 +311,12 @@ export default function Sidebar({
     <aside
       ref={sidebarRef}
       id="app-sidebar"
-      className={`sidebar${isMobile ? ' sidebar-drawer' : ''}${isMobile && open ? ' open' : ''}`}
+      className={`sidebar${isMobile ? ' sidebar-drawer' : ''}${isMobile && open ? ' open' : ''}${!isMobile && collapsed ? ' sidebar-collapsed' : ''}`}
       aria-label="导航侧边栏"
       aria-hidden={isMobile ? !open : undefined}
       role={isMobile ? 'dialog' : undefined}
       aria-modal={isMobile ? open : undefined}
-      inert={isMobile && !open ? true : undefined}
+      inert={isMobile ? (!open ? true : undefined) : collapsed ? true : undefined}
     >
       {isMobile && (
         <div className="sidebar-drawer-header">

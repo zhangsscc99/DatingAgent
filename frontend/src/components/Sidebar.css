@@ -726,7 +726,29 @@
   }
 }
 
+/* P281 — desktop collapse: the aside yields its entire column back to the
+   chat surface. The preference is applied on the first render (before paint),
+   so the short width transition only ever runs on an explicit toggle. The
+   collapsed class is never rendered below the 769px breakpoint, but the
+   query keeps the guard honest if that ever changes. */
+@media (min-width: 769px) {
+  .sidebar {
+    transition: width 0.2s ease, padding 0.2s ease;
+  }
+
+  .sidebar.sidebar-collapsed {
+    width: 0;
+    padding: 0;
+    border-right: none;
+    overflow: hidden;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: transform 0s, visibility 0s, width 0s, padding 0s;
+  }
+
   .sidebar.sidebar-drawer {
     transition: transform 0s, visibility 0s;
   }
