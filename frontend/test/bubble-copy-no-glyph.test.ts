@@ -16,6 +16,8 @@ import type { ChatMessage } from '../src/types';
  * name 「复制回复」, the click → copyText → copied feedback path and the
  * 「换一个」 sibling untouched. vitest runs in node (no DOM renderer),
  * so this pins the contract with a static render plus source guards.
+ * P304 removed the user-bubble copy pill entirely, so the glyph contract
+ * now applies to assistant bubbles only.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -62,10 +64,10 @@ describe('P218 · bubble copy button has no ⧉ glyph', () => {
     expect(markup).toContain('复制');
   });
 
-  it('user bubbles get the same glyph-free copy button (P184 row shared)', () => {
-    const markup = copyButtonMarkup(USER);
-    expect(markup).not.toContain('⧉');
-    expect(markup).not.toMatch(EMOJI);
+  it('user bubbles render no copy button at all (P304)', () => {
+    const html = renderToStaticMarkup(createElement(MessageBubble, { message: USER }));
+    expect(html).not.toContain('copy-btn');
+    expect(html).not.toContain('复制');
   });
 
   it('the accessible name is still 复制回复', () => {

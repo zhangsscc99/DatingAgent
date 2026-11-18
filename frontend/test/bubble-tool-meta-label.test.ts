@@ -29,15 +29,20 @@ import {
  * a slow tool reply keeps its numeric seconds plus a short clause instead of
  * the vague 「本次思考较久」. Mounted on the fake DOM (same approach as
  * bubble-copy-role-copy.test.ts).
+ *
+ * P304 — the visible 「约 X 秒」 badge left the body hierarchy: the meta row
+ * now shows the reply's age (「刚刚」 for a fresh reply) while the exact
+ * seconds and token count survive only in the element's title tooltip.
  */
 
 const SNAKE_ID = /[a-z]+_[a-z_]+/;
+const NOW = Date.now();
 
 const KNOWN: ChatMessage = {
   id: 'a-known',
   role: 'assistant',
   content: '可以先接住她的表情包，再顺着约咖啡。',
-  createdAt: 1,
+  createdAt: NOW,
   toolEvents: [
     { name: 'coach_conversation', label: '接话术', status: 'done' },
   ],
@@ -48,7 +53,7 @@ const UNKNOWN: ChatMessage = {
   id: 'a-unknown',
   role: 'assistant',
   content: '关系建议正文。',
-  createdAt: 2,
+  createdAt: NOW,
   meta: { tool: 'mystery_backend_tool', tokens: 60, latencyMs: 4100 },
 };
 
@@ -56,7 +61,7 @@ const NOTOOL: ChatMessage = {
   id: 'a-notool',
   role: 'assistant',
   content: '普通回复。',
-  createdAt: 3,
+  createdAt: NOW,
   meta: { tokens: 40, latencyMs: 2000 },
 };
 
@@ -65,7 +70,7 @@ const SLOW: ChatMessage = {
   id: 'a-slow',
   role: 'assistant',
   content: '慢回复正文。',
-  createdAt: 4,
+  createdAt: NOW,
   toolEvents: [
     { name: 'coach_conversation', label: '接话术', status: 'done' },
   ],
@@ -135,8 +140,11 @@ describe('P258 · bubble meta never repeats the tool name', () => {
     expect(row.textContent).not.toContain('接话术');
     expect(row.textContent).not.toContain('coach_conversation');
     expect(SNAKE_ID.test(row.textContent)).toBe(false);
-    // latency still renders alongside
-    expect(row.textContent).toMatch(/约 [\d.]+ 秒/);
+    // P304: the visible badge is the reply's age; exact latency rides in
+    // the title tooltip with the token count.
+    expect(row.textContent).toBe('刚刚');
+    expect(row.textContent).not.toMatch(/约 [\d.]+ 秒/);
+    expect(row.getAttribute('title')).toBe('120 tokens · 8.8s');
   });
 
   it('no meta row carries any tool display name or meta-tool element', () => {
@@ -163,7 +171,7 @@ describe('P258 · bubble meta never repeats the tool name', () => {
     // identical to the in-session line
     expect(restored.textContent).toBe(metaRows()[0].textContent);
     expect(restored.textContent).not.toContain('接话术');
-    expect(restored.textContent).toContain('秒');
+    expect(restored.getAttribute('title')).toBe(metaRows()[0].getAttribute('title'));
     expect(restored.textContent).not.toContain('coach_conversation');
     expect(restored.textContent).not.toContain('tokens');
     expect(SNAKE_ID.test(restored.textContent)).toBe(false);
@@ -171,12 +179,13 @@ describe('P258 · bubble meta never repeats the tool name', () => {
     expect(RESTORED.meta).toEqual(KNOWN.meta);
   });
 
-  it('a slow reply keeps the numeric seconds plus a short clause — still no tool name', () => {
+  it('a slow reply keeps its exact seconds in the tooltip — still no tool name', () => {
     const row = metaRows()[4];
     expect(row, 'slow meta row').toBeTruthy();
-    expect(row.textContent).toContain('约');
-    expect(row.textContent).toMatch(/约 [\d.]+ 秒/);
-    expect(row.textContent).toContain('想了有一会儿');
+    expect(row.textContent).toBe('刚刚');
+    expect(row.textContent).not.toMatch(/约 [\d.]+ 秒/);
+    expect(row.textContent).not.toContain('想了有一会儿');
+    expect(row.getAttribute('title')).toBe('300 tokens · 25.4s');
     expect(row.textContent).not.toBe('本次思考较久');
     expect(row.textContent).not.toContain('接话术');
     // and its bubble still says the name exactly once, in the badge

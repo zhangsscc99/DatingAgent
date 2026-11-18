@@ -18,6 +18,10 @@ import {
  * node environment (no DOM renderer), so the tooltip contract is locked via
  * a source guard on MessageBubble.tsx plus pure-function assertions on the
  * formatter.
+ *
+ * P304 — the visible latency badge left the body hierarchy: the row now
+ * shows the reply's age (「刚刚」 on a fresh reply) and the exact seconds
+ * survive only in the title tooltip next to the token count.
  */
 
 const bubbleSrc = readFileSync(
@@ -43,15 +47,17 @@ describe('P212 · reply meta copy', () => {
     expect(formatReplyLatency(70_200)).toBe('约 70.2 秒 · 想了有一会儿');
   });
 
-  it('keeps the token count in the title tooltip, not the visible text', () => {
+  it('keeps the token count and exact seconds in the title tooltip, not the visible text', () => {
     // The visible token span is gone…
     expect(bubbleSrc).not.toContain('{message.meta.tokens} tokens</span>');
     // …and the count only survives inside the title attribute.
     expect(bubbleSrc).toMatch(/title=\{[\s\S]*?\$\{message\.meta\.tokens\} tokens[\s\S]*?\}/);
     // Raw seconds still ride along in the tooltip via the P63 formatter.
     expect(bubbleSrc).toContain('formatLatencySeconds(message.meta.latencyMs)');
-    // Visible latency goes through the human-language formatter.
-    expect(bubbleSrc).toContain('formatReplyLatency(message.meta.latencyMs)');
+    // P304: the visible 「约 X 秒」 badge is gone — the row shows the
+    // reply's relative age instead of the latency number.
+    expect(bubbleSrc).not.toContain('formatReplyLatency');
+    expect(bubbleSrc).toContain('formatRelativeTime(message.createdAt)');
     expect(formatLatencySeconds(70_200)).toBe('70.2s');
   });
 });

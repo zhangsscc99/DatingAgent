@@ -11,13 +11,14 @@ import type { ChatMessage } from '../src/types';
 
 /**
  * P219 — the copy action under a user's own bubble was announced as
- * 「复制回复」 ("copy reply"), so a three-turn conversation read six
- * identical "copy reply" controls to a screen reader, half of them lying.
- * The label is now role-aware: user bubbles expose 「复制我的消息」, assistant
- * bubbles keep 「复制回复」; the icon, the clipboard payload and the
- * 1.5 s copied feedback are unchanged. Vitest runs in node, so the two
- * bubbles mount on the fake DOM (see ./helpers/fakeDom.ts) and the
- * clipboard write is observed through a navigator.clipboard spy.
+ * 「复制回复」, so the label was made role-aware (「复制我的消息」).
+ *
+ * P304 goes further: the user-bubble copy pill was deleted outright —
+ * copying a sentence you just sent is meaningless and the button stretched
+ * the pink bubble taller. The assistant bubble keeps 「复制回复」, the
+ * clipboard write and the 1.5 s copied feedback unchanged. Vitest runs in
+ * node, so the two bubbles mount on the fake DOM (see ./helpers/fakeDom.ts)
+ * and the clipboard write is observed through a navigator.clipboard spy.
  */
 
 const USER: ChatMessage = {
@@ -34,7 +35,7 @@ const ASSISTANT: ChatMessage = {
   createdAt: 1,
 };
 
-describe('P219 · role-aware copy label on bubbles', () => {
+describe('P304 · copy button only on assistant bubbles', () => {
   let dom: FakeDom;
   let writeText: ReturnType<typeof vi.fn<(text: string) => Promise<void>>>;
 
@@ -50,12 +51,6 @@ describe('P219 · role-aware copy label on bubbles', () => {
     await act(async () => {
       el.dispatchEvent(new FakeEvent('click', { bubbles: true, cancelable: true }));
     });
-  };
-
-  const copyBtnIn = (row: FakeElement) => {
-    const btn = row.querySelector('.copy-btn');
-    expect(btn, '.copy-btn').not.toBeNull();
-    return btn!;
   };
 
   beforeAll(async () => {
@@ -98,41 +93,40 @@ describe('P219 · role-aware copy label on bubbles', () => {
     expect(row, 'assistant row').not.toBeNull();
     return row!;
   };
+  const copyBtnIn = (row: FakeElement) => {
+    const btn = row.querySelector('.copy-btn');
+    expect(btn, '.copy-btn').not.toBeNull();
+    return btn!;
+  };
 
-  it('the user bubble copy button is named 复制我的消息, never 回复', () => {
-    const btn = copyBtnIn(userRow());
-    const label = btn.getAttribute('aria-label') ?? '';
-    expect(label).toBe('复制我的消息');
-    expect(label).not.toContain('回复');
-    expect(btn.getAttribute('title')).toBe('复制我的消息');
+  it('the user bubble renders no copy button and no actions row at all', () => {
+    const row = userRow();
+    expect(row.querySelector('.copy-btn')).toBeNull();
+    expect(row.querySelector('.bubble-actions')).toBeNull();
+    expect(row.textContent).not.toContain('复制');
   });
 
-  it('the assistant bubble copy button keeps 复制回复', () => {
+  it('the assistant bubble copy button is named 复制回复', () => {
     const btn = copyBtnIn(assistantRow());
     expect(btn.getAttribute('aria-label')).toBe('复制回复');
     expect(btn.getAttribute('title')).toBe('复制回复');
   });
 
-  it('both copy controls are real <button type="button"> with the inline SVG', () => {
-    for (const btn of [copyBtnIn(userRow()), copyBtnIn(assistantRow())]) {
-      expect(btn.tagName).toBe('BUTTON');
-      expect(btn.getAttribute('type')).toBe('button');
-      const icon = btn.querySelector('svg');
-      expect(icon, 'inline svg icon').not.toBeNull();
-      expect(icon!.getAttribute('aria-hidden')).toBe('true');
-      expect(btn.textContent).toContain('复制');
-    }
+  it('the copy control is a real <button type="button"> with the inline SVG', () => {
+    const btn = copyBtnIn(assistantRow());
+    expect(btn.tagName).toBe('BUTTON');
+    expect(btn.getAttribute('type')).toBe('button');
+    const icon = btn.querySelector('svg');
+    expect(icon, 'inline svg icon').not.toBeNull();
+    expect(icon!.getAttribute('aria-hidden')).toBe('true');
+    expect(btn.textContent).toContain('复制');
   });
 
-  it('clicking each button writes that bubble\'s own text to the clipboard', async () => {
+  it('clicking the button writes the reply text to the clipboard', async () => {
     writeText.mockClear();
-    await click(copyBtnIn(userRow()));
-    await flush();
-    expect(writeText).toHaveBeenLastCalledWith(USER.content);
-
     await click(copyBtnIn(assistantRow()));
     await flush();
     expect(writeText).toHaveBeenLastCalledWith(ASSISTANT.content);
-    expect(writeText).toHaveBeenCalledTimes(2);
+    expect(writeText).toHaveBeenCalledTimes(1);
   });
 });

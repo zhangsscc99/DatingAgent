@@ -5,13 +5,19 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * P184 — user bubbles had no copy affordance: `canCopy` in MessageBubble.tsx
- * started with `!isUser`, so only assistant replies could be copied even though
- * P31 promised a copy action on every chat bubble. The fix drops the role
- * check so a non-streaming, non-error, non-blank user bubble renders the same
- * copy button (same `copyText` helper, same 1.5 s feedback, same
- * `.bubble-actions` layout). These tests lock the contract at source level
- * (no DOM renderer in this repo).
+ * P184 — user bubbles had no copy affordance, so `canCopy` dropped its
+ * `!isUser` gate and every bubble shared the copy pill.
+ *
+ * P304 reverses that decision: on the phone the pink user bubble carried a
+ * 「复制」 that copied a sentence the user had just typed themselves —
+ * useless, and the pill stretched the bubble taller. `canCopy` starts with
+ * `!isUser` again, so user bubbles render no action row at all while
+ * assistant bubbles keep the identical copy path (same copyText helper,
+ * same 1.5 s feedback, same `.bubble-actions` layout). The role-aware
+ * 「复制我的消息」 label is gone with the button — the one remaining pill is
+ * always 「复制回复」. These tests lock the contract at source level (no
+ * DOM renderer in this repo); the mounted-DOM side lives in
+ * message-actions.test.ts.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -23,32 +29,29 @@ const canCopyExpr = (() => {
   return bubbleTsx.slice(start, bubbleTsx.indexOf(';', start));
 })();
 
-describe('P184 copy button on user bubbles', () => {
-  it('canCopy no longer excludes user messages', () => {
-    expect(canCopyExpr).not.toContain('isUser');
+describe('P304 copy button leaves user bubbles', () => {
+  it('canCopy excludes user messages again', () => {
+    expect(canCopyExpr).toContain('!isUser');
   });
 
   it('still requires a settled, non-error, non-blank message', () => {
     // Streaming bubbles, error bubbles and empty/whitespace content keep
-    // hiding the button — this applies to user and assistant bubbles alike.
+    // hiding the button on assistant messages too.
     expect(canCopyExpr).toContain('!message.streaming');
     expect(canCopyExpr).toContain('!message.error');
     expect(canCopyExpr).toContain('message.content.trim().length > 0');
   });
 
-  it('renders one copy button shared by both roles inside .bubble-actions', () => {
+  it('renders the single assistant copy button inside .bubble-actions', () => {
     const actionsStart = bubbleTsx.indexOf('className="bubble-actions"');
     expect(actionsStart).toBeGreaterThan(-1);
     const block = bubbleTsx.slice(actionsStart, bubbleTsx.indexOf('</div>', actionsStart));
     expect(block).toContain('{canCopy && (');
     expect(block).toContain('className={`copy-btn');
     expect(block).toContain('onClick={handleCopy}');
-    // Same copied-feedback path for whichever bubble shows the button; the
-    // idle accessible name is role-aware (P219): 复制我的消息 on user bubbles,
-    // 复制回复 on assistant bubbles.
-    expect(block).toContain(
-      "copyState === 'copied' ? '已复制' : isUser ? '复制我的消息' : '复制回复'",
-    );
+    // With the user bubble out of scope the label needs no role branch:
+    // one accessible name, 「复制回复」.
+    expect(block).not.toContain('复制我的消息');
     expect(block).toContain('className="copy-status"');
     expect(block).toContain('aria-live="polite"');
   });
@@ -57,7 +60,7 @@ describe('P184 copy button on user bubbles', () => {
     expect(bubbleTsx).toContain('const COPY_FEEDBACK_MS = 1500');
   });
 
-  it('does not gate the actions row on the assistant role', () => {
+  it('keeps the actions row guarded on copy-or-regen', () => {
     const actionsGuard = bubbleTsx.indexOf('{(canCopy || canRegen) && (');
     expect(actionsGuard).toBeGreaterThan(-1);
   });

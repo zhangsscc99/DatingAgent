@@ -169,6 +169,9 @@
   margin-top: 8px;
 }
 
+/* P304: the action pills were 浅灰字 + 浅灰描边 at 55% opacity — ~2.4:1 on a
+   phone, effectively invisible. Solid --text-secondary text clears 4.5:1 on
+   the assistant bubble in both themes; no hover reveal needed anymore. */
 .copy-btn {
   padding: 3px 9px;
   background: transparent;
@@ -177,18 +180,12 @@
   gap: 4px;
   border: 1px solid var(--border);
   border-radius: 20px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.5;
   font-family: inherit;
   cursor: pointer;
-  opacity: 0.55;
   transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.bubble:hover .copy-btn,
-.copy-btn:focus-visible {
-  opacity: 1;
 }
 
 .copy-btn:hover {
@@ -228,8 +225,8 @@
   border: 0;
 }
 
-/* P26: "换一个" action on the newest assistant bubble — same footprint as the
-   copy button so it fades in on hover/focus without any layout shift. */
+/* P26: "换一个" action on the newest assistant bubble — same footprint as
+   the copy button. P304: always rendered at full strength, no hover fade. */
 .regen-btn {
   padding: 3px 9px;
   background: transparent;
@@ -238,18 +235,12 @@
   gap: 4px;
   border: 1px solid var(--border);
   border-radius: 20px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.5;
   font-family: inherit;
   cursor: pointer;
-  opacity: 0.55;
   transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.bubble:hover .regen-btn,
-.regen-btn:focus-visible {
-  opacity: 1;
 }
 
 .regen-btn:hover {
@@ -296,7 +287,7 @@
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 20px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.5;
   font-family: inherit;
@@ -346,7 +337,7 @@
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 20px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.5;
   font-family: inherit;
@@ -405,15 +396,15 @@
   box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
-/* F21: subtle per-reply metadata line under assistant replies */
+/* F21: subtle per-reply metadata line under assistant replies. P304 keeps
+   it quiet but readable — the exact latency moved into the title tooltip. */
 .reply-meta {
   display: flex;
   gap: 8px;
   align-items: center;
   margin-top: 6px;
   font-size: 11px;
-  color: var(--text-muted);
-  opacity: 0.8;
+  color: var(--text-secondary);
 }
 
 .reply-meta-tool {

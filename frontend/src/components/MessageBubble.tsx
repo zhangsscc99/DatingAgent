@@ -7,7 +7,11 @@ import { copyText } from '../lib/clipboard';
 import { highlightSegments } from '../lib/messageSearch';
 import { normalizeMarkdownTables } from '../lib/markdownTables';
 import { replyCollapseReason, shouldCollapseReply, visibleReplyContent } from '../lib/replyCollapse';
-import { formatLatencySeconds, formatReplyLatency } from '../lib/relativeTime';
+import {
+  formatLatencySeconds,
+  formatRelativeTime,
+  isRenderableTimestamp,
+} from '../lib/relativeTime';
 import { generationProgressLabel } from '../lib/generationProgress';
 import {
   DUPLICATE_REGEN_HINT,
@@ -115,8 +119,10 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
     }, COPY_FEEDBACK_MS);
   }, [clearResetTimer, message.content]);
 
+  // P304: user bubbles never offer 复制 — copying a sentence you just sent
+  // is meaningless and the pill stretched the pink bubble taller.
   const canCopy =
-    !message.streaming && !message.error && message.content.trim().length > 0;
+    !isUser && !message.streaming && !message.error && message.content.trim().length > 0;
 
   // P197: GFM pipe tables degrade to bullet lists — react-markdown has no
   // remark-gfm, so raw `|---|` rows would collapse into pipe soup.
@@ -297,15 +303,9 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
                   copyState === 'failed' ? ' failed' : ''
                 }`}
                 onClick={handleCopy}
-                aria-label={
-                  copyState === 'copied' ? '已复制' : isUser ? '复制我的消息' : '复制回复'
-                }
+                aria-label={copyState === 'copied' ? '已复制' : '复制回复'}
                 title={
-                  copyState === 'failed'
-                    ? '复制失败，请手动选择文本'
-                    : isUser
-                      ? '复制我的消息'
-                      : '复制回复'
+                  copyState === 'failed' ? '复制失败，请手动选择文本' : '复制回复'
                 }
               >
                 {copyState === 'copied' ? (
@@ -427,9 +427,14 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
                 : `${message.meta.tokens} tokens`
             }
           >
-            {typeof message.meta.latencyMs === 'number' && (
-              <span>{formatReplyLatency(message.meta.latencyMs)}</span>
-            )}
+            {/* P304: the 「约 X 秒」 badge leaves the body visual hierarchy —
+                the row shows the reply's age (「刚刚」 right after it lands)
+                while the exact seconds + tokens live only in the title. */}
+            <span>
+              {isRenderableTimestamp(message.createdAt)
+                ? formatRelativeTime(message.createdAt)
+                : '刚刚'}
+            </span>
           </div>
         )}
       </div>
