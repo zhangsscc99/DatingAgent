@@ -114,13 +114,14 @@ export default function HeaderMoreMenu({
             }
           }}
         >
-          {Children.map(children, (child) =>
-            isValidElement(child)
-              ? cloneElement(child as ReactElement<{ role?: string }>, {
-                  role: 'menuitem',
-                })
-              : child,
-          )}
+          {Children.map(children, (child) => {
+            if (!isValidElement(child)) return child;
+            const el = child as ReactElement<{ role?: string }>;
+            // P295: a child may declare a more accurate role (the language
+            // picker row is a labelled group, not an action); menuitem
+            // stays the default for the plain action buttons.
+            return cloneElement(el, { role: el.props.role ?? 'menuitem' });
+          })}
         </div>
       )}
     </div>

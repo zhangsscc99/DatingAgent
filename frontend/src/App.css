@@ -345,6 +345,40 @@
   background: var(--surface, var(--bg));
 }
 
+/* P295: inside the「更多操作」popover the reply-language picker is a
+   labelled full-width row (icon + caption + the same select); the caption
+   stays hidden in the inline header, where the tooltip carries the name. */
+.lang-select-caption {
+  display: none;
+}
+
+.more-menu-panel .lang-select {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.more-menu-panel .lang-select-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.more-menu-panel .lang-select-caption {
+  display: inline;
+  flex-shrink: 0;
+}
+
+.more-menu-panel .lang-select-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+
 .export-btn:hover:not(:disabled),
 .copy-export-btn:hover:not(:disabled),
 .export-json-btn:hover:not(:disabled) {

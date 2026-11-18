@@ -220,3 +220,4 @@
 2026-11-18 03:47 | P293 | 会话头部新增「已记住：…」回执行（最多2条，来自资料 goals/interests/personality 与非默认回复长度偏好），无内容/无对话/恢复中不渲染；新增 lib/memoryReceipt.ts 与 memory-receipt.test.ts（10例）
 2026-11-18 04:01 | P285 | sidebar section renamed to 进阶工具; five tool labels switched to user-facing phrases via TOOL_LABELS; added sidebar-section-titles smoke test
 2026-11-18 04:16 | P294 | empty-chat first screen no longer auto-scrolls to bottom: scrollIntoView effect in ChatWindow gated on messages.length>0||loading; new render-level test welcome-scroll-reset.test.ts (3 cases); browser 390x844 scrollTop=0, h1 top>=.messages top
+2026-11-18 04:40 | P295 | 窄屏顶栏品牌降级为 logo-only（.header-title role=img + aria-label=DatingAgent，h1 不渲染）；回复语言下拉收进「更多操作」首行（role=group+回复语言 caption，HeaderMoreMenu 保留子元素自定义 role）；新增 header-brand-fit.test.ts（4例）；真机390x844品牌元素 scrollWidth=clientWidth=28
