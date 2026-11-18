@@ -69,7 +69,7 @@ describe('P181 · JSON export document', () => {
 
   it('carries roles, ISO-8601 offset timestamps, and toolEvents verbatim', () => {
     const toolEvents: ToolEvent[] = [
-      { name: 'plan_date', label: '约会规划', status: 'done', result: { ok: true } },
+      { name: 'plan_date', label: '排约会', status: 'done', result: { ok: true } },
     ];
     const doc = parse(
       buildConversationJson(

@@ -4,12 +4,15 @@
  * (MessageBubble.tsx) both read this map so an internal id like
  * `coach_conversation` can never leak into bubble copy: callers render
  * `toolDisplayName(id)`, and an unmapped id renders nothing at all.
+ *
+ * P285 — the values are user-facing noun phrases (same vocabulary as the
+ * 「进阶工具」 sidebar section), not the internal module names.
  */
 export const TOOL_LABELS: Record<string, string> = {
-  analyze_profile: '资料优化',
-  coach_conversation: '聊天指导',
-  plan_date: '约会规划',
-  check_compatibility: '匹配分析',
+  analyze_profile: '改资料',
+  coach_conversation: '接话术',
+  plan_date: '排约会',
+  check_compatibility: '看匹配',
   get_relationship_advice: '关系建议',
 };
 

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * P220 — sidebar information architecture dedupe. The 390px drawer rendered
- * 「快捷入口」 (优化资料 / 聊天回复 / 约会规划 / 匹配分析) and 「Agent 工具」
+ * 「快捷入口」 (优化资料 / 聊天回复 / 约会规划 / 匹配分析) and 「进阶工具」
  * (资料优化 / 聊天指导 / 约会规划 / 匹配分析 / 关系建议): four of eight rows
  * were effectively the same name, and a new user could not tell a prompt
  * template from a tool. The fix keeps the two sections but gives the quick
@@ -36,9 +36,9 @@ const toolLabels = labelsIn(blockOf('const TOOL_FALLBACK', '];'));
 describe('P220 · sidebar quick entries and tools never share a name', () => {
   it('keeps both groups rendered under their own headings', () => {
     expect(sidebar).toContain('aria-label="快捷入口"');
-    expect(sidebar).toContain('aria-label="Agent 工具"');
+    expect(sidebar).toContain('aria-label="进阶工具"');
     expect(sidebar.indexOf('aria-label="快捷入口"')).toBeLessThan(
-      sidebar.indexOf('aria-label="Agent 工具"'),
+      sidebar.indexOf('aria-label="进阶工具"'),
     );
   });
 

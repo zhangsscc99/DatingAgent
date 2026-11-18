@@ -51,9 +51,9 @@ describe('P207 · tool badge has no emoji icons', () => {
   it('keeps the tool-name → Chinese label mapping unchanged', () => {
     const mapStart = labels.indexOf('const TOOL_LABELS');
     const mapBlock = labels.slice(mapStart, labels.indexOf('};', mapStart));
-    expect(mapBlock).toContain("analyze_profile: '资料优化'");
-    expect(mapBlock).toContain("coach_conversation: '聊天指导'");
-    expect(mapBlock).toContain("plan_date: '约会规划'");
+    expect(mapBlock).toContain("analyze_profile: '改资料'");
+    expect(mapBlock).toContain("coach_conversation: '接话术'");
+    expect(mapBlock).toContain("plan_date: '排约会'");
     expect(mapBlock).toContain("get_relationship_advice: '关系建议'");
   });
 });

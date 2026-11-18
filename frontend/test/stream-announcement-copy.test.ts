@@ -89,11 +89,11 @@ describe('P252 · wait hint copy is human and bounded', () => {
   /** Every wait label a user can see, across both code paths. */
   const waitLabels = (ms: number): string[] => [
     appendModelWaitHint(formatWaitingLabel(ms), ms, undefined),
-    appendModelWaitHint(toolPhaseLabel('聊天指导', ms, 'summarizing')!, ms, 'summarizing'),
-    appendModelWaitHint(toolPhaseLabel('聊天指导', ms, 'calling')!, ms, 'calling'),
-    toolPhaseLabel('聊天指导', ms, 'summarizing')!,
+    appendModelWaitHint(toolPhaseLabel('接话术', ms, 'summarizing')!, ms, 'summarizing'),
+    appendModelWaitHint(toolPhaseLabel('接话术', ms, 'calling')!, ms, 'calling'),
+    toolPhaseLabel('接话术', ms, 'summarizing')!,
     appendModelWaitHint(
-      streamAnnouncement('generating', ms, '聊天指导', 'summarizing'),
+      streamAnnouncement('generating', ms, '接话术', 'summarizing'),
       ms,
       'summarizing',
     ),
@@ -121,7 +121,7 @@ describe('P252 · wait hint copy is human and bounded', () => {
     for (const ms of [8_000, 12_000, MODEL_WAIT_BOUND_HINT_AFTER_MS - 1]) {
       for (const text of [
         appendModelWaitHint(formatWaitingLabel(ms), ms, undefined),
-        appendModelWaitHint(toolPhaseLabel('聊天指导', ms, 'summarizing')!, ms, 'summarizing'),
+        appendModelWaitHint(toolPhaseLabel('接话术', ms, 'summarizing')!, ms, 'summarizing'),
       ]) {
         expect(text).toContain(MODEL_WAIT_HINT);
         expect(text).not.toContain(MODEL_WAIT_BOUND_HINT);
@@ -131,7 +131,7 @@ describe('P252 · wait hint copy is human and bounded', () => {
     for (const ms of [MODEL_WAIT_BOUND_HINT_AFTER_MS, 19_999]) {
       for (const text of [
         appendModelWaitHint(formatWaitingLabel(ms), ms, undefined),
-        appendModelWaitHint(toolPhaseLabel('聊天指导', ms, 'summarizing')!, ms, 'summarizing'),
+        appendModelWaitHint(toolPhaseLabel('接话术', ms, 'summarizing')!, ms, 'summarizing'),
       ]) {
         expect(text).toContain(MODEL_WAIT_BOUND_HINT);
       }
@@ -140,15 +140,15 @@ describe('P252 · wait hint copy is human and bounded', () => {
 
   it('both wait surfaces read the same clause', () => {
     const toolSide = appendModelWaitHint(
-      toolPhaseLabel('聊天指导', 9_000, 'summarizing')!,
+      toolPhaseLabel('接话术', 9_000, 'summarizing')!,
       9_000,
       'summarizing',
     );
     const plainSide = appendModelWaitHint(formatWaitingLabel(9_000), 9_000, undefined);
-    expect(toolSide).toBe('正在整理「聊天指导」的建议…（已等待 9 秒）。' + MODEL_WAIT_HINT);
+    expect(toolSide).toBe('正在整理「接话术」的建议…（已等待 9 秒）。' + MODEL_WAIT_HINT);
     expect(plainSide).toBe('正在生成…（已等待 9 秒）。' + MODEL_WAIT_HINT);
     const toolBound = appendModelWaitHint(
-      toolPhaseLabel('聊天指导', 16_000, 'summarizing')!,
+      toolPhaseLabel('接话术', 16_000, 'summarizing')!,
       16_000,
       'summarizing',
     );
@@ -162,7 +162,7 @@ describe('P252 · wait hint copy is human and bounded', () => {
 
   it('the >=20 s exit hint appears exactly once and never stacks with the 15 s bound', () => {
     for (const ms of [20_000, 25_000, 45_000, 75_000]) {
-      const base = toolPhaseLabel('约会规划', ms, 'summarizing')!;
+      const base = toolPhaseLabel('排约会', ms, 'summarizing')!;
       expect(base).toContain(SUMMARIZING_EXIT_HINT);
       const text = appendModelWaitHint(base, ms, 'summarizing');
       expect(text.split(SUMMARIZING_EXIT_HINT).length - 1).toBe(1);
@@ -170,7 +170,7 @@ describe('P252 · wait hint copy is human and bounded', () => {
       expect(text).not.toContain('还在等回复开始');
       // Same through the aria-live surface.
       const announced = appendModelWaitHint(
-        streamAnnouncement('generating', ms, '约会规划', 'summarizing'),
+        streamAnnouncement('generating', ms, '排约会', 'summarizing'),
         ms,
         'summarizing',
       );

@@ -63,16 +63,16 @@ describe('P223 · sidebar footer copy carries no architecture jargon', () => {
     ]);
   });
 
-  it('keeps the five Agent 工具 fallback items unchanged', () => {
+  it('keeps the five 进阶工具 fallback items unchanged', () => {
     const html = renderSidebar();
     const items = [...html.matchAll(/class="tool-item">([^<]+)</g)].map(
       (m) => m[1],
     );
     expect(items).toEqual([
-      '资料优化',
-      '聊天指导',
-      '约会规划',
-      '匹配分析',
+      '改资料',
+      '接话术',
+      '排约会',
+      '看匹配',
       '关系建议',
     ]);
   });

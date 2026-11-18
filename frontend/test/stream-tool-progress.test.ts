@@ -19,8 +19,8 @@ const read = (file: string) => readFileSync(join(SRC, file), 'utf8');
 describe('P210 · tool-phase progress copy', () => {
   it('names the running tool with its mapped Chinese label and keeps the seconds ticking', () => {
     expect(streamAnnouncement('tool', 12_000, '关系建议')).toBe('正在调用「关系建议」…（已等待 12 秒）');
-    expect(streamAnnouncement('tool', 12_000, '约会规划')).toContain('约会规划');
-    expect(streamAnnouncement('tool', 8_000, '聊天指导')).toContain('已等待 8 秒');
+    expect(streamAnnouncement('tool', 12_000, '排约会')).toContain('排约会');
+    expect(streamAnnouncement('tool', 8_000, '接话术')).toContain('已等待 8 秒');
     // Still ticking second by second.
     expect(streamAnnouncement('tool', 12_000, '关系建议')).not.toBe(
       streamAnnouncement('tool', 13_000, '关系建议'),
@@ -65,8 +65,8 @@ describe('P210 · tool-phase progress copy', () => {
       '正在整理「关系建议」的建议…（已等待 1 分 15 秒）。这次有点慢，你可以先切走，回复会留在这里',
     );
     // 'tool' stream phase carrying a summarizing tool phase uses it too.
-    expect(streamAnnouncement('tool', 8_000, '约会规划', 'summarizing')).toBe(
-      '正在整理「约会规划」的建议…（已等待 8 秒）',
+    expect(streamAnnouncement('tool', 8_000, '排约会', 'summarizing')).toBe(
+      '正在整理「排约会」的建议…（已等待 8 秒）',
     );
     // Even after the stream phase flips to 'generating', the post-tool wait
     // keeps naming the tool instead of falling back to the generic copy.

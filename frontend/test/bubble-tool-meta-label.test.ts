@@ -24,7 +24,7 @@ import {
  * P258 — the meta line then repeated the badge's Chinese tool name a second
  * time inside the same bubble. The meta row no longer renders a tool label
  * at all: the badge inside the bubble already carries the name, so
- * 「聊天指导」 appears exactly once per bubble and never inside
+ * 「接话术」 appears exactly once per bubble and never inside
  * `.reply-meta`. The same round also made the latency number unconditional —
  * a slow tool reply keeps its numeric seconds plus a short clause instead of
  * the vague 「本次思考较久」. Mounted on the fake DOM (same approach as
@@ -39,7 +39,7 @@ const KNOWN: ChatMessage = {
   content: '可以先接住她的表情包，再顺着约咖啡。',
   createdAt: 1,
   toolEvents: [
-    { name: 'coach_conversation', label: '聊天指导', status: 'done' },
+    { name: 'coach_conversation', label: '接话术', status: 'done' },
   ],
   meta: { tool: 'coach_conversation', tokens: 120, latencyMs: 8800 },
 };
@@ -67,7 +67,7 @@ const SLOW: ChatMessage = {
   content: '慢回复正文。',
   createdAt: 4,
   toolEvents: [
-    { name: 'coach_conversation', label: '聊天指导', status: 'done' },
+    { name: 'coach_conversation', label: '接话术', status: 'done' },
   ],
   meta: { tool: 'coach_conversation', tokens: 300, latencyMs: 25_400 },
 };
@@ -126,13 +126,13 @@ describe('P258 · bubble meta never repeats the tool name', () => {
 
   it('the badge says the tool name once and the meta line never repeats it', () => {
     const bubble = bubbleRows()[0];
-    const occurrences = (bubble.textContent.match(/聊天指导/g) ?? []).length;
+    const occurrences = (bubble.textContent.match(/接话术/g) ?? []).length;
     expect(occurrences).toBe(1);
     expect(bubble.querySelector('.tool-badge'), 'tool badge').toBeTruthy();
 
     const row = metaRows()[0];
     expect(row, 'meta row').toBeTruthy();
-    expect(row.textContent).not.toContain('聊天指导');
+    expect(row.textContent).not.toContain('接话术');
     expect(row.textContent).not.toContain('coach_conversation');
     expect(SNAKE_ID.test(row.textContent)).toBe(false);
     // latency still renders alongside
@@ -162,7 +162,7 @@ describe('P258 · bubble meta never repeats the tool name', () => {
     expect(restored, 'restored meta row').toBeTruthy();
     // identical to the in-session line
     expect(restored.textContent).toBe(metaRows()[0].textContent);
-    expect(restored.textContent).not.toContain('聊天指导');
+    expect(restored.textContent).not.toContain('接话术');
     expect(restored.textContent).toContain('秒');
     expect(restored.textContent).not.toContain('coach_conversation');
     expect(restored.textContent).not.toContain('tokens');
@@ -178,18 +178,18 @@ describe('P258 · bubble meta never repeats the tool name', () => {
     expect(row.textContent).toMatch(/约 [\d.]+ 秒/);
     expect(row.textContent).toContain('想了有一会儿');
     expect(row.textContent).not.toBe('本次思考较久');
-    expect(row.textContent).not.toContain('聊天指导');
+    expect(row.textContent).not.toContain('接话术');
     // and its bubble still says the name exactly once, in the badge
     const bubble = bubbleRows()[4];
-    expect((bubble.textContent.match(/聊天指导/g) ?? []).length).toBe(1);
+    expect((bubble.textContent.match(/接话术/g) ?? []).length).toBe(1);
   });
 
   it('toolDisplayName maps known ids and returns undefined otherwise', () => {
-    expect(toolDisplayName('coach_conversation')).toBe('聊天指导');
+    expect(toolDisplayName('coach_conversation')).toBe('接话术');
     expect(toolDisplayName('get_relationship_advice')).toBe('关系建议');
-    expect(toolDisplayName('plan_date')).toBe('约会规划');
-    expect(toolDisplayName('analyze_profile')).toBe('资料优化');
-    expect(toolDisplayName('check_compatibility')).toBe('匹配分析');
+    expect(toolDisplayName('plan_date')).toBe('排约会');
+    expect(toolDisplayName('analyze_profile')).toBe('改资料');
+    expect(toolDisplayName('check_compatibility')).toBe('看匹配');
     expect(toolDisplayName('mystery_backend_tool')).toBeUndefined();
   });
 });

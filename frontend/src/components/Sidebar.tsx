@@ -21,6 +21,7 @@ import {
 } from '../lib/sidebarListState';
 import type { TrashEntry } from '../lib/chatTrash';
 import TrashSheet from './TrashSheet';
+import { toolDisplayName } from '../lib/toolLabels';
 import type { ToolInfo, UserProfile } from '../types';
 import './Sidebar.css';
 
@@ -159,7 +160,7 @@ function SidebarIcon({ iconKey }: { iconKey: QuickIconKey }) {
 }
 
 // P220: quick-entry labels are intent-shaped sentences so they can never be
-// mistaken for the Agent 工具 capability names listed below.
+// mistaken for the 进阶工具 capability names listed below.
 const QUICK_PROMPTS = [
   { iconKey: 'profile', label: '帮我优化资料', prompt: '帮我看看交友资料怎么写更有吸引力' },
   { iconKey: 'chat', label: '她这样回我怎么接', prompt: '对方说「周末有什么安排」，我该怎么回复？' },
@@ -171,10 +172,10 @@ const QUICK_PROMPTS = [
 // real capability names — never to the quick-prompt labels, which would
 // render the same text twice in the drawer.
 const TOOL_FALLBACK: ToolInfo[] = [
-  { name: 'analyze_profile', label: '资料优化', icon: '' },
-  { name: 'coach_conversation', label: '聊天指导', icon: '' },
-  { name: 'plan_date', label: '约会规划', icon: '' },
-  { name: 'check_compatibility', label: '匹配分析', icon: '' },
+  { name: 'analyze_profile', label: '改资料', icon: '' },
+  { name: 'coach_conversation', label: '接话术', icon: '' },
+  { name: 'plan_date', label: '排约会', icon: '' },
+  { name: 'check_compatibility', label: '看匹配', icon: '' },
   { name: 'get_relationship_advice', label: '关系建议', icon: '' },
 ];
 
@@ -632,13 +633,13 @@ export default function Sidebar({
         </div>
       </section>
 
-      <section className="sidebar-section" aria-label="Agent 工具">
-        <h3>Agent 工具</h3>
+      <section className="sidebar-section" aria-label="进阶工具">
+        <h3>进阶工具</h3>
         <ul className="tool-list">
           {(tools.length ? tools : TOOL_FALLBACK).map(
             (t) => (
               <li key={t.name} className="tool-item">
-                {t.label}
+                {toolDisplayName(t.name) ?? t.label}
               </li>
             ),
           )}

@@ -33,7 +33,7 @@ describe('P199 · sidebar has no emoji icons', () => {
     expect(sidebar).not.toContain('{p.icon}');
   });
 
-  it('drops the emoji span from Agent 工具 rows — labels carry the meaning', () => {
+  it('drops the emoji span from 进阶工具 rows — labels carry the meaning', () => {
     const listStart = sidebar.indexOf('className="tool-list"');
     const toolBlock = sidebar.slice(
       listStart,
@@ -41,7 +41,9 @@ describe('P199 · sidebar has no emoji icons', () => {
     );
     expect(toolBlock).not.toContain('{t.icon}');
     expect(toolBlock).not.toContain('<span aria-hidden="true">');
-    expect(toolBlock).toContain('{t.label}');
+    // P285: the row label resolves through TOOL_LABELS (toolDisplayName)
+    // so /api/tools module names never reach the drawer.
+    expect(toolBlock).toContain('{toolDisplayName(t.name) ?? t.label}');
   });
 
   it('keeps the quick-entry item count and order unchanged', () => {
