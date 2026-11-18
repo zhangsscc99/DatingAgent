@@ -15,6 +15,7 @@ import {
 } from '../lib/composerPlaceholder';
 import { shouldSubmitOnEnter, type KeyEventLike } from '../lib/ime';
 import { loadInputHistory } from '../lib/inputHistory';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
   rateLimitHint,
   rateLimitWarning,
@@ -123,6 +124,13 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   // composer at 390 px, so ≤430 px viewports get a short hint instead. The
   // aria-label keeps the full description at every width.
   const [narrowViewport, setNarrowViewport] = useState(isNarrowComposerViewport);
+
+  // P343: the mobile empty first screen keeps one obvious action — the
+  // send key. While the composer is spotlighted at ≤768px the
+  // reply-length cycler drops off the tool row (visible clickables stay at
+  // menu/theme/more + send); it returns with the first conversation, and
+  // the settings sheet keeps the preference on phones meanwhile.
+  const compactViewport = useMediaQuery('(max-width: 768px)');
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -393,7 +401,7 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
         {/* In-place reply-length cycler — writes the same storage key the
             settings sheet uses; 默认 keeps the request body byte-identical
             to before (no hint injected). */}
-        {onReplyLengthChange && (
+        {onReplyLengthChange && !(spotlight && compactViewport) && (
           <button
             type="button"
             className="reply-length-toggle"

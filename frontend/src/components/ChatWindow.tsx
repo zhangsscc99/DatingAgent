@@ -523,6 +523,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     inputRef.current?.focus();
   }, []);
 
+  // P343: the one condition under which the welcome hero renders — the
+  // scrollport modifier hangs off the same flag so the two can never drift.
+  const heroVisible = !restoring && !searchOpen && messages.length === 0;
+
   return (
     <div className="chat-window">
       {memoryReceipt && (
@@ -621,7 +625,11 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
         )}
         <div
           ref={listRef}
-          className="messages"
+          // P343: while the empty-state hero is up, the scrollport wears a
+          // modifier that turns the bookend-centring off — the .hero box
+          // fills the scrollport instead, centring its own content and
+          // pinning the footer link to the block's foot (no dead band).
+          className={heroVisible ? 'messages messages-hero' : 'messages'}
           role="log"
           aria-busy={restoring || loading}
           onScroll={handleMessagesScroll}
@@ -632,7 +640,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
           <div className="search-empty">没有找到包含「{query.trim()}」的消息</div>
         )}
 
-        {!restoring && !searchOpen && messages.length === 0 && (
+        {heroVisible && (
           // P337: `.hero` marks the empty-state content block — the first
           // screen's vertical-balance contract measures its top/bottom gaps.
           <div className="welcome hero animate-in">
@@ -665,19 +673,29 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
             <p className="welcome-hint">
               在下方输入框写下你的情况，回车发送即可开始。
             </p>
-            <div className="starter-chips" role="group" aria-label="开始话题">
-              {STARTER_PROMPTS.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  className="starter-chip secondary"
-                  aria-label={p.label}
-                  onClick={() => inputRef.current?.prefill(p.prompt)}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            {/* P343: ≤768px demotes the three starter chips to one muted,
+                non-interactive hint line — text, not button-chrome — so
+                the composer's send key stays the first screen's only real
+                action. The tappable chips keep working ≥769px. */}
+            {compactFeatures ? (
+              <p className="starter-chips-line">
+                也可以直接问：{STARTER_PROMPTS.map((p) => p.label).join(' · ')}
+              </p>
+            ) : (
+              <div className="starter-chips" role="group" aria-label="开始话题">
+                {STARTER_PROMPTS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    className="starter-chip secondary"
+                    aria-label={p.label}
+                    onClick={() => inputRef.current?.prefill(p.prompt)}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* P336: ≤768px renders one muted non-interactive line instead
                 of the three cards — the card grid stays ≥769px. */}
             {compactFeatures ? (
@@ -715,17 +733,39 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 </div>
               </div>
             )}
-            {/* P336: the「完善资料」entry sits at the foot of the welcome
-                block — a footnote line, not a control in the main flow. */}
+            {/* P336/P343: the「完善资料」entry sits at the foot of the
+                welcome block — a footnote link, not a control in the main
+                flow. At ≤768px it drops out of the button pool entirely:
+                a role="link" span keeps the same entry (click + Enter) so
+                the first screen's buttons stay at menu/theme/more + send;
+                ≥769px keeps the real button. */}
             {!profile?.name && onSetupProfile && (
-              <button
-                type="button"
-                className="welcome-cta"
-                data-variant="link"
-                onClick={onSetupProfile}
-              >
-                完善资料，获得更个性化建议 →
-              </button>
+              compactFeatures ? (
+                <span
+                  className="welcome-cta"
+                  data-variant="link"
+                  role="link"
+                  tabIndex={0}
+                  onClick={onSetupProfile}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      onSetupProfile();
+                    }
+                  }}
+                >
+                  完善资料，获得更个性化建议 →
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="welcome-cta"
+                  data-variant="link"
+                  onClick={onSetupProfile}
+                >
+                  完善资料，获得更个性化建议 →
+                </button>
+              )
             )}
           </div>
         )}

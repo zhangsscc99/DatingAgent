@@ -392,6 +392,20 @@
     margin: 10px 0 6px;
   }
 
+  /* P343: the three starter chips collapse into a single muted,
+     non-interactive hint line — text, not button-chrome — so the send key
+     is the first screen's only real action. The line truncates rather
+     than wrapping to a second row. */
+  .starter-chips-line {
+    margin: 10px 0 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .welcome-features {
     gap: 12px;
   }
@@ -461,6 +475,36 @@
      the strip instead of landing flush under it. */
   .messages > * {
     scroll-margin-top: 8px;
+  }
+
+  /* P343 — the bookend-centred block still left a 276px dead band between
+     the「完善资料」footnote and the composer (measured 1795041074): equal
+     spacers split the free space but the block itself stayed short. While
+     the hero is up (.messages-hero) the spacers stop growing and the
+     .welcome box takes the whole scrollport height as a flex column; the
+     first child's auto top margin centres the content above the footer
+     line, and the footnote's own auto top margin pins it to the block's
+     foot — landing ~72px above the composer top, inside the ≤96px
+     contract. These rules sit at the end of the block so the plain
+     `.welcome` / `.welcome-cta` lookups keep resolving first. */
+  .messages-hero::before,
+  .messages-hero::after {
+    flex-grow: 0;
+  }
+
+  .messages-hero > .welcome {
+    flex: 1 0 auto;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .messages-hero > .welcome > :first-child {
+    margin-top: auto;
+  }
+
+  .messages-hero > .welcome > .welcome-cta {
+    margin-top: auto;
   }
 }
 

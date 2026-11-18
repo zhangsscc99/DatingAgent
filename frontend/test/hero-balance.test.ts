@@ -5,28 +5,45 @@ import type { Root } from 'react-dom/client';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { installFakeDom, type FakeDom, type FakeElement } from './helpers/fakeDom';
+import {
+  installFakeDom,
+  FakeEvent,
+  type FakeDom,
+  type FakeElement,
+} from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
 import type { ChatMessage } from '../src/types';
 
 /**
- * P337 — measured at 390×844 (docs/runs/walk-1795029110-m1.png): after the
- * feature block a large solid-colour gap opened before the input bar, so
- * the first screen's visual weight sat far too high and the bottom read as
- * "not enough content". The welcome block's ≥150px bottom padding — kept
- * from P307, when the three feature cards made the column overflow the
- * scrollport — lived INSIDE the centred box and pushed the visible
- * content ~75px above middle. P336 then collapsed the cards to one line,
- * ending the overflow, so the oversized pad only remained as dead space.
+ * P343 — measured at 390×844 scrollTop=0 (docs/runs/walk-1795041074-m1.png):
+ * the「完善资料」footnote's bottom sat at 484px while the composer top sat at
+ * 760px — a 276px solid dead band between them — and the viewport carried
+ * ten near-equal clickables (menu/theme/more, three starter chips, the
+ * footnote, the length cycler, send). P336/P337 centred the block and cut
+ * its weight, but the equal .messages bookends still split the free space
+ * around a short block, so the band never closed.
  *
- * P337 rebalances the empty-state block:
- *  1. `.hero` marks the content block; the scrollport's equal ::before /
- *     ::after spacers (P305) centre it, and its mobile padding is now
- *     near-symmetric (10px top / 24px bottom) so the measured top-gap vs
- *     bottom-gap differ by ≤ 15% of the viewport height.
- *  2. The composer tool row — 「回答适中」 length chip, keyboard-shortcut
- *     hint, send key — resolves one control height (48px ≤768px) and one
- *     border-radius (var(--radius)) for all three; the spread stays ≤ 4px.
+ * P343's contract:
+ *  1. The hero no longer sits inside centred free space — `.messages`
+ *     wears a `messages-hero` modifier while the welcome block is up: the
+ *     bookends stop growing, the .welcome box takes the scrollport's full
+ *     height as a flex column, the content centres itself above the block
+ *     foot, and the「完善资料」footnote is pinned to the bottom by its own
+ *     auto margin — its resolved distance to the composer top stays
+ *     ≤ 96px.
+ *  2. The first screen keeps exactly ONE obvious action: the composer's
+ *     send key. The three starter chips demote to a single muted
+ *     non-interactive hint line (text, not button-chrome), the「完善资料」
+ *     entry becomes a footer-level role="link" span (outside the
+ *     button/a[href]/[role=button] pool), and the reply-length cycler
+ *     drops off the tool row while the composer is spotlighted at ≤768px.
+ *     Visible `button, a[href], [role=button]` number ≤ 4 — in the real
+ *     shell that's topbar menu/theme/more + send; inside ChatWindow the
+ *     send key is the only one.
+ *  3. Exactly one primary solid control renders — [data-primary-cta] on
+ *     .input-send.
+ *  4. Desktop (≥769px) is untouched: three tappable chips, three feature
+ *     cards, the footnote as a real button.
  *
  * No DOM renderer ships with this repo — the fake DOM reports zero
  * getBoundingClientRect()s — so the rect relationships are asserted both
@@ -45,7 +62,9 @@ const indexCss = read('index.css');
 /** The viewport this contract is measured against. */
 const VIEWPORT_W = 390;
 const VIEWPORT_H = 844;
-const MAX_GAP_DIFF = VIEWPORT_H * 0.15;
+/** P343: the hero's last visible element must land within this of the
+ *  composer top — the P336/P337 dead band measured 276px. */
+const MAX_BOTTOM_GAP = 96;
 
 /* ---------- stylesheet helpers (same as composer-layout.test.ts) ---------- */
 
@@ -182,14 +201,26 @@ function mediaQueryForWidth(px: number) {
   };
 }
 
-describe('P337 · the .hero block sits vertically balanced at 390×844', () => {
+/** Inside the first screen: scrollTop = 0, so a rect is in view while its
+ *  top edge sits above VIEWPORT_H and its bottom edge below 0. The fake
+ *  DOM reports zero rects, which lands every mounted node "in view" —
+ *  the render-level contract is therefore about what mounts at all. */
+function inFirstViewport(el: FakeElement): boolean {
+  const r = el.getBoundingClientRect();
+  return r.top < VIEWPORT_H && r.bottom >= 0;
+}
+
+describe('P343 · the .hero fills the scrollport — no dead band at 390×844', () => {
   let dom: FakeDom;
   let root: Root | null = null;
 
   const qs = (sel: string) =>
     dom.document.querySelector(sel) as FakeElement | null;
 
-  const mount = async (widthPx: number) => {
+  const mount = async (
+    widthPx: number,
+    messages: ChatMessage[] = [] as ChatMessage[],
+  ) => {
     dom = installFakeDom();
     const mq = mediaQueryForWidth(widthPx);
     (dom.window as Record<string, unknown>).matchMedia = mq;
@@ -201,7 +232,7 @@ describe('P337 · the .hero block sits vertically balanced at 390×844', () => {
     await act(async () => {
       root!.render(
         createElement(ChatWindow, {
-          messages: [] as ChatMessage[],
+          messages,
           loading: false,
           onSend: () => {},
           onSetupProfile: () => {},
@@ -226,32 +257,70 @@ describe('P337 · the .hero block sits vertically balanced at 390×844', () => {
     vi.unstubAllGlobals();
   });
 
-  it('the welcome block carries the .hero content-block hook', async () => {
+  it('the scrollport wears .messages-hero only while the hero is up', async () => {
     await mount(VIEWPORT_W);
+    const messages = qs('.messages')!;
+    expect(messages.className.split(/\s+/)).toContain('messages-hero');
     const hero = qs('.hero');
     expect(hero).not.toBeNull();
     expect(hero).toBe(qs('.welcome'));
     expect(hero!.classList.contains('animate-in')).toBe(true);
     await unmount();
+
+    // With a conversation the modifier drops and the bookend centring
+    // (P305) keeps doing its job on short histories.
+    await mount(VIEWPORT_W, [
+      { id: 'u1', role: 'user', content: '在吗', createdAt: 1 },
+    ] as ChatMessage[]);
+    expect(qs('.hero')).toBeNull();
+    expect(qs('.messages')!.className.split(/\s+/)).not.toContain(
+      'messages-hero',
+    );
+    await unmount();
   });
 
-  it('the scrollport splits free space equally above and below the block', () => {
-    // The P305 bookends: zero-height pseudo items growing at the same rate
-    // centre whatever sits between them — with equal growth the only
-    // residual asymmetry can come from padding and the sentinel's row gap.
-    for (const pseudo of ['.messages::before', '.messages::after']) {
-      const body = ruleBodyContaining(chatWindowCss, pseudo);
+  it('under .messages-hero the bookends stop growing and .welcome fills as a flex column', () => {
+    for (const pseudo of [
+      '.messages-hero::before',
+      '.messages-hero::after',
+    ]) {
+      const body = ruleBodyContaining(mobileChat, pseudo);
       expect(body, `${pseudo} rule`).not.toBe('');
-      expect(body).toContain('flex: 1 0 0');
-      expect(body).toContain("content: ''");
+      expect(body).toContain('flex-grow: 0');
     }
-    // .welcome keeps a symmetric auto margin and the ≤768px block does not
-    // override it — centring stays intact on phones.
-    expect(ruleBody(baseChat, '.welcome')).toContain('margin: auto');
-    expect(ruleBody(mobileChat, '.welcome')).not.toContain('margin');
+    const hero = ruleBody(mobileChat, '.messages-hero > .welcome');
+    expect(hero).not.toBe('');
+    // The box takes the scrollport's full height…
+    expect(hero).toMatch(/flex\s*:\s*1/);
+    expect(hero).toContain('display: flex');
+    expect(hero).toContain('flex-direction: column');
+    // …and the vertical margins can no longer absorb free space (the P305
+    // `margin: auto` centring would otherwise defeat the grow — the
+    // override keeps only the horizontal centring).
+    expect(hero).toContain('margin: 0 auto');
   });
 
-  it('top-gap vs bottom-gap resolve within 15% of the viewport height', () => {
+  it('content centres above the block foot; the footnote pins to the bottom', () => {
+    // First child gets an auto top margin → the content block centres in
+    // the space above the footer; the footnote's own auto top margin
+    // lands it at the bottom of the full-height .hero box.
+    const first = ruleBody(
+      mobileChat,
+      '.messages-hero > .welcome > :first-child',
+    );
+    expect(first).toContain('margin-top: auto');
+    const foot = ruleBody(
+      mobileChat,
+      '.messages-hero > .welcome > .welcome-cta',
+    );
+    expect(foot).toContain('margin-top: auto');
+  });
+
+  it('the resolved foot gap lands within 96px of the composer top', () => {
+    // The footnote sits at the bottom of the hero's content box. From
+    // there to the composer top: the hero's own padding-bottom, one row
+    // gap to the scroll sentinel, one row gap to the dead ::after spacer,
+    // and the scrollport's padding-bottom.
     const welcomePad = boxSides(
       declPxValues(ruleBody(mobileChat, '.welcome'), 'padding'),
     );
@@ -260,31 +329,277 @@ describe('P337 · the .hero block sits vertically balanced at 390×844', () => {
     );
     const rowGap = declPxValues(ruleBody(baseChat, '.messages'), 'gap')[0];
     expect(rowGap).toBeGreaterThan(0);
-    // The scrollport column is: ::before spacer — hero — sentinel — ::after
-    // spacer. Equal spacers split all free space, so the residual
-    // asymmetry is the fixed items around the block: above = list pad-top +
-    // one row gap + hero pad-top; below = hero pad-bottom + two row gaps
-    // (the zero-height scroll sentinel keeps its own slot) + list pad-bottom.
-    const above = messagesPad[0] + rowGap + welcomePad[0];
-    const below = welcomePad[2] + rowGap * 2 + messagesPad[2];
-    expect(
-      Math.abs(above - below),
-      `top gap ${above}px vs bottom gap ${below}px`,
-    ).toBeLessThanOrEqual(MAX_GAP_DIFF);
+    const gap = welcomePad[2] + rowGap * 2 + messagesPad[2];
+    expect(gap).toBeLessThanOrEqual(MAX_BOTTOM_GAP);
   });
 
-  it('mounted: the .hero rect expression evaluates the same contract', async () => {
+  it('mounted: the hero last element is the footnote, within 96px of the composer top', async () => {
     await mount(VIEWPORT_W);
     const hero = qs('.hero')!;
-    const messages = qs('.messages')!;
+    const last = hero.children[hero.children.length - 1];
+    expect(last.classList.contains('welcome-cta')).toBe(true);
     const bar = qs('.input-bar')!;
     // The acceptance expression a real-layout run evaluates — the fake DOM
     // reports zero rects, so this holds trivially here while the CSS
     // assertions above pin the geometry.
-    const topGap = hero.getBoundingClientRect().top - messages.getBoundingClientRect().top;
-    const bottomGap = bar.getBoundingClientRect().top - hero.getBoundingClientRect().bottom;
-    expect(Math.abs(topGap - bottomGap)).toBeLessThanOrEqual(MAX_GAP_DIFF);
+    const gap =
+      bar.getBoundingClientRect().top - last.getBoundingClientRect().bottom;
+    expect(gap).toBeLessThanOrEqual(MAX_BOTTOM_GAP);
     await unmount();
+  });
+});
+
+describe('P343 · the first screen keeps ≤4 clickables and one primary', () => {
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qs = (sel: string) =>
+    dom.document.querySelector(sel) as FakeElement | null;
+  const qsa = (sel: string) => dom.document.querySelectorAll(sel);
+
+  const mount = async (
+    widthPx: number,
+    messages: ChatMessage[] = [] as ChatMessage[],
+  ) => {
+    dom = installFakeDom();
+    const mq = mediaQueryForWidth(widthPx);
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    vi.stubGlobal('matchMedia', mq);
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(ChatWindow, {
+          messages,
+          loading: false,
+          onSend: () => {},
+          onSetupProfile: () => {},
+          replyLength: 'default',
+          onReplyLengthChange: () => {},
+        }),
+      );
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const unmount = async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    dom.document.body.textContent = '';
+  };
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('the three starter chips collapse into one muted non-interactive hint line', async () => {
+    await mount(VIEWPORT_W);
+    expect(qsa('.starter-chip')).toHaveLength(0);
+    expect(qs('.starter-chips')).toBeNull();
+    const line = qs('.starter-chips-line');
+    expect(line).not.toBeNull();
+    expect(line!.tagName).toBe('P');
+    for (const label of ['资料优化', '聊天指导', '约会规划']) {
+      expect(line!.textContent).toContain(label);
+    }
+    // Passive copy — not itself a control, and it wraps no control.
+    expect(line!.querySelector('button, a[href], [role="button"]')).toBeNull();
+    // Muted, single-line text — no button chrome.
+    const rule = ruleBody(mobileChat, '.starter-chips-line');
+    expect(rule).toContain('color: var(--text-muted)');
+    expect(rule).not.toContain('var(--accent)');
+    expect(rule).toContain('white-space: nowrap');
+    expect(rule).not.toContain('border');
+    await unmount();
+  });
+
+  it('the「完善资料」entry is a footer-level role="link" span — outside the button pool', async () => {
+    await mount(VIEWPORT_W);
+    const cta = qs('.welcome-cta');
+    expect(cta).not.toBeNull();
+    expect(cta!.tagName).toBe('SPAN');
+    expect(cta!.getAttribute('role')).toBe('link');
+    expect(cta!.getAttribute('tabindex')).toBe('0');
+    expect(cta!.getAttribute('data-variant')).toBe('link');
+    expect(cta!.textContent).toContain('完善资料');
+    expect(cta!.matches('button, a[href], [role="button"]')).toBe(false);
+    // Still the welcome block's last element — the foot of the hero.
+    const welcome = qs('.welcome')!;
+    expect(welcome.children[welcome.children.length - 1]).toBe(cta);
+    // …and it still opens the dialog, by click and by Enter.
+    await unmount();
+
+    let opened = 0;
+    dom = installFakeDom();
+    const mq = mediaQueryForWidth(VIEWPORT_W);
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    vi.stubGlobal('matchMedia', mq);
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(ChatWindow, {
+          messages: [] as ChatMessage[],
+          loading: false,
+          onSend: () => {},
+          onSetupProfile: () => {
+            opened += 1;
+          },
+          replyLength: 'default',
+          onReplyLengthChange: () => {},
+        }),
+      );
+      await Promise.resolve();
+    });
+    const link = qs('.welcome-cta')!;
+    await act(async () => {
+      link.dispatchEvent(
+        new FakeEvent('click', { bubbles: true, cancelable: true }),
+      );
+    });
+    expect(opened).toBe(1);
+    await act(async () => {
+      link.dispatchEvent(
+        new FakeEvent('keydown', {
+          bubbles: true,
+          cancelable: true,
+          props: { key: 'Enter' },
+        }),
+      );
+    });
+    expect(opened).toBe(2);
+    await unmount();
+  });
+
+  it('visible `button, a[href], [role=button]` number ≤4 — the send key alone inside ChatWindow', async () => {
+    await mount(VIEWPORT_W);
+    const controls = qsa('button, a[href], [role=button]').filter((el) =>
+      inFirstViewport(el),
+    );
+    const labels = controls.map(
+      (el) => el.getAttribute('aria-label') ?? el.textContent.trim(),
+    );
+    // The real shell adds topbar menu/theme/more — inside ChatWindow the
+    // send key is the only mounted control (chips are text, the footnote
+    // is a role="link" span, the cycler and the kbd hint are gone).
+    expect(
+      controls.length,
+      `first-screen controls: ${labels.join(' | ')}`,
+    ).toBeLessThanOrEqual(4);
+    expect(labels).toEqual(['发送消息']);
+    expect(qs('.reply-length-toggle')).toBeNull();
+    expect(qs('.input-hint-btn')).toBeNull();
+    await unmount();
+  });
+
+  it('the length cycler returns with the first conversation — the gate is spotlight-bound', async () => {
+    await mount(VIEWPORT_W, [
+      { id: 'u1', role: 'user', content: '在吗', createdAt: 1 },
+    ] as ChatMessage[]);
+    expect(qs('.reply-length-toggle')).not.toBeNull();
+    await unmount();
+  });
+
+  it('exactly one [data-primary-cta] renders — the composer send key keeps the only solid fill', async () => {
+    await mount(VIEWPORT_W);
+    const primaries = qsa('[data-primary-cta]');
+    expect(primaries).toHaveLength(1);
+    const send = primaries[0];
+    expect(send.classList.contains('input-send')).toBe(true);
+    expect(send.closest('.input-bar')).not.toBeNull();
+    expect(qs('.welcome')!.querySelector('[data-primary-cta]')).toBeNull();
+    await unmount();
+
+    // Enabled and empty-disabled states share the one brand solid.
+    for (const sel of [
+      '.input-bar .input-send',
+      '.input-bar .input-send:disabled',
+    ]) {
+      const rule = ruleBody(inputBarCss, sel);
+      expect(rule, sel).toContain('background: var(--accent)');
+      expect(rule, sel).toContain('color: var(--on-accent)');
+    }
+    // Nothing else on the hero wears the accent fill.
+    for (const sel of [
+      ".welcome-cta[data-variant='link']",
+      '.starter-chips-line',
+      '.welcome-feature-line',
+    ]) {
+      const rule = ruleBody(
+        sel === '.starter-chips-line' ? mobileChat : chatWindowCss,
+        sel,
+      );
+      expect(rule, sel).not.toBe('');
+      expect(rule, sel).not.toContain('background: var(--accent)');
+    }
+  });
+});
+
+describe('P343 · desktop ≥769px keeps the full welcome block', () => {
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qs = (sel: string) =>
+    dom.document.querySelector(sel) as FakeElement | null;
+  const qsa = (sel: string) => dom.document.querySelectorAll(sel);
+
+  it('1440-wide render: tappable chips, three cards and a real footnote button', async () => {
+    dom = installFakeDom();
+    const mq = mediaQueryForWidth(1440);
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    vi.stubGlobal('matchMedia', mq);
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(ChatWindow, {
+          messages: [] as ChatMessage[],
+          loading: false,
+          onSend: () => {},
+          onSetupProfile: () => {},
+          replyLength: 'default',
+          onReplyLengthChange: () => {},
+        }),
+      );
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(qsa('.starter-chip')).toHaveLength(3);
+    expect(qs('.starter-chips-line')).toBeNull();
+    const cta = qs('.welcome-cta');
+    expect(cta).not.toBeNull();
+    expect(cta!.tagName).toBe('BUTTON');
+    expect(qsa('.feature')).toHaveLength(3);
+    // The cycler is untouched on the desktop empty screen.
+    expect(qs('.reply-length-toggle')).not.toBeNull();
+
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    dom.document.body.textContent = '';
+  });
+
+  it('the hero-fill rules stay inside the ≤768px block — desktop centring untouched', () => {
+    // The P305 bookends still centre the card on desktop: the top-level
+    // rule is intact and the overrides live only in the mobile block.
+    for (const pseudo of ['.messages::before', '.messages::after']) {
+      const body = ruleBodyContaining(baseChat, pseudo);
+      expect(body, `${pseudo} rule`).not.toBe('');
+      expect(body).toContain('flex: 1 0 0');
+    }
+    expect(ruleBody(baseChat, '.welcome')).toContain('margin: auto');
+    expect(baseChat).not.toContain('messages-hero');
   });
 });
 
@@ -346,21 +661,26 @@ describe('P337 · the composer tool row is one control family', () => {
     };
 
     try {
-      // 390px: the keyboard hint stays unmounted (P336) — chip + send remain.
+      // 390px empty: P343 leaves the send key alone in the row — the kbd
+      // hint stays unmounted (P336) and the length cycler drops off while
+      // the composer is spotlighted (P343).
       await mount(VIEWPORT_W);
       let tools = dom.document.querySelector('.input-tools') as FakeElement;
       expect(dom.document.querySelector('.input-hint-btn')).toBeNull();
+      expect(dom.document.querySelector('.reply-length-toggle')).toBeNull();
       let buttons = tools.querySelectorAll('button');
-      expect(buttons.length).toBeGreaterThanOrEqual(2);
+      expect(buttons.length).toBe(1);
       let heights = buttons.map((b) => b.getBoundingClientRect().height);
       expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(4);
       await unmount();
 
-      // 500px: all three controls render — the same zero-rect expression.
+      // 500px empty: the length cycler is off (spotlight × ≤768) while the
+      // shortcut hint renders again past the ≤430px narrow breakpoint —
+      // chip + send remain one family.
       await mount(500);
       tools = dom.document.querySelector('.input-tools') as FakeElement;
       buttons = tools.querySelectorAll('button');
-      expect(buttons.length).toBeGreaterThanOrEqual(3);
+      expect(buttons.length).toBe(2);
       heights = buttons.map((b) => b.getBoundingClientRect().height);
       expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(4);
       await unmount();

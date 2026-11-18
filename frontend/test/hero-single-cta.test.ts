@@ -21,9 +21,11 @@ import type { ChatMessage } from '../src/types';
  * Contract asserted here:
  *  1. At 390×844, scrollTop=0, the rendered focusable controls among
  *     `button, a[href], [role="button"]` inside the visible viewport
- *     number ≤ 4 — the three starter chips plus the「完善资料」footnote
- *     link (the disabled empty send key is not focusable; the keyboard
- *     shortcut hint is not rendered ≤430px where it is meaningless).
+ *     number ≤ 4 — after P343 the chips are a non-interactive hint line
+ *     and the「完善资料」footnote a role="link" span, so the send key is
+ *     the only such control inside ChatWindow (the disabled empty send
+ *     key is not focusable; the keyboard shortcut hint and the length
+ *     cycler are not rendered on the narrow spotlighted screen).
  *  2. Exactly ONE control carries the brand solid fill — the composer
  *     send key ([data-primary-cta]) — and the EMPTY send key keeps that
  *     fill too: `disabled` blocks the action, it must not read disabled.
@@ -273,14 +275,28 @@ describe('P336 · one real primary CTA on the empty first screen (390×844)', ()
       controls.length,
       `first-screen controls: ${labels.join(' | ')}`,
     ).toBeLessThanOrEqual(4);
-    // The set is exactly: the three starter chips + the「完善资料」link.
-    expect(labels.filter((l) => l.includes('完善资料'))).toHaveLength(1);
-    expect(labels.filter((l) => l.includes('资料优化'))).toHaveLength(1);
-    expect(labels.filter((l) => l.includes('聊天指导'))).toHaveLength(1);
-    expect(labels.filter((l) => l.includes('约会规划'))).toHaveLength(1);
+    // P343: the three starter chips demoted to a single muted,
+    // non-interactive hint line — the labels survive as plain text.
+    const line = qs('.starter-chips-line');
+    expect(line).not.toBeNull();
+    expect(line!.tagName).toBe('P');
+    expect(line!.querySelector('button, a[href], [role="button"]')).toBeNull();
+    for (const label of ['资料优化', '聊天指导', '约会规划']) {
+      expect(line!.textContent).toContain(label);
+    }
+    expect(qsa('.starter-chip')).toHaveLength(0);
+    // …and the「完善资料」entry stays a working footer-level link — a
+    // role="link" span, outside the button/a[href] pool.
+    const cta = qs('.welcome-cta');
+    expect(cta).not.toBeNull();
+    expect(cta!.tagName).toBe('SPAN');
+    expect(cta!.getAttribute('role')).toBe('link');
+    expect(cta!.textContent).toContain('完善资料');
     // The keyboard-shortcut hint documents physical keys — it does not
-    // mount on a ≤430px phone.
+    // mount on a ≤430px phone; the length cycler leaves the spotlighted
+    // composer too (P343).
     expect(qs('.input-hint-btn')).toBeNull();
+    expect(qs('.reply-length-toggle')).toBeNull();
     await unmount();
   });
 
