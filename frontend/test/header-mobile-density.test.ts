@@ -18,10 +18,14 @@ import {
  * three export/copy buttons measured 32×30px. Below the desktop breakpoint
  * they now collapse into a single「更多操作」trigger + popover: the header
  * keeps ≤5 directly-visible buttons, every header button gets a ≥36px hit
- * area, the reply-language select ≥32px, and ≥768px still renders the same
- * three labelled buttons. The fake DOM mounts the real App at a 390-wide
- * window with matchMedia reporting the ≤768px query as matching; the
- * desktop branch is verified by remounting with the query not matching.
+ * area, the reply-language select ≥32px.
+ * P340 — the collapse now applies at ≥768px too: the 1440×900 topbar had
+ * packed six controls at equal weight, so the desktop row keeps only
+ * 收起侧栏 / 主题 / 查找 / ⋯ and the same three buttons move into the
+ * popover (topbar-density.test.ts owns the ≥1280px ≥12px gap contract).
+ * The fake DOM mounts the real App at a 390-wide window with matchMedia
+ * reporting the ≤768px query as matching; the desktop branch is verified
+ * by remounting with the query not matching.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -289,28 +293,35 @@ describe('P227 · header density at 390px', () => {
     await unmountApp();
   });
 
-  it('the desktop branch still renders the three labelled buttons inline', async () => {
+  it('P340: the desktop branch collapses into the same trigger + popover', async () => {
     install(false);
     await mountApp();
 
-    expect(qs('.more-menu-trigger')).toBeNull();
+    // At ≥768px nothing from the export/copy cluster mounts inline — the
+    // topbar keeps 收起侧栏 / 主题 / 查找 / ⋯.
+    expect(qsa('.export-btn, .export-json-btn, .copy-export-btn')).toHaveLength(0);
+    expect(qs('.lang-select')).toBeNull();
     expect(qs('.more-menu-panel')).toBeNull();
 
-    const header = qs('.header');
-    expect(header).not.toBeNull();
-    const labels: Record<string, string> = {
-      'export-btn': '导出 Markdown',
-      'export-json-btn': '导出 JSON',
-      'copy-export-btn': '复制 Markdown',
-    };
-    for (const [cls, label] of Object.entries(labels)) {
-      const btn = qs(`.${cls}`);
-      expect(btn, cls).not.toBeNull();
-      expect(btn!.closest('.header-actions')).not.toBeNull();
-      expect(btn!.getAttribute('aria-label')).toBe(label);
-      // The labelled text span is still part of the button.
-      expect(btn!.querySelector('.btn-label')?.textContent).toBe(label);
+    const trigger = qs('.more-menu-trigger');
+    expect(trigger).not.toBeNull();
+    expect(trigger!.closest('.header-actions')).not.toBeNull();
+    expect(trigger!.getAttribute('aria-label')).toBe('更多操作');
+
+    await click(trigger);
+    const panel = qs('.more-menu-panel');
+    expect(panel).not.toBeNull();
+    const items = panel!.querySelectorAll('button');
+    expect(items.map((b) => b.getAttribute('aria-label'))).toEqual([
+      '导出 Markdown',
+      '导出 JSON',
+      '复制 Markdown',
+    ]);
+    // The labelled text spans and the language row come along unchanged.
+    for (const item of items) {
+      expect(item.querySelector('.btn-label')).not.toBeNull();
     }
+    expect(panel!.querySelector('.lang-select')).not.toBeNull();
 
     await unmountApp();
   });
@@ -349,9 +360,13 @@ describe('P227 · header density at 390px', () => {
       expect(label).toContain('display: inline');
     });
 
-    it('the narrow collapse is gated on the same ≤768px mobile breakpoint', () => {
+    it('the collapse is unconditional at every width (P340 removed the desktop passthrough)', () => {
       expect(appTsx).toContain("useMediaQuery('(max-width: 768px)')");
-      expect(appTsx).toContain('collapsed={isMobile}');
+      // The menu no longer takes a breakpoint gate: no collapsed prop, no
+      // inline-children passthrough left in the component.
+      expect(appTsx).not.toContain('collapsed={isMobile}');
+      expect(appTsx).not.toContain('collapsed={true}');
+      expect(menuTsx).not.toContain('collapsed');
       expect(appTsx).toContain('open={moreOpen}');
       expect(menuTsx).toContain('aria-label="更多操作"');
       expect(menuTsx).toContain('aria-haspopup="menu"');

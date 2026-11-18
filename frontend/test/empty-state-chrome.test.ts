@@ -21,8 +21,9 @@ import {
  * messages.length === 0`:
  *
  *  - the three export/copy buttons and .header-status do not render while
- *    pristine — on either breakpoint (narrow folds them into 更多操作, but
- *    the popover itself mounts nothing but the language row);
+ *    pristine — on either breakpoint they fold into 更多操作 (P340 folds
+ *    desktop too), and the popover itself mounts nothing but the language
+ *    row;
  *  - .recent-chat-filter does not render while the session list is empty;
  *  - the welcome's start button is gone — passive .welcome-hint copy
  *    instead — leaving exactly ONE [data-primary-cta] element on the
@@ -230,15 +231,20 @@ describe('P312 · empty-state chrome', () => {
     const header = qs('.header');
     expect(header).not.toBeNull();
 
+    // P340: on desktop the export trio lives inside 更多操作 — open it.
+    await click(qs('.more-menu-trigger'));
+    const panel = qs('.more-menu-panel');
+    expect(panel).not.toBeNull();
     for (const [cls, label] of [
       ['export-btn', '导出 Markdown'],
       ['export-json-btn', '导出 JSON'],
       ['copy-export-btn', '复制 Markdown'],
     ] as const) {
-      const btn = qs(`.${cls}`);
+      const btn = panel!.querySelector(`.${cls}`);
       expect(btn, cls).not.toBeNull();
       expect(btn!.getAttribute('aria-label')).toBe(label);
     }
+    await click(qs('.more-menu-trigger'));
 
     const status = qs('.header-status');
     expect(status).not.toBeNull();

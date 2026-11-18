@@ -22,7 +22,8 @@ import {
  *    its first row — a labelled group, still switchable from the menu —
  *    so the inline row keeps 主题 / 搜索 / 更多 only.
  *
- * The desktop branch keeps the full title and the inline select untouched.
+ * P340 folded the select into the popover at desktop widths too; the
+ * desktop branch now keeps only the full wordmark inline.
  */
 
 /** matchMedia stub whose only matching query is `(max-width: 768px)`. */
@@ -161,7 +162,7 @@ describe('P295 · header brand fits and the language picker folds into 更多操
     await unmountApp();
   });
 
-  it('desktop: the full wordmark and the inline select are unchanged', async () => {
+  it('desktop: the full wordmark stays; the select is inside 更多操作 (P340)', async () => {
     install(false);
     await mountApp();
 
@@ -171,11 +172,16 @@ describe('P295 · header brand fits and the language picker folds into 更多操
     expect(qs('.header-title')!.getAttribute('aria-label')).toBe('DatingAgent');
     expect(qs('.header-title')!.hasAttribute('role')).toBe(false);
 
-    // The select still sits inline inside .header-actions, outside any menu.
-    const inline = qs('.header-actions')!.querySelector('.lang-select-input');
-    expect(inline).not.toBeNull();
-    expect(inline!.closest('.more-menu-panel')).toBeNull();
-    expect(qs('.more-menu-trigger')).toBeNull();
+    // P340: the select lives behind the ⋯ trigger at desktop too — the
+    // inline row keeps only 收起侧栏 / 主题 / 查找 / 更多操作.
+    expect(qs('.header-actions')!.querySelector('.lang-select-input')).toBeNull();
+    const trigger = qs('.more-menu-trigger');
+    expect(trigger).not.toBeNull();
+
+    await click(trigger);
+    const select = qs('.more-menu-panel')!.querySelector('.lang-select-input');
+    expect(select).not.toBeNull();
+    expect(select!.closest('.more-menu-panel')).not.toBeNull();
 
     await unmountApp();
   });

@@ -228,8 +228,8 @@ export default function App() {
     readReplyLengthPreference(),
   );
   const [settingsOpen, setSettingsOpen] = useState(false);
-  // P227: open state for the narrow-header「更多操作」popover that holds the
-  // three export/copy actions below the desktop breakpoint.
+  // P227/P340: open state for the header「更多操作」popover that holds the
+  // reply-language picker and the three export/copy actions at every width.
   const [moreOpen, setMoreOpen] = useState(false);
   // Stable identity: HeaderMoreMenu's dismiss effect depends on it, and a
   // fresh closure every render would refocus the first item mid-menu.
@@ -1791,20 +1791,19 @@ export default function App() {
                 </svg>
               </button>
             )}
-            {/* P227: below the desktop breakpoint the three low-frequency
-                export/copy actions collapse into one「更多操作」popover,
-                keeping the 390px row at <=5 controls with >=36px hit areas;
-                >=768px still renders the same labelled buttons inline. */}
+            {/* P227/P340: the reply-language picker and the three
+                low-frequency export/copy actions live behind the
+                single「更多操作」popover at every width — the topbar keeps
+                only 收起侧栏 / 主题 / 查找 / ⋯, so high-frequency actions
+                stop competing with the export cluster (P340: the 1440×900
+                row had packed six controls at equal weight). */}
             <HeaderMoreMenu
-              collapsed={isMobile}
               open={moreOpen}
               onToggle={() => setMoreOpen((v) => !v)}
               onClose={closeMoreMenu}
             >
-              {/* P295: the reply-language picker folds into「更多操作」on
-                  narrow screens as the menu's first row (a labelled group,
-                  not a menuitem); on the wide header it still renders
-                  inline inside .header-actions. */}
+              {/* P295: the reply-language picker is the menu's first row —
+                  a labelled group, not a menuitem. */}
               <label
                 className="lang-select"
                 role="group"

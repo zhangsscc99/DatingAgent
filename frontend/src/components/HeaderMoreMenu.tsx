@@ -8,10 +8,6 @@ import {
 import type { ReactElement, ReactNode } from 'react';
 
 interface Props {
-  /** True below the desktop breakpoint: the children collapse into a
-   *  single「更多操作」trigger + popover. False passes them through so the
-   *  wide header keeps rendering the same inline buttons. */
-  collapsed: boolean;
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -20,10 +16,14 @@ interface Props {
 
 /**
  * P227 — at 390px the header row squeezed seven controls into one line and
- * the export/copy hit areas shrank to ~30px. On narrow screens the three
- * low-frequency actions now live behind a single「更多操作」trigger; the
- * popover mounts the exact same buttons (same aria-labels, same handlers,
- * gained role="menuitem"), so nothing about the actions themselves changes.
+ * the export/copy hit areas shrank to ~30px, so the three low-frequency
+ * actions moved behind a single「更多操作」trigger; the popover mounts the
+ * exact same buttons (same aria-labels, same handlers, gained
+ * role="menuitem"), so nothing about the actions themselves changes.
+ * P340 — the collapse now applies at every width: at 1440×900 the topbar
+ * put six controls on one line with the low-frequency exports at the same
+ * weight as the search/theme actions, so the language picker and the
+ * export/copy trio live in this menu on desktop too.
  *
  * Keyboard/touch contract: Escape closes and focus returns to the trigger,
  * a press outside closes, and the panel closes after an action fires —
@@ -31,7 +31,6 @@ interface Props {
  * full-screen overlay.
  */
 export default function HeaderMoreMenu({
-  collapsed,
   open,
   onToggle,
   onClose,
@@ -41,7 +40,7 @@ export default function HeaderMoreMenu({
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!collapsed || !open) return;
+    if (!open) return;
 
     // Standard menu behaviour: opening lands focus on the first enabled
     // item so keyboard users don't have to Tab back through the header.
@@ -72,9 +71,7 @@ export default function HeaderMoreMenu({
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('mousedown', onPointerDown);
     };
-  }, [collapsed, open, onClose]);
-
-  if (!collapsed) return <>{children}</>;
+  }, [open, onClose]);
 
   return (
     <div className="more-menu">
