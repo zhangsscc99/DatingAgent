@@ -144,6 +144,16 @@
   outline-offset: 2px;
 }
 
+/* P339 — the server-fact row action reads 「忘记这条」: a small text
+   button instead of the × glyph so the destructive verb is visible. */
+.memory-panel-forget {
+  width: auto;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 /* P24: positioning context for the floating scroll-to-bottom button. */
 .messages-wrap {
   flex: 1;

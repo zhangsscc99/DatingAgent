@@ -22,9 +22,12 @@ import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { isCorsAllowed, requestHost } from '../lib/cors.js';
 import { parsePreviousReplies } from '../lib/reply-dedupe.js';
 import {
-  conversationFactItems,
-  MEMORY_FACTS_MAX_ITEMS,
-} from '../lib/conversationFacts.js';
+  forgetMemoryFact,
+  ingestSessionMemory,
+  rememberUserMessage,
+  sessionMemoryFacts,
+} from '../lib/memory-extract.js';
+import type { MemoryFact } from '../agent/types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const harness = new AgentHarness();
@@ -122,17 +125,20 @@ function resolveChatSession(
 }
 
 /**
- * P313 — the durable facts a session has accumulated, derived from the
- * user messages already retained in conversationHistory so a restored
- * session reports them too. Surfaced as `memory` on chat replies and the
- * session read, so clients can show what was kept without re-mining text.
+ * P339 — the durable facts a session has accumulated. Extraction runs
+ * once per user turn (rememberUserMessage) into a stored, deletable
+ * memoryFacts list — no longer re-derived from history per response, so
+ * DELETE /api/conversations/:id/memory/:key stays deleted. `items` keeps
+ * the P313 string shape for compatibility; `facts` carries the keyed
+ * objects the memory-management surface needs.
  */
-function sessionMemory(context: AgentContext): { count: number; items: string[] } {
-  const items = conversationFactItems(
-    context.conversationHistory,
-    MEMORY_FACTS_MAX_ITEMS,
-  );
-  return { count: items.length, items };
+function sessionMemory(context: AgentContext): {
+  count: number;
+  items: string[];
+  facts: MemoryFact[];
+} {
+  const facts = sessionMemoryFacts(context);
+  return { count: facts.length, items: facts.map((f) => f.text), facts };
 }
 
 /**
@@ -351,6 +357,9 @@ export function createApp(options: AppOptions = {}) {
     session.sessionId = sessionId;
     if (profile) session.profile = { ...session.profile, ...profile };
     if (history.length > 0) session.conversationHistory = history;
+    // P339: refill the stored memory from the restored history. Forgotten
+    // keys still block re-adding, so a fact the user deleted stays gone.
+    ingestSessionMemory(session);
 
     putSession(session);
     res.json({ sessionId, restored: true, messageCount: history.length });
@@ -371,6 +380,32 @@ export function createApp(options: AppOptions = {}) {
       history: session.conversationHistory,
       memory: sessionMemory(session),
     });
+  });
+
+  // P339: the stored, keyed facts a conversation remembers — the source
+  // behind the 记忆 capsule's expandable list.
+  app.get('/api/conversations/:id/memory', (req, res) => {
+    const session = touchSession(req.params.id);
+    if (!session) {
+      return res.status(404).json(errorBody(res, 'Conversation not found'));
+    }
+    const facts = sessionMemoryFacts(session);
+    res.json({ count: facts.length, items: facts });
+  });
+
+  // P339: 忘记这条 — the deleted key joins the session's forgotten set so
+  // a later identical statement or a history restore never re-adds it.
+  app.delete('/api/conversations/:id/memory/:key', (req, res) => {
+    const session = touchSession(req.params.id);
+    if (!session) {
+      return res.status(404).json(errorBody(res, 'Conversation not found'));
+    }
+    if (!forgetMemoryFact(session, req.params.key)) {
+      return res
+        .status(404)
+        .json(errorBody(res, 'Memory fact not found', { deleted: false }));
+    }
+    res.json({ deleted: true });
   });
 
   app.post('/api/chat', ...chatGuards, async (req, res) => {
@@ -409,6 +444,10 @@ export function createApp(options: AppOptions = {}) {
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
     const startedAt = Date.now();
     const latency = createChatLatencyRecorder(res, startedAt);
+    // P339: extract this turn's facts into the session memory — deduped,
+    // deterministic, and never undone by an upstream failure: the user
+    // stated the fact whether or not the reply lands.
+    rememberUserMessage(session, sanitized);
 
     try {
       const { content, meta } = await harness.chatWithMeta(
@@ -463,6 +502,7 @@ export function createApp(options: AppOptions = {}) {
 
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
     const startedAt = Date.now();
+    rememberUserMessage(session, sanitized);
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   ChatMessage,
+  ConversationMemory,
+  MemoryFact,
   ReplyLanguage,
   StreamPhase,
   ToolEvent,
@@ -98,6 +100,11 @@ import {
   startRegenCooldown,
 } from './lib/regenLimit';
 import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
+import {
+  fetchConversationMemory,
+  forgetConversationMemory,
+  removeMemoryFact,
+} from './lib/conversationMemory';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
 import { isServiceDown } from './lib/serviceStatus';
 import { headerStatusCopy } from './lib/headerStatus';
@@ -266,6 +273,10 @@ export default function App() {
     const session = sessions.find((s) => s.id === activeSessionId);
     return Boolean(session && session.messages.length > 0);
   });
+  // P339: the server-held memory of the open conversation — null until the
+  // backend answers (or when it has no such session), in which case the
+  // capsule keeps its local P296 derivation.
+  const [memory, setMemory] = useState<ConversationMemory | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   // P206/P226: the header search toggle drives the in-conversation search
   // through this handle at every breakpoint.
@@ -338,6 +349,26 @@ export default function App() {
       setRestoringSession(false);
     }
   }, []);
+
+  // P339: load the server-held memory once the open conversation is
+  // settled (after mount restore and every session switch). A switch
+  // clears the stale list first so one chat never shows another's facts;
+  // a 404 keeps the capsule on its local derivation.
+  useEffect(() => {
+    if (!sessionId) {
+      setMemory(null);
+      return;
+    }
+    if (restoringSession) return;
+    let live = true;
+    setMemory(null);
+    void fetchConversationMemory(sessionId).then((m) => {
+      if (live) setMemory(m);
+    });
+    return () => {
+      live = false;
+    };
+  }, [sessionId, restoringSession]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -668,6 +699,7 @@ export default function App() {
                 tool?: string;
                 tokens?: number;
                 latencyMs?: number;
+                memory?: { count?: number; facts?: MemoryFact[] };
               };
               if (d.sessionId) {
                 // P253: the turn was persisted under requestSessionId at
@@ -677,6 +709,15 @@ export default function App() {
                   remapChatSessionId(requestSessionId, d.sessionId);
                 }
                 setSessionId(d.sessionId);
+              }
+              // P339: the turn's reply carries the session's accumulated
+              // keyed facts — the capsule's source of truth for what the
+              // agent remembers now.
+              if (Array.isArray(d.memory?.facts)) {
+                setMemory({
+                  count: d.memory!.count ?? d.memory!.facts!.length,
+                  items: d.memory!.facts!,
+                });
               }
               // F21: only attach a badge when the provider reported token usage.
               if (typeof d.tokens === 'number') {
@@ -1492,6 +1533,25 @@ export default function App() {
     setRecentSessions(getRecentSessions());
   };
 
+  /**
+   * P339: 忘记这条 — DELETE the fact server-side, then drop it from the
+   * capsule. The removal lands only on a confirmed {deleted:true}; a
+   * failed call keeps the row so the UI never pretends a fact is gone.
+   * Server-side the key joins the session's forgotten set, so a refresh
+   * or history restore cannot resurrect it.
+   */
+  const handleForgetMemory = useCallback(
+    async (key: string) => {
+      const sid = sessionId;
+      if (!sid) return;
+      const ok = await forgetConversationMemory(sid, key);
+      if (ok) {
+        setMemory((prev) => (prev ? removeMemoryFact(prev, key) : prev));
+      }
+    },
+    [sessionId],
+  );
+
   const headerStatus = headerStatusCopy(health?.llmConfigured === true);
   // P312: the pristine first screen (no stored conversations AND no
   // messages) drops chrome that has nothing to act on — the header
@@ -2007,6 +2067,8 @@ export default function App() {
           onReplyLengthChange={handleReplyLengthChange}
           queuedCount={pendingQueue.length}
           onCancelQueue={cancelPendingQueue}
+          memory={memory ?? undefined}
+          onForgetMemory={handleForgetMemory}
         />
         <SystemStatusFooter />
       </main>

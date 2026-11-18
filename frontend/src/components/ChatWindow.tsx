@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { ChatMessage, UserProfile } from '../types';
+import type { ChatMessage, ConversationMemory, UserProfile } from '../types';
 import MessageBubble from './MessageBubble';
 import InputBar, { type InputBarHandle } from './InputBar';
 import SessionSkeleton from './SessionSkeleton';
@@ -27,6 +27,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
   MEMORY_RECEIPT_PREFIX,
   memoryReceiptItems,
+  rememberedItems,
 } from '../lib/memoryReceipt';
 import {
   dismissReceiptItem,
@@ -130,6 +131,17 @@ interface Props {
   queuedCount?: number;
   /** P244: drop the queue; returns the queued texts for composer restore. */
   onCancelQueue?: () => string[];
+  /**
+   * P339: the server-held memory of this conversation — the keyed facts
+   * mined per user turn on the backend. When provided, the capsule lists
+   * exactly these facts (first 3 + 「共 N 条」) and each row can be
+   * forgotten server-side; when undefined the capsule keeps deriving its
+   * facts locally from the messages (the pre-P339 fallback).
+   */
+  memory?: ConversationMemory;
+  /** P339: 忘记这条 — delete one fact by key; the row stays until the
+   * backend confirms, so a failed delete is never faked away. */
+  onForgetMemory?: (key: string, label: string) => void;
 }
 
 /** P206/P226: lets the header search toggle drive the in-conversation search
@@ -164,6 +176,8 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   onReplyLengthChange,
   queuedCount = 0,
   onCancelQueue,
+  memory,
+  onForgetMemory,
 }: Props, ref) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -208,19 +222,51 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // the most recent deletion. A second delete retargets it, so only the
   // newest dismissal is recoverable (the older one stays forgotten).
   const [memoryUndoItem, setMemoryUndoItem] = useState<string | null>(null);
-  const receiptItems =
+  // P339: each row is a label plus the server key when the fact comes from
+  // the backend memory (null for locally-derived items — profile fields
+  // and, in fallback mode, mined message facts).
+  const receiptRows: Array<{ label: string; key: string | null }> =
     !restoring && messages.length > 0
-      ? memoryReceiptItems(profile, replyLength, messages).filter(
-          (item) => !dismissedFacts.includes(item),
-        )
+      ? memory !== undefined
+        ? [
+            ...rememberedItems(profile, replyLength).map((label) => ({
+              label,
+              key: null as string | null,
+            })),
+            ...memory.items.map((fact) => ({
+              label: fact.text,
+              key: fact.key,
+            })),
+          ]
+        : memoryReceiptItems(profile, replyLength, messages).map((label) => ({
+            label,
+            key: null as string | null,
+          }))
       : [];
+  // Local dismissals hide only locally-derived rows — a keyed server fact
+  // must stay visible so it can always be forgotten properly.
+  const visibleRows = receiptRows.filter(
+    (row) => row.key !== null || !dismissedFacts.includes(row.label),
+  );
   const memoryReceipt =
-    receiptItems.length > 0
-      ? `${MEMORY_RECEIPT_PREFIX}${receiptItems.join('；')}`
+    visibleRows.length > 0
+      ? `${MEMORY_RECEIPT_PREFIX}${visibleRows
+          .slice(0, 3)
+          .map((row) => row.label)
+          .join('；')}${visibleRows.length > 3 ? ` · 共 ${visibleRows.length} 条` : ''}`
       : null;
   const handleDismissFact = (item: string) => {
     setDismissedFacts(dismissReceiptItem(item));
     setMemoryUndoItem(item);
+  };
+  // P339: 忘记这条 — a keyed fact is forgotten through the backend; without
+  // a handler the local dismissal keeps the row deletable.
+  const handleForgetFact = (key: string, label: string) => {
+    if (onForgetMemory) {
+      onForgetMemory(key, label);
+      return;
+    }
+    handleDismissFact(label);
   };
   const handleUndoDismissFact = () => {
     const item = memoryUndoItem;
@@ -250,7 +296,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     !profileNudgeDismissed &&
     // P308: the nudge and the memory capsule are mutually exclusive — when
     // the capsule is resident the bottom 完善资料 hint stays down.
-    receiptItems.length === 0 &&
+    visibleRows.length === 0 &&
     !isOnboardingComplete() &&
     messages.some(
       (m) =>
@@ -522,18 +568,30 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
             </button>
             {memoryOpen && (
               <div className="memory-panel" role="group" aria-label="已记住的内容">
-                {receiptItems.map((item) => (
-                  <div className="memory-panel-row" key={item}>
-                    <span className="memory-panel-text">{item}</span>
-                    <button
-                      type="button"
-                      className="memory-panel-delete"
-                      aria-label={`删除记忆：${item}`}
-                      title={`删除记忆：${item}`}
-                      onClick={() => handleDismissFact(item)}
-                    >
-                      <span aria-hidden="true">×</span>
-                    </button>
+                {visibleRows.map((row) => (
+                  <div className="memory-panel-row" key={row.key ?? row.label}>
+                    <span className="memory-panel-text">{row.label}</span>
+                    {row.key !== null ? (
+                      <button
+                        type="button"
+                        className="memory-panel-delete memory-panel-forget"
+                        aria-label={`忘记这条：${row.label}`}
+                        title={`忘记这条：${row.label}`}
+                        onClick={() => handleForgetFact(row.key!, row.label)}
+                      >
+                        忘记这条
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="memory-panel-delete"
+                        aria-label={`删除记忆：${row.label}`}
+                        title={`删除记忆：${row.label}`}
+                        onClick={() => handleDismissFact(row.label)}
+                      >
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

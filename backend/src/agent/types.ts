@@ -22,12 +22,28 @@ export interface UserProfile {
   personality?: string;
 }
 
+/** P339 — one durable fact extracted from a user message. */
+export interface MemoryFact {
+  /** Normalised dedupe key: lowercase, whitespace-stripped display text. */
+  key: string;
+  /** The fact as the capsule lists it. */
+  text: string;
+  /** Epoch millis when the fact was first remembered. */
+  ts: number;
+}
+
 export interface AgentContext {
   sessionId: string;
   profile: UserProfile;
   conversationHistory: Message[];
   /** Reply language the user asked for; `auto` follows the conversation. */
   language?: ReplyLanguage;
+  /** P339: facts the session remembers, written per user turn and
+   * deletable via DELETE /api/conversations/:id/memory/:key. */
+  memoryFacts?: MemoryFact[];
+  /** P339: keys the user forgot — re-extraction never re-adds them, so a
+   * deleted fact stays gone across later turns and history restores. */
+  forgottenFactKeys?: Set<string>;
 }
 
 /** Languages the assistant can be pinned to. `auto` keeps the model's default behaviour. */

@@ -81,6 +81,22 @@ export interface ReplyMeta {
   tokens?: number;
 }
 
+/** P339: one durable fact the backend keeps for a conversation. */
+export interface MemoryFact {
+  /** Normalised dedupe key — the id DELETE /api/conversations/:id/memory/:key takes. */
+  key: string;
+  /** The fact text the capsule lists. */
+  text: string;
+  /** Epoch millis when the fact was first remembered. */
+  ts: number;
+}
+
+/** P339: the server-held memory of one conversation (GET .../memory shape). */
+export interface ConversationMemory {
+  count: number;
+  items: MemoryFact[];
+}
+
 /** P276: one parked reply version — what the bubble looked like before the
  * current text replaced it. */
 export interface ReplyVersionSnapshot {
