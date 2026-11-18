@@ -42,6 +42,11 @@
   --shimmer: rgba(255, 255, 255, 0.7);
   --radius: 12px;
   --font: 'Inter', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', 'WenQuanYi Micro Hei', system-ui, -apple-system, sans-serif;
+  /* P305: the one centred column shared by the message list and the
+     composer — both resolve their max-width through this variable so the
+     left/right edges always match. Below 880px of available width it binds
+     nothing, so narrow-screen layout is untouched. */
+  --column-max: 880px;
 }
 
 @media (max-width: 768px) {

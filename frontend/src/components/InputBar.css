@@ -1,11 +1,25 @@
 .input-bar {
   display: flex;
-  flex-wrap: wrap;
-  column-gap: 10px;
-  row-gap: 6px;
   padding: 16px 24px;
   border-top: 1px solid var(--border);
   background: var(--surface);
+}
+
+/* P305: the composer's working row sits in the same centred column as the
+   message list (.messages > * shares --column-max), so the textarea's left
+   edge and the send row's right edge line up with the bubbles above. The
+   full-width surface and border-top stay on .input-bar; below the cap this
+   is a plain full-width row, identical to before. */
+.input-column {
+  flex: 1;
+  min-width: 0;
+  max-width: var(--column-max);
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  row-gap: 6px;
   align-items: flex-end;
 }
 

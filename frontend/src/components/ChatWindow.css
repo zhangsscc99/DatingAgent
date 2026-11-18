@@ -40,6 +40,28 @@
   gap: 16px;
 }
 
+/* P305: everything in the scroll area lives inside one centred column that
+   shares --column-max with the composer (.input-column), so bubble rows and
+   the input row line up on the same left/right edges. Below the cap the
+   width is 100%, identical to before. */
+.messages > * {
+  width: 100%;
+  max-width: var(--column-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* P305: zero-height bookends that grow into whatever free space the scroll
+   area has — the welcome card or a single exchange lands vertically
+   centred instead of leaving half a screen of blank below. Once the
+   conversation fills the viewport they collapse to nothing and normal
+   top-to-bottom scrolling is unchanged. */
+.messages::before,
+.messages::after {
+  content: '';
+  flex: 1 0 0;
+}
+
 .welcome {
   max-width: 520px;
   margin: auto;
@@ -355,6 +377,10 @@
  * bubble's own row gap so it reads as attached to that message. */
 .pending-reply-row {
   align-self: flex-end;
+  /* P305: the row now spans the centred column (the .messages > * rule
+     above); pack its content at the end so it still sits under the
+     trailing user bubble's right edge. */
+  justify-content: flex-end;
   display: flex;
   align-items: center;
   gap: 8px;

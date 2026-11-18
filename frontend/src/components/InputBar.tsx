@@ -323,6 +323,10 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
       <label htmlFor="chat-input" className="sr-only">
         输入你的问题
       </label>
+      {/* P305: the composer's working content lives inside .input-column —
+          the same centred --column-max the message list uses — while
+          .input-bar keeps its full-width surface and border-top. */}
+      <div className="input-column">
       <div className={fieldClass}>
         <textarea
           ref={textareaRef}
@@ -493,6 +497,7 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
             取消排队
           </button>
         )}
+      </div>
       </div>
     </div>
   );

@@ -2,7 +2,10 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  max-width: 780px;
+  /* P305: the row spans the shared centred column — user rows pack their
+     content at the right edge via row-reverse below, assistant rows at the
+     left — so both edges line up with the composer. */
+  max-width: var(--column-max);
 }
 
 .bubble-row.user {
