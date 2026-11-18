@@ -15,6 +15,9 @@
   display: flex;
   justify-content: flex-end;
   padding: 6px 16px 8px;
+  /* P325: the strip is a real block in the column — never positioned —
+     so it can only ever sit beside the scrollport, not over it. */
+  margin-bottom: 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -440,6 +443,28 @@
   .memory-panel-delete {
     min-width: 44px;
     min-height: 44px;
+  }
+
+  /* P325 — at 390×844 the bare pill on a transparent strip read as a
+     floating overlay and the scrollport's top edge merged with the
+     divider, so a partially-scrolled first card looked covered by the
+     capsule. The strip now owns an unmistakable slot: an opaque
+     --surface band painted above the scrollport edge, margin locked at
+     0, a little more room under the pill. It stays a real block —
+     position: relative is only for paint order — so no scroll offset
+     can ever slide a message beneath it. */
+  .memory-receipt {
+    position: relative;
+    z-index: 5;
+    margin-bottom: 0;
+    padding-bottom: 12px;
+    background: var(--surface);
+  }
+
+  /* …and a row scrolled to by search/regenerate keeps 8px of air below
+     the strip instead of landing flush under it. */
+  .messages > * {
+    scroll-margin-top: 8px;
   }
 }
 

@@ -250,3 +250,4 @@
 2026-11-18 14:52 | P288 | 资料优化示例句标明为模板并用中性占位
 2026-11-18 15:20 | P323 | 记忆回执四轮累计≥3条：前后端 conversationFacts 双生子新增兜底抽取——无 lexicon/pattern 命中的 user 消息按分句切分，首个含锚点（时间/主动/约会计划线索）且非「要不要约/见」式开放犹豫、非停用词的分句成为该轮事实；MEMORY_RECEIPT_MAX_ITEMS 2→3，回执分隔符改全角分号；frontend memory-receipt.test.ts 新增 P323 四例（四轮≥3去重、；分隔行、胶囊单行不溢出），backend conversation-facts.test.ts 新增四例（四轮≥3、assistant 零贡献、filler 不成事实、/api/chat 四轮 memory≥3）；1368/1369 绿（唯一红为 llm-timeout 计时抖动，单跑 6/6 过）
 2026-11-18 15:43 | P324 | 手机抽屉满宽 + 遮罩 + 焦点陷阱
+2026-11-18 16:05 | P325 | 记忆胶囊改为占位/滚动淡出，首条消息不再被压
