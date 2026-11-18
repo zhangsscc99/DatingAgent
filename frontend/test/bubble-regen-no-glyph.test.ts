@@ -68,11 +68,12 @@ describe('P222 · bubble regen button has no ↻ glyph', () => {
 
   it('click still runs the regenerate handler with the message id', () => {
     // The button wires onClick to handleRegenerate, which forwards
-    // message.id to the onRegenerate prop; busy still disables it.
+    // message.id to the onRegenerate prop; busy still disables it (P335
+    // adds the roll-cap flag to the same expression).
     const btnStart = tsx.indexOf('className="regen-btn"');
     const block = tsx.slice(btnStart, tsx.indexOf('</button>', btnStart));
     expect(block).toContain('onClick={handleRegenerate}');
-    expect(block).toContain('disabled={busy}');
+    expect(block).toContain('disabled={busy || regenCapped}');
     const handlerStart = tsx.indexOf('const handleRegenerate');
     expect(handlerStart).toBeGreaterThan(-1);
     const handler = tsx.slice(handlerStart, tsx.indexOf('}, [', handlerStart));

@@ -22,6 +22,10 @@ import {
   DUPLICATE_REGEN_HINT,
   DUPLICATE_REGEN_RETRY_LABEL,
 } from '../lib/regenerateDedupe';
+import {
+  REGEN_LIMIT_HINT,
+  regenCooldownRemainingMs,
+} from '../lib/regenLimit';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
 import './MessageBubble.css';
@@ -155,6 +159,12 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
     !message.regenerating &&
     !message.error &&
     typeof onRegenerate === 'function';
+
+  // P335: after REGEN_ROLL_LIMIT 换一个 clicks the App stamps
+  // regenCooldownUntil on the message — the button renders disabled with
+  // the 「已达上限」 hint until the App-owned cooldown clears the fields.
+  const regenCapped =
+    regenCooldownRemainingMs(message.regenCooldownUntil, Date.now()) !== null;
 
   const handleRegenerate = useCallback(() => {
     onRegenerate?.(message.id);
@@ -401,9 +411,10 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
                 type="button"
                 className="regen-btn"
                 onClick={handleRegenerate}
-                disabled={busy}
+                disabled={busy || regenCapped}
+                aria-disabled={regenCapped ? true : undefined}
                 aria-label="重新生成回复"
-                title="换一个回复"
+                title={regenCapped ? REGEN_LIMIT_HINT : '换一个回复'}
               >
                 <svg
                   width="14"
@@ -421,6 +432,11 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
                 </svg>
                 {'换一个'}
               </button>
+            )}
+            {canRegen && regenCapped && (
+              <span className="regen-limit-hint" role="status">
+                {REGEN_LIMIT_HINT}
+              </span>
             )}
             {canToggleVersion && (
               <button
@@ -477,7 +493,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
               type="button"
               className="duplicate-retry-btn"
               onClick={handleRegenerate}
-              disabled={busy || !canRegen}
+              disabled={busy || !canRegen || regenCapped}
               aria-label="再试一次，换一个不同的回复"
               title="再试一次，换一个不同的回复"
             >

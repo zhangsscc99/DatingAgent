@@ -91,6 +91,12 @@ import {
   isDuplicateReply,
 } from './lib/regenerateDedupe';
 import { toggleReplyVersion, versionSnapshotOf } from './lib/replyVersions';
+import {
+  noteRegenRoll,
+  regenAllowed,
+  regenLimitStateOf,
+  startRegenCooldown,
+} from './lib/regenLimit';
 import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
 import { isServiceDown } from './lib/serviceStatus';
@@ -267,6 +273,10 @@ export default function App() {
   // P161: covers the frame between a 「生成回复」 click and the loading state
   // flush — a second click landing there must be a no-op.
   const replyInFlightRef = useRef(false);
+  // P335: one pending cooldown timeout per capped reply — when it fires the
+  // message's regenRolls/regenCooldownUntil are patched away and the button
+  // lives again. Keyed by message id, stopped on unmount.
+  const regenCooldownsRef = useRef(new Map<string, { stop: () => void }>());
   // P244: drafts submitted while a reply is in flight wait here and go out
   // automatically (FIFO) once the turn ends. Memory-only — a refresh drops
   // the queue rather than resurrecting a half-sent state.
@@ -403,6 +413,8 @@ export default function App() {
       if (exportTimer.current !== null) window.clearTimeout(exportTimer.current);
       if (copyExportTimer.current !== null) window.clearTimeout(copyExportTimer.current);
       if (jsonExportTimer.current !== null) window.clearTimeout(jsonExportTimer.current);
+      regenCooldownsRef.current.forEach((cooldown) => cooldown.stop());
+      regenCooldownsRef.current.clear();
       toastCtl.destroy();
       clearAllUndoCtl.destroy();
       trashUndoCtl.destroy();
@@ -944,6 +956,15 @@ export default function App() {
       if (!prompt) return;
 
       const target = messages[messages.length - 1];
+      // P335: 换一个 is no longer free — each reply gets REGEN_ROLL_LIMIT
+      // rolls, then the button locks for REGEN_COOLDOWN_MS. The roll is
+      // counted here at the same patch point where P332 bumps versionIndex
+      // (a failed or duplicate stream still consumed the click; the two
+      // counters are separate fields so the badge is never double-counted).
+      const now = Date.now();
+      const limit = regenLimitStateOf(target);
+      if (!regenAllowed(limit, now)) return;
+      const nextLimit = noteRegenRoll(limit, now);
       const original = versionSnapshotOf(target);
       // P284: the versions the new reply must not repeat — the text on screen
       // plus any parked P276 versions, sent along so the backend can steer
@@ -976,7 +997,25 @@ export default function App() {
         // undefined (and unlabeled). Restored below if the stream fails or
         // echoes the same text back.
         versionIndex: (target.versionIndex ?? 1) + 1,
+        // P335: spend one roll of this reply's budget; the cap sets
+        // regenCooldownUntil, which the bubble renders as the disabled
+        // 换一个 + 「已达上限」 hint until the timeout below clears it.
+        regenRolls: nextLimit.rolls,
+        regenCooldownUntil: nextLimit.cooldownUntil ?? undefined,
       });
+      if (nextLimit.cooldownUntil !== null) {
+        regenCooldownsRef.current.get(messageId)?.stop();
+        regenCooldownsRef.current.set(
+          messageId,
+          startRegenCooldown(nextLimit.cooldownUntil - now, () => {
+            regenCooldownsRef.current.delete(messageId);
+            patchIfPresent({
+              regenRolls: undefined,
+              regenCooldownUntil: undefined,
+            });
+          }),
+        );
+      }
       replyInFlightRef.current = true;
       setLoading(true);
       void streamReply(prompt, messageId, undefined, previousReplies)

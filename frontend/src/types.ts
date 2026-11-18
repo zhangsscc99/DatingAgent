@@ -64,6 +64,15 @@ export interface ChatMessage {
    * shows 「这一版和上一版一样，再试一次？」 instead. In-memory only.
    */
   duplicateRegen?: boolean;
+  /**
+   * P335: 「换一个」 rolls already spent on this reply — at REGEN_ROLL_LIMIT
+   * the button locks until regenCooldownUntil. In-memory only like
+   * versionIndex (serializeMessages drops it); the App-owned cooldown
+   * timeout clears both fields so the next window grants a fresh budget.
+   */
+  regenRolls?: number;
+  /** P335: epoch millis when the re-roll lock lifts; unset while live. */
+  regenCooldownUntil?: number;
 }
 
 export interface ReplyMeta {
