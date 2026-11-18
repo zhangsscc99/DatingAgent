@@ -438,11 +438,6 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
           </div>
         )}
       </div>
-      {isUser && (
-        <div className="avatar user-avatar" aria-hidden="true">
-          你
-        </div>
-      )}
     </div>
   );
 }
