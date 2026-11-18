@@ -185,10 +185,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const newBelowAnnouncedRef = useRef(false);
   const [scrollLiveText, setScrollLiveText] = useState('');
 
-  // P321: at ≤480px the three welcome feature cards collapse to quiet
-  // single-line rows (CSS keys on .welcome-features[data-compact]) so the
-  // phone first screen keeps a single focus — the composer send key.
-  const compactFeatures = useMediaQuery('(max-width: 480px)');
+  // P336: at ≤768px the three welcome feature cards collapse into one
+  // quiet non-interactive summary line so the phone first screen keeps a
+  // single focus — the composer send key.
+  const compactFeatures = useMediaQuery('(max-width: 768px)');
 
   // P293/P296/P308: the memory receipt — a small icon capsule anchored at
   // the right of the session header area naming what the agent already
@@ -605,16 +605,6 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
             <p className="welcome-hint">
               在下方输入框写下你的情况，回车发送即可开始。
             </p>
-            {!profile?.name && onSetupProfile && (
-              <button
-                type="button"
-                className="welcome-cta"
-                data-variant="link"
-                onClick={onSetupProfile}
-              >
-                完善资料，获得更个性化建议 →
-              </button>
-            )}
             <div className="starter-chips" role="group" aria-label="开始话题">
               {STARTER_PROMPTS.map((p) => (
                 <button
@@ -628,38 +618,55 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 </button>
               ))}
             </div>
-            <div
-              className="welcome-features"
-              data-compact={compactFeatures ? 'true' : undefined}
-            >
-              <div className="feature">
-                <span aria-hidden="true">
-                  <FeatureIcon iconKey="wrench" />
-                </span>
-                <div>
-                  <strong>帮你把话说到点上</strong>
-                  <p>该不该发、怎么发，给一个具体说法</p>
+            {/* P336: ≤768px renders one muted non-interactive line instead
+                of the three cards — the card grid stays ≥769px. */}
+            {compactFeatures ? (
+              <p className="welcome-feature-line">
+                帮你把话说到点上 · 真诚沟通 · 约会前把安排想清楚
+              </p>
+            ) : (
+              <div className="welcome-features">
+                <div className="feature">
+                  <span aria-hidden="true">
+                    <FeatureIcon iconKey="wrench" />
+                  </span>
+                  <div>
+                    <strong>帮你把话说到点上</strong>
+                    <p>该不该发、怎么发，给一个具体说法</p>
+                  </div>
+                </div>
+                <div className="feature">
+                  <span aria-hidden="true">
+                    <FeatureIcon iconKey="chat" />
+                  </span>
+                  <div>
+                    <strong>真诚沟通</strong>
+                    <p>拒绝 PUA 套路，倡导共情与边界感</p>
+                  </div>
+                </div>
+                <div className="feature">
+                  <span aria-hidden="true">
+                    <FeatureIcon iconKey="chart" />
+                  </span>
+                  <div>
+                    <strong>约会前把安排想清楚</strong>
+                    <p>资料、聊天、约会，一次聊明白</p>
+                  </div>
                 </div>
               </div>
-              <div className="feature">
-                <span aria-hidden="true">
-                  <FeatureIcon iconKey="chat" />
-                </span>
-                <div>
-                  <strong>真诚沟通</strong>
-                  <p>拒绝 PUA 套路，倡导共情与边界感</p>
-                </div>
-              </div>
-              <div className="feature">
-                <span aria-hidden="true">
-                  <FeatureIcon iconKey="chart" />
-                </span>
-                <div>
-                  <strong>约会前把安排想清楚</strong>
-                  <p>资料、聊天、约会，一次聊明白</p>
-                </div>
-              </div>
-            </div>
+            )}
+            {/* P336: the「完善资料」entry sits at the foot of the welcome
+                block — a footnote line, not a control in the main flow. */}
+            {!profile?.name && onSetupProfile && (
+              <button
+                type="button"
+                className="welcome-cta"
+                data-variant="link"
+                onClick={onSetupProfile}
+              >
+                完善资料，获得更个性化建议 →
+              </button>
+            )}
           </div>
         )}
 
@@ -766,6 +773,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
       )}
       <InputBar
         ref={inputRef}
+        // P336: on the empty first screen the composer is the single
+        // primary CTA — InputBar turns that into its spotlight treatment
+        // (a light brand tint on narrow viewports).
+        spotlight={!restoring && messages.length === 0}
         onSend={handleSend}
         streaming={loading}
         onStop={onStop}

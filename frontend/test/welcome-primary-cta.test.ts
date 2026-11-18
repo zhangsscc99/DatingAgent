@@ -203,16 +203,20 @@ describe('P290 · every other first-screen action is secondary', () => {
     expect(bodies.every((b) => !b.includes('color: var(--accent)'))).toBe(true);
   });
 
-  it('the send key is disabled and muted while the composer is empty', () => {
+  it('the send key is disabled while the composer is empty, but keeps the brand fill', () => {
     stubDraftStorage({});
     const markup = renderWelcome();
     const send = buttonTag(markup, 'input-send');
     expect(send).toContain('disabled=""');
     expect(send).toContain('aria-label="发送消息"');
-    // The disabled rule is a secondary fill — no accent background.
+    // P336: `disabled` blocks the action, it must not read disabled — the
+    // muted --surface-hover ghost is gone; the empty key keeps the screen's
+    // single brand solid.
     const rule = ruleBody(inputBarCss, '.input-bar .input-send:disabled');
-    expect(rule).toContain('background: var(--surface-hover)');
-    expect(rule).not.toContain('var(--accent)');
+    expect(rule).toContain('background: var(--accent)');
+    expect(rule).toContain('color: var(--on-accent)');
+    expect(rule).not.toContain('var(--surface-hover)');
+    expect(rule).not.toContain('var(--text-muted)');
   });
 
   it('the send key returns to brand solid once the composer has text', () => {

@@ -5,6 +5,14 @@
   background: var(--surface);
 }
 
+/* P336 — on the empty phone first screen (≤430px, ChatWindow passes
+   `spotlight`) the composer is the page's one real action: the bar wears
+   a light brand tint so it reads as the place to start instead of
+   blending into the page surface. Existing token only — no new colour. */
+.input-bar[data-spotlight] {
+  background: var(--accent-soft);
+}
+
 /* P305: the composer's working row sits in the same centred column as the
    message list (.messages > * shares --column-max), so the textarea's left
    edge and the send row's right edge line up with the bubbles above. The
@@ -155,17 +163,16 @@
   transform: translateY(-1px);
 }
 
-/* P290: an empty composer leaves the send key as a muted secondary button
-   (same quiet surface as the tool row), not a faded brand-pink one — the
-   brand solid returns only once there is text to send.
-   P321: muted must not mean invisible — the quiet fill sat ~1.1:1 against
-   the --surface bar and read as a washed-out ghost, so the key now carries
-   a --text-muted ring (≥3:1 boundary contrast in every theme) while the
-   P290 surface-hover fill and no-accent contract stay. */
+/* P290/P336: an empty composer still can't send, but the disabled state
+   must not READ as disabled — the old muted fill + grey ring measured
+   ~1.1:1 against the bar and walked as a greyed-out ghost. The key now
+   keeps the same brand solid as the enabled state (≥3:1 against both the
+   plain --surface bar and the spotlight tint in light and dark), so the
+   first screen shows exactly one solid control; `disabled` only blocks
+   the action and the cursor still says so. */
 .input-bar .input-send:disabled {
-  background: var(--surface-hover);
-  color: var(--text-muted);
-  border: 1px solid var(--text-muted);
+  background: var(--accent);
+  color: var(--on-accent);
   opacity: 1;
   cursor: not-allowed;
 }

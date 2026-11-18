@@ -54,6 +54,9 @@ interface Props {
   queuedCount?: number;
   /** P244: drop the queued drafts; returns their text so the composer can restore it. */
   onCancelQueue?: () => string[];
+  /** P336: true on the empty first screen — on narrow viewports the bar
+   *  wears a light brand tint marking it as the one place to start. */
+  spotlight?: boolean;
 }
 
 /** Must match MAX_MESSAGE_CHARS in backend/src/lib/guardrails.ts (413 above it). */
@@ -107,6 +110,7 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
     onReplyLengthChange,
     queuedCount = 0,
     onCancelQueue,
+    spotlight = false,
   },
   ref,
 ) {
@@ -316,7 +320,12 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
     showCounter || showRateLimit ? 'input-field has-counter' : 'input-field';
 
   return (
-    <div className="input-bar" role="form" aria-label="发送消息">
+    <div
+      className="input-bar"
+      role="form"
+      aria-label="发送消息"
+      data-spotlight={spotlight && narrowViewport ? 'true' : undefined}
+    >
       <span className="sr-only" role="status" aria-live="polite">
         {historyAnnouncement}
       </span>
@@ -396,52 +405,57 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
             {replyLengthLabel(replyLength)}
           </button>
         )}
-        <div className="input-hint">
-          <button
-            type="button"
-            className="input-hint-btn"
-            aria-label="键盘快捷键说明"
-            aria-describedby="input-kbd-tip"
-            tabIndex={0}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+        {/* P336: the shortcut-hint button documents physical-keyboard
+            keys — meaningless chrome on a ≤430px phone where it also
+            competed with the send key as a second composer control. */}
+        {!narrowViewport && (
+          <div className="input-hint">
+            <button
+              type="button"
+              className="input-hint-btn"
+              aria-label="键盘快捷键说明"
+              aria-describedby="input-kbd-tip"
+              tabIndex={0}
             >
-              <rect width="20" height="16" x="2" y="4" rx="2" />
-              <path d="M6 8h.01" />
-              <path d="M10 8h.01" />
-              <path d="M14 8h.01" />
-              <path d="M18 8h.01" />
-              <path d="M6 12h.01" />
-              <path d="M10 12h.01" />
-              <path d="M14 12h.01" />
-              <path d="M18 12h.01" />
-              <path d="M7 16h10" />
-            </svg>
-          </button>
-          <div id="input-kbd-tip" className="input-hint-tip" role="tooltip">
-            <span>
-              <kbd>Enter</kbd> 或 <kbd>{MOD_KEY}+Enter</kbd> 发送
-            </span>
-            <span>
-              <kbd>Shift+Enter</kbd> 换行
-            </span>
-            <span>
-              <kbd>↑</kbd>/<kbd>↓</kbd> 历史消息
-            </span>
-            <span>
-              <kbd>Esc</kbd> 收起输入框
-            </span>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+                <path d="M6 8h.01" />
+                <path d="M10 8h.01" />
+                <path d="M14 8h.01" />
+                <path d="M18 8h.01" />
+                <path d="M6 12h.01" />
+                <path d="M10 12h.01" />
+                <path d="M14 12h.01" />
+                <path d="M18 12h.01" />
+                <path d="M7 16h10" />
+              </svg>
+            </button>
+            <div id="input-kbd-tip" className="input-hint-tip" role="tooltip">
+              <span>
+                <kbd>Enter</kbd> 或 <kbd>{MOD_KEY}+Enter</kbd> 发送
+              </span>
+              <span>
+                <kbd>Shift+Enter</kbd> 换行
+              </span>
+              <span>
+                <kbd>↑</kbd>/<kbd>↓</kbd> 历史消息
+              </span>
+              <span>
+                <kbd>Esc</kbd> 收起输入框
+              </span>
+            </div>
           </div>
-        </div>
+        )}
         {/* P224: the send button never leaves the DOM — during streaming it
             renders first in DOM order (so `.input-send` queries hit the
             queueing send) and the stop button sits beside it. A second

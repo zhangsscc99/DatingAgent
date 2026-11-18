@@ -252,7 +252,9 @@
    text so it no longer competes with the primary CTA. */
 .welcome-cta {
   display: inline-block;
-  margin-bottom: 28px;
+  /* P336: the entry moved to the foot of the welcome block, so it only
+     needs separation from the content above, not room below. */
+  margin-top: 16px;
   padding: 10px 18px;
   background: transparent;
   border: 1px solid var(--border);
@@ -285,7 +287,9 @@
   border: none;
   border-radius: 0;
   background: none;
-  color: var(--text-secondary);
+  /* P336: footnote register — --text-muted sits a step below the
+     secondary chrome the P321 version still wore. */
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 400;
   text-decoration: underline;
@@ -330,50 +334,17 @@
   color: var(--text-muted);
 }
 
-/* P321 — ≤480px (390 target): the three tall feature cards flatten into
-   quiet single-line rows — icon plus the title, the description truncating
-   inline after it — so the phone first screen keeps one focus. The
-   [data-compact] attribute is driven by a (max-width: 480px) matchMedia in
-   ChatWindow (the same mechanism as the composer's narrowViewport). */
-.welcome-features[data-compact] {
-  gap: 2px;
-}
-
-.welcome-features[data-compact] .feature {
-  align-items: center;
-  gap: 8px;
-  padding: 4px 2px;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-}
-
-/* The icon span's 24px font-size would otherwise inflate the row's line
-   box; shrink it to the 16px glyph it wraps. */
-.welcome-features[data-compact] .feature > span {
-  display: inline-flex;
-  align-items: center;
-  font-size: 14px;
-  line-height: 1;
-}
-
-.welcome-features[data-compact] .feature > div {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.welcome-features[data-compact] .feature strong {
-  flex-shrink: 0;
-  margin-bottom: 0;
-  font-size: 13px;
-}
-
-.welcome-features[data-compact] .feature p {
-  flex: 1;
-  min-width: 0;
+/* P336 — ≤768px (390 target): the three feature cards collapse into ONE
+   quiet non-interactive summary line — even flattened rows still read as
+   three content blocks competing with the composer. ChatWindow renders
+   this <p> instead of the card grid under its (max-width: 768px)
+   matchMedia; the line truncates rather than wrapping so the first
+   screen keeps a single focus — the composer send key. */
+.welcome-feature-line {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -401,7 +372,10 @@
   }
 
   .welcome-cta {
-    margin-bottom: 18px;
+    /* P336: footnote spacing — a little air under the feature line, no
+       trailing margin so it reads as the block's last line. */
+    margin-top: 10px;
+    margin-bottom: 0;
   }
 
   .starter-chips {
