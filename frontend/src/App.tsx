@@ -347,10 +347,56 @@ export default function App() {
       // closing the drawer too would inert the gear button the sheet returns
       // focus to.
       if (e.key === 'Escape' && !settingsOpen) setSidebarOpen(false);
+      // P324: the phone drawer is a modal sheet — Tab cycles inside it and
+      // never reaches the backdrop or the main content behind it. The
+      // listener lives on document (not the aside) so a Tab dispatched
+      // while focus sits outside the drawer is pulled back in, and the
+      // focusable set is re-queried per keystroke so rows mounted after
+      // the drawer opened (the filter box, late tool entries) join the
+      // cycle. While the settings sheet is open its own trap wins.
+      if (e.key !== 'Tab' || !isMobile || settingsOpen) return;
+      const drawer = document.getElementById('app-sidebar');
+      if (!drawer) return;
+      const focusable = Array.from(
+        drawer.querySelectorAll<HTMLElement>(
+          'a[href], button, input, select, textarea, [tabindex]',
+        ),
+      ).filter(
+        (el) =>
+          !el.hasAttribute('disabled') && el.getAttribute('tabindex') !== '-1',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      const outside = !active || !drawer.contains(active);
+      if (!e.shiftKey && (outside || active === last)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && (outside || active === first)) {
+        e.preventDefault();
+        last.focus();
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [sidebarOpen, settingsOpen]);
+  }, [sidebarOpen, settingsOpen, isMobile]);
+
+  // P324: closing the phone drawer returns focus to the 打开菜单 trigger —
+  // without the restore a keyboard user lands back on <body> and loses
+  // their place. Queried rather than ref'd: the button is rendered only
+  // while isMobile, so on a resize to desktop the lookup is a no-op.
+  const drawerWasOpenRef = useRef(false);
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      drawerWasOpenRef.current = true;
+      return;
+    }
+    if (drawerWasOpenRef.current) {
+      drawerWasOpenRef.current = false;
+      document.querySelector<HTMLElement>('.menu-btn')?.focus();
+    }
+  }, [isMobile, sidebarOpen]);
 
   useEffect(
     () => () => {

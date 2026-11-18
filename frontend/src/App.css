@@ -543,6 +543,11 @@
   border: none;
   cursor: pointer;
   animation: backdrop-fade-in 0.25s ease;
+  /* P324: a slight blur on the covered content sells the scrim as modal —
+     where a sliver of the chat still peeks out at ≥430px it reads as
+     covered rather than interactive. Keeps the --overlay token so the
+     dark theme's deeper scrim still applies. */
+  backdrop-filter: blur(2px);
 }
 
 @keyframes backdrop-fade-in {
