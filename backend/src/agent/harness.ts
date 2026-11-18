@@ -4,6 +4,7 @@ import { LLMClient } from '../llm/client.js';
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { resolveFocusEntity } from '../lib/focusEntity.js';
 import { usageMetrics } from '../lib/metrics.js';
+import { matchesAnyReply } from '../lib/reply-dedupe.js';
 import { stripManualLabels, stripPromptEcho, stripStageDirections } from '../lib/reply-clean.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
 
@@ -181,6 +182,33 @@ export function buildProfileIntentDirective(userMessage: string): string {
   return isProfileIntent(userMessage) ? '\n\n本轮约束：' + PROFILE_EXAMPLE_FIRST_RULE : '';
 }
 
+/**
+ * P284 — 「换一个」 used to re-ask the identical question blind, so the model
+ * happily shrank or repeated its answer (measured: 8 regens converging on one
+ * fixed 40-char sentence). The regenerate request carries the last versions
+ * it already showed; this directive pins them into the system prompt so the
+ * new reply must not reuse their sentences and stays at least two sentences.
+ */
+export function buildAvoidRepeatDirective(previousReplies: readonly string[]): string {
+  if (previousReplies.length === 0) return '';
+  const list = previousReplies.map((r, i) => `版本${i + 1}：${r}`).join('\n');
+  return (
+    '\n\n本轮是「换一个」重新生成：以下是已经展示给用户看过的回复版本——\n' +
+    list +
+    '\n新回复不得与以上任何一版有相同句子，必须换一种说法，且不少于两句话。' +
+    '旧版本只用于比对，不要在回复中提及、复述或列出它们。' +
+    '直接照做，不要在回复中提及或复述这些要求。'
+  );
+}
+
+/**
+ * P284 — sharpened directive pushed ahead of the single server-side retry
+ * when a regenerate still echoes a shown version.
+ */
+const REGEN_DUPLICATE_RETRY_DIRECTIVE =
+  '你刚才生成的回复与已展示过的版本完全相同，这是不允许的。' +
+  '请给出一版全新的回复：换一个表达角度和措辞，不得复用旧回复里的任何句子，且不少于两句话。';
+
 export class AgentHarness {
   private llm = new LLMClient();
   private maxTurns = 8;
@@ -190,6 +218,7 @@ export class AgentHarness {
     context: AgentContext,
     signal?: AbortSignal,
     replyLength?: ReplyLength,
+    previousReplies?: string[],
   ): AsyncGenerator<AgentEvent> {
     const messages: Message[] = [
       {
@@ -197,7 +226,8 @@ export class AgentHarness {
         content:
           buildSystemPrompt(context.profile, context.language ?? 'auto', replyLength) +
           buildFocusDirective(context.conversationHistory, userMessage) +
-          buildProfileIntentDirective(userMessage),
+          buildProfileIntentDirective(userMessage) +
+          buildAvoidRepeatDirective(previousReplies ?? []),
       },
       // P177: bound the prompt — keep the newest turns within the
       // HISTORY_MAX_MESSAGES / HISTORY_MAX_CHARS budget.
@@ -214,6 +244,9 @@ export class AgentHarness {
     const progressHeartbeatMs = toolProgressHeartbeatMs();
     let toolCallsExecuted = 0;
     let budgetDirectiveAdded = false;
+    // P284: a regenerate that still echoes a shown version is retried once —
+    // the flag keeps a stubbornly repeating model from looping forever.
+    let dedupeRetried = false;
 
     yield { type: 'thinking', data: { message: '正在思考…' } };
 
@@ -399,6 +432,22 @@ export class AgentHarness {
         ? cleanedContent
         : fallbackFromToolResults(messages);
 
+      // P284: the model ignored the avoid-repeat directive and handed back a
+      // version the user already saw — re-ask once with a sharpened rule. The
+      // fresh `thinking` beat tells the client to drop the echoed draft
+      // before the replacement deltas arrive; a second repeat falls through
+      // and the frontend shows its honest 再试一次 line instead.
+      if (
+        !dedupeRetried &&
+        previousReplies?.length &&
+        matchesAnyReply(finalContent, previousReplies)
+      ) {
+        dedupeRetried = true;
+        messages.push({ role: 'system', content: REGEN_DUPLICATE_RETRY_DIRECTIVE });
+        yield { type: 'thinking', data: { message: '正在换一个说法…' } };
+        continue;
+      }
+
       messages.push({ role: 'assistant', content: finalContent });
       context.conversationHistory.push(
         { role: 'user', content: userMessage },
@@ -437,11 +486,12 @@ export class AgentHarness {
     userMessage: string,
     context: AgentContext,
     replyLength?: ReplyLength,
+    previousReplies?: string[],
   ): Promise<ChatResult> {
     let content = '';
     let tool: string | undefined;
     let tokens: number | undefined;
-    for await (const event of this.run(userMessage, context, undefined, replyLength)) {
+    for await (const event of this.run(userMessage, context, undefined, replyLength, previousReplies)) {
       if (event.type === 'message') {
         content = (event.data as { content: string }).content;
       }

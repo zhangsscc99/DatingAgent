@@ -212,3 +212,4 @@
 2026-11-17 22:54 | P280 | hero subtitle nowrap: wrapped 「直接照着用」 in .hero-subtitle-nowrap span + text-wrap:balance on .welcome > p (ChatWindow.tsx/css, new hero-subtitle-wrap test)
 2026-11-18 00:06 | P281 | 桌面端可折叠侧栏，选择存 localStorage，折叠后 aside 宽度归零
 2026-11-18 01:05 | P286 | 资料优化意图第一段先给可粘贴示例(≥15字「…」)再至多追问2问：SYSTEM_PROMPT常量+buildProfileIntentDirective每轮尾部重申；新增stripPromptEcho清除偶发的规则复述首句
+2026-11-18 02:16 | P284 | 「换一个」去重：前端带上最近≤3版正文(previousReplies)，后端提示词禁止重复+相同/内嵌旧版时服务端重试一次；前端逐字相同不覆盖气泡、改显示「这一版和上一版一样，再试一次？」并隐藏假耗时行

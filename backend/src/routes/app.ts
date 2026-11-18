@@ -19,6 +19,7 @@ import {
 } from '../lib/guardrails.js';
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { isCorsAllowed, requestHost } from '../lib/cors.js';
+import { parsePreviousReplies } from '../lib/reply-dedupe.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const harness = new AgentHarness();
@@ -323,12 +324,13 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.post('/api/chat', ...chatGuards, async (req, res) => {
-    const { sessionId, message, profile, language, replyLength } = req.body as {
+    const { sessionId, message, profile, language, replyLength, previousReplies } = req.body as {
       sessionId?: string;
       message: string;
       profile?: UserProfile;
       language?: unknown;
       replyLength?: unknown;
+      previousReplies?: unknown;
     };
 
     const sanitized = sanitizeMessage(message ?? '');
@@ -347,11 +349,18 @@ export function createApp(options: AppOptions = {}) {
       return res.status(400).json(errorBody(res, 'replyLength must be one of "concise", "detailed"'));
     }
 
+    // P284: 「换一个」 sends the last shown versions so the model is told not
+    // to repeat them; a malformed field is a 400 like the other enum hints.
+    const avoidReplies = parsePreviousReplies(previousReplies);
+    if (avoidReplies === null) {
+      return res.status(400).json(errorBody(res, 'previousReplies must be an array of strings'));
+    }
+
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
     const startedAt = Date.now();
 
     try {
-      const { content, meta } = await harness.chatWithMeta(sanitized, session, parseReplyLength(replyLength));
+      const { content, meta } = await harness.chatWithMeta(sanitized, session, parseReplyLength(replyLength), avoidReplies);
       usageMetrics.recordChat(Date.now() - startedAt, true);
       // F21: meta omitted entirely when tokens are unknown (badge stays hidden).
       const replyMeta =
@@ -368,12 +377,13 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.post('/api/chat/stream', ...chatGuards, async (req, res) => {
-    const { sessionId, message, profile, language, replyLength } = req.body as {
+    const { sessionId, message, profile, language, replyLength, previousReplies } = req.body as {
       sessionId?: string;
       message: string;
       profile?: UserProfile;
       language?: unknown;
       replyLength?: unknown;
+      previousReplies?: unknown;
     };
 
     const sanitized = sanitizeMessage(message ?? '');
@@ -387,6 +397,11 @@ export function createApp(options: AppOptions = {}) {
 
     if (replyLength !== undefined && parseReplyLength(replyLength) === undefined) {
       return res.status(400).json(errorBody(res, 'replyLength must be one of "concise", "detailed"'));
+    }
+
+    const avoidReplies = parsePreviousReplies(previousReplies);
+    if (avoidReplies === null) {
+      return res.status(400).json(errorBody(res, 'previousReplies must be an array of strings'));
     }
 
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
@@ -418,7 +433,7 @@ export function createApp(options: AppOptions = {}) {
     // `firstEventMs`, so tool-turn waits are measurable from the log.
     let firstEventRecorded = false;
     try {
-      for await (const ev of harness.run(sanitized, session, controller.signal, parseReplyLength(replyLength))) {
+      for await (const ev of harness.run(sanitized, session, controller.signal, parseReplyLength(replyLength), avoidReplies)) {
         // Socket already closed: stop before writing to it again.
         if (controller.signal.aborted) break;
         if (!firstEventRecorded) {

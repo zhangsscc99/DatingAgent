@@ -86,6 +86,10 @@ import {
   sidebarToggleLabel,
 } from './lib/sidebarCollapse';
 import { regeneratePromptFor } from './lib/regenerate';
+import {
+  collectPreviousReplies,
+  isDuplicateReply,
+} from './lib/regenerateDedupe';
 import { toggleReplyVersion, versionSnapshotOf } from './lib/replyVersions';
 import { canGenerateReply, pendingReplyPrompt } from './lib/pendingReply';
 import { parseRateLimit, type RateLimitBudget } from './lib/rateLimitStatus';
@@ -146,7 +150,7 @@ async function describeChatError(res: Response): Promise<string> {
 
 /** Result of one streamed reply; P26 uses it to restore a failed regeneration. */
 type StreamOutcome =
-  | { status: 'ok' }
+  | { status: 'ok'; content: string }
   | { status: 'error'; errorText: string; serviceDown?: boolean }
   | { status: 'aborted' };
 
@@ -417,6 +421,8 @@ export default function App() {
       prompt: string,
       assistantId: string,
       requestSessionId: string | null = sessionId,
+      // P284: versions the reply must not repeat — only 「换一个」 sends them.
+      previousReplies?: string[],
     ): Promise<StreamOutcome> => {
       const toolEvents: ToolEvent[] = [];
       let finalContent = '';
@@ -443,6 +449,7 @@ export default function App() {
             profile: profile ?? undefined,
             language,
             replyLength: replyLengthRequestField(replyLength),
+            previousReplies,
           }),
           signal: abortRef.current.signal,
         });
@@ -477,7 +484,20 @@ export default function App() {
 
             if (event.type === 'thinking') {
               streamPhase = 'thinking';
-              patchAssistant({ streamPhase, streaming: true });
+              // P284: a mid-stream thinking beat means the backend rejected
+              // an echoed regen and is writing a replacement — drop the
+              // duplicate draft so its deltas never stick to the new text.
+              if (finalContent) {
+                finalContent = '';
+                patchAssistant({
+                  content: '',
+                  streamPhase,
+                  streaming: true,
+                  toolPhase: undefined,
+                });
+              } else {
+                patchAssistant({ streamPhase, streaming: true });
+              }
             }
 
             // P231: the backend announces the tool name the moment the
@@ -635,7 +655,7 @@ export default function App() {
           toolPhase: undefined,
           toolEvents: toolEvents.length ? [...toolEvents] : undefined,
         });
-        return { status: 'ok' };
+        return { status: 'ok', content: finalContent };
       } catch (err) {
         if ((err as Error).name === 'AbortError') {
           // P12: user-initiated stop — keep whatever partial text arrived and
@@ -870,6 +890,10 @@ export default function App() {
 
       const target = messages[messages.length - 1];
       const original = versionSnapshotOf(target);
+      // P284: the versions the new reply must not repeat — the text on screen
+      // plus any parked P276 versions, sent along so the backend can steer
+      // away from them and dedupe what still echoes back.
+      const previousReplies = collectPreviousReplies(target);
 
       // The session can be cleared while a request is in flight; never let a
       // late patch resurrect a bubble that no longer exists.
@@ -885,6 +909,7 @@ export default function App() {
         streamPhase: 'thinking',
         toolEvents: undefined,
         meta: undefined,
+        duplicateRegen: undefined,
         // P276: park the outgoing reply in the one-slot version store BEFORE
         // the stream overwrites the bubble — 「恢复上一版」 can then bring it
         // back. On failure P26 restores the same text, so the slot mirrors
@@ -894,7 +919,7 @@ export default function App() {
       });
       replyInFlightRef.current = true;
       setLoading(true);
-      void streamReply(prompt, messageId)
+      void streamReply(prompt, messageId, undefined, previousReplies)
         .then((outcome) => {
           noteStreamOutcome(outcome);
           if (outcome.status === 'error') {
@@ -907,6 +932,28 @@ export default function App() {
               error: true,
               errorDetail: outcome.errorText,
               retryPrompt: prompt,
+            });
+          } else if (
+            outcome.status === 'ok' &&
+            isDuplicateReply(original.content, outcome.content)
+          ) {
+            // P284: the stream "succeeded" but handed back the same reply —
+            // put the shown version back and flag the honest 再试一次 line
+            // instead of a fresh 约 X 秒 badge pretending the text changed.
+            patchIfPresent({
+              content: original.content,
+              toolEvents: original.toolEvents,
+              meta: original.meta,
+              stopped: original.stopped,
+              streaming: false,
+              streamPhase: undefined,
+              toolPhase: undefined,
+              error: undefined,
+              errorDetail: undefined,
+              retryPrompt: undefined,
+              previousVersion: undefined,
+              newerVersion: undefined,
+              duplicateRegen: true,
             });
           }
           patchIfPresent({ regenerating: undefined });

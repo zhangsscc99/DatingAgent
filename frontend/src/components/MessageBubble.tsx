@@ -9,6 +9,10 @@ import { normalizeMarkdownTables } from '../lib/markdownTables';
 import { shouldCollapseReply, visibleReplyContent } from '../lib/replyCollapse';
 import { formatLatencySeconds, formatReplyLatency } from '../lib/relativeTime';
 import { generationProgressLabel } from '../lib/generationProgress';
+import {
+  DUPLICATE_REGEN_HINT,
+  DUPLICATE_REGEN_RETRY_LABEL,
+} from '../lib/regenerateDedupe';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
 import './MessageBubble.css';
@@ -379,7 +383,25 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             </span>
           </div>
         )}
-        {!isUser && !message.streaming && !message.error && typeof message.meta?.tokens === 'number' && (
+        {/* P284: a 「换一个」 that came back identical keeps the original
+            text but must not wear a fresh 约 X 秒 badge — the honest retry
+            line replaces the meta row. */}
+        {!isUser && !message.streaming && !message.error && message.duplicateRegen && (
+          <div className="duplicate-note" role="status">
+            <span>{DUPLICATE_REGEN_HINT}</span>
+            <button
+              type="button"
+              className="duplicate-retry-btn"
+              onClick={handleRegenerate}
+              disabled={busy || !canRegen}
+              aria-label="再试一次，换一个不同的回复"
+              title="再试一次，换一个不同的回复"
+            >
+              {DUPLICATE_REGEN_RETRY_LABEL}
+            </button>
+          </div>
+        )}
+        {!isUser && !message.streaming && !message.error && !message.duplicateRegen && typeof message.meta?.tokens === 'number' && (
           <div
             className="reply-meta"
             aria-hidden="true"

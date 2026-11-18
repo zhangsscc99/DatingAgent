@@ -50,6 +50,12 @@ export interface ChatMessage {
    * previousVersion.
    */
   newerVersion?: ReplyVersionSnapshot;
+  /**
+   * P284: the last 「换一个」 came back identical to the version it replaced.
+   * The bubble keeps the original text, hides the fake fresh latency row and
+   * shows 「这一版和上一版一样，再试一次？」 instead. In-memory only.
+   */
+  duplicateRegen?: boolean;
 }
 
 export interface ReplyMeta {

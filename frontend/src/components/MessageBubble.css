@@ -329,10 +329,52 @@
   color: var(--danger);
 }
 
+/* P284: honest note when 换一个 came back identical — replaces the meta row
+   so the bubble never wears a fresh 约 X 秒 badge on an unchanged reply. */
+.duplicate-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.duplicate-retry-btn {
+  padding: 3px 9px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.duplicate-retry-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.duplicate-retry-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.duplicate-retry-btn:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .copy-btn,
   .regen-btn,
-  .collapse-toggle {
+  .collapse-toggle,
+  .duplicate-retry-btn {
     transition: none;
   }
 
@@ -409,6 +451,14 @@
   }
 
   .collapse-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 3px 12px;
+  }
+
+  .duplicate-retry-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;

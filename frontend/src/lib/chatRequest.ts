@@ -8,6 +8,8 @@ export interface ChatRequestFields {
   language: ReplyLanguage;
   /** Non-default reply-length preference; the key is omitted entirely at 默认. */
   replyLength?: ReplyLengthRequest;
+  /** P284: reply versions 「换一个」 must not repeat; omitted on normal sends. */
+  previousReplies?: string[];
 }
 
 /**
@@ -23,5 +25,6 @@ export function buildChatRequestBody(fields: ChatRequestFields): string {
     language: fields.language,
   };
   if (fields.replyLength) body.replyLength = fields.replyLength;
+  if (fields.previousReplies?.length) body.previousReplies = fields.previousReplies;
   return JSON.stringify(body);
 }
