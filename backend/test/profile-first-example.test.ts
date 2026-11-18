@@ -55,6 +55,43 @@ describe('P286 · exported prompt constant carries the example-first rule', () =
   });
 });
 
+/**
+ * P288 — the example line was being invented with concrete hobbies
+ * (手冲咖啡 / 旧书店 / 木工) and never marked as a template, so the user
+ * could think the consultant already knew — or was fabricating — their
+ * profile. The rule now requires an explicit 「示例」 marker (prefix or a
+ * following 「换成你自己的」 sentence) and neutral generic placeholders.
+ */
+describe('P288 · example is marked as a template with neutral placeholders', () => {
+  it('requires the sample line to be marked as an example', () => {
+    expect(PROFILE_EXAMPLE_FIRST_RULE).toContain('示例：');
+    expect(PROFILE_EXAMPLE_FIRST_RULE).toContain('换成你自己的');
+    expect(SYSTEM_PROMPT).toContain('示例：');
+    expect(SYSTEM_PROMPT).toContain('换成你自己的');
+  });
+
+  it('requires neutral generic placeholders and forbids invented specifics', () => {
+    expect(PROFILE_EXAMPLE_FIRST_RULE).toContain('你的爱好');
+    expect(PROFILE_EXAMPLE_FIRST_RULE).toContain('你的职业');
+    expect(PROFILE_EXAMPLE_FIRST_RULE).toContain('不要编造');
+    expect(SYSTEM_PROMPT).toContain('不要编造用户没提过的具体爱好、职业、品牌或地点');
+  });
+
+  it('keeps the two-question cap and the escape hatch', () => {
+    expect(PROFILE_EXAMPLE_FIRST_RULE).toContain('最多追问 2 个问题');
+    expect(PROFILE_EXAMPLE_FIRST_RULE).toContain('只问问题不给示例');
+    expect(PROFILE_EXAMPLE_FIRST_RULE).toContain('不要在回复中提及或复述这些要求');
+  });
+
+  it('the rule lives in the exported constant exactly once (no duplication drift)', () => {
+    const occurrences = SYSTEM_PROMPT.split(PROFILE_EXAMPLE_FIRST_RULE).length - 1;
+    expect(occurrences).toBe(1);
+    expect(buildProfileIntentDirective('帮我优化一下我的个人资料')).toContain(
+      '换成你自己的',
+    );
+  });
+});
+
 describe('P286 · isProfileIntent', () => {
   it.each([
     '帮我优化一下我的个人资料',
