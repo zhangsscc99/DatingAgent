@@ -12,6 +12,7 @@ import InputBar, { type InputBarHandle } from './InputBar';
 import SessionSkeleton from './SessionSkeleton';
 import ChatSearchBar from './ChatSearchBar';
 import ErrorToast from './ErrorToast';
+import UndoToast from './UndoToast';
 import { DEFAULT_DRAFT_ID } from '../lib/chatDrafts';
 import {
   EMPTY_CHAT_SEARCH,
@@ -30,6 +31,7 @@ import {
 import {
   dismissReceiptItem,
   dismissedReceiptItems,
+  restoreReceiptItem,
 } from '../lib/memoryReceiptDismissals';
 import { hasInteracted } from '../lib/interactionState';
 import { shouldAutoScroll } from '../lib/autoScroll';
@@ -48,6 +50,9 @@ function prefersReducedMotion(): boolean {
 
 /** P24: how far from the latest message before the jump button appears. */
 const SCROLL_BOTTOM_THRESHOLD = 150;
+
+/** P330: how long the 已忘记 undo toast stays armed. */
+const MEMORY_UNDO_MS = 6000;
 
 /** F20: empty-state starter prompts; clicking one prefills the composer. */
 const STARTER_PROMPTS = [
@@ -199,6 +204,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const [dismissedFacts, setDismissedFacts] = useState<readonly string[]>(() =>
     dismissedReceiptItems(),
   );
+  // P330: the single undo slot behind the 已忘记 toast — the item string of
+  // the most recent deletion. A second delete retargets it, so only the
+  // newest dismissal is recoverable (the older one stays forgotten).
+  const [memoryUndoItem, setMemoryUndoItem] = useState<string | null>(null);
   const receiptItems =
     !restoring && messages.length > 0
       ? memoryReceiptItems(profile, replyLength, messages).filter(
@@ -211,7 +220,23 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
       : null;
   const handleDismissFact = (item: string) => {
     setDismissedFacts(dismissReceiptItem(item));
+    setMemoryUndoItem(item);
   };
+  const handleUndoDismissFact = () => {
+    const item = memoryUndoItem;
+    setMemoryUndoItem(null);
+    if (item !== null) setDismissedFacts(restoreReceiptItem(item));
+  };
+
+  // P330: the toast auto-hides after MEMORY_UNDO_MS. A new target restarts
+  // the window (the item string changes → the effect re-runs), and the
+  // cleanup clears the pending timer on clear/unmount so nothing sets
+  // state on a dead component or leaks a timer.
+  useEffect(() => {
+    if (memoryUndoItem === null) return;
+    const timer = setTimeout(() => setMemoryUndoItem(null), MEMORY_UNDO_MS);
+    return () => clearTimeout(timer);
+  }, [memoryUndoItem]);
 
   // P255: the one-line profile nudge above the composer is session-scoped —
   // dismissed once, it stays down until reload. Users who already saved or
@@ -752,6 +777,17 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
         queuedCount={queuedCount}
         onCancelQueue={onCancelQueue}
       />
+      {/* P330: a deleted fact stays recoverable for a few seconds — the
+          same toast surface the 清空全部 undo uses (position:fixed, so the
+          spot in this tree is presentational only). */}
+      {memoryUndoItem !== null && (
+        <UndoToast
+          text="已忘记这条记忆"
+          actionLabel="撤销"
+          onAction={handleUndoDismissFact}
+          onDismiss={() => setMemoryUndoItem(null)}
+        />
+      )}
     </div>
   );
 });

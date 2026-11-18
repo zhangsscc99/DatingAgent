@@ -61,3 +61,19 @@ export function dismissReceiptItem(item: string): string[] {
   write(next);
   return next;
 }
+
+/**
+ * P330 — undo path for a deleted receipt item: remove `item` from the
+ * persisted list and return the new list. Idempotent — restoring an item
+ * that is not dismissed (never was, already restored, or long since
+ * evicted) returns the current list untouched: no write, no reorder, no
+ * duplicate. Blank input is a no-op for the same reason.
+ */
+export function restoreReceiptItem(item: string): string[] {
+  const trimmed = item.trim();
+  const current = read();
+  if (!trimmed || !current.includes(trimmed)) return current;
+  const next = current.filter((i) => i !== trimmed);
+  write(next);
+  return next;
+}

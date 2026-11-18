@@ -409,3 +409,128 @@ describe('P308 · expanding and deleting remembered items', () => {
     expect(qsa('.bubble').length).toBe(factTurns.length);
   });
 });
+
+/* ---------- P330 · the × deletion is undoable via the shared toast ---------- */
+
+describe('P330 · undoing a remembered-item deletion', () => {
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const flush = async () => {
+    await act(async () => {
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await Promise.resolve();
+    });
+  };
+
+  const qs = (sel: string) => dom.document.querySelector(sel) as FakeElement | null;
+  const qsa = (sel: string) => dom.document.querySelectorAll(sel);
+  const click = async (el: FakeElement | null) => {
+    expect(el, 'click target').toBeTruthy();
+    await act(async () => {
+      el!.dispatchEvent(new FakeEvent('click', { bubbles: true, cancelable: true }));
+    });
+    await flush();
+  };
+  const deleteBtn = (label: string) =>
+    qsa('.memory-panel-delete').find((b) =>
+      (b as FakeElement).getAttribute('aria-label')!.includes(label),
+    ) as FakeElement | undefined;
+
+  beforeAll(async () => {
+    dom = installFakeDom();
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(ChatWindow, {
+          messages: factTurns,
+          loading: false,
+          onSend: noop,
+          profile: null,
+          sessionId: 's-mem-undo',
+        }),
+      );
+    });
+    await flush();
+  });
+
+  afterAll(async () => {
+    if (root) {
+      await act(async () => {
+        root!.unmount();
+      });
+    }
+    root = null;
+    vi.unstubAllGlobals();
+  });
+
+  it('clicking a row × drops the fact and shows 已忘记这条记忆 / 撤销', async () => {
+    await click(qs('.memory-capsule'));
+    await click(deleteBtn('看展') ?? null);
+
+    const toast = qs('.undo-toast');
+    expect(toast).toBeTruthy();
+    expect(toast!.getAttribute('role')).toBe('status');
+    expect(toast!.textContent).toContain('已忘记这条记忆');
+    expect(qs('.undo-toast-action')!.textContent).toBe('撤销');
+    // The fact is already gone from the capsule text.
+    expect(qs('.memory-capsule-text')!.textContent).not.toContain('看展');
+    expect(dom.localStorage.getItem('datingagent.memoryDismissals')).toContain(
+      '看展',
+    );
+  });
+
+  it('clicking 撤销 restores the fact in the receipt and the panel', async () => {
+    await click(qs('.undo-toast-action'));
+
+    expect(qs('.undo-toast')).toBeNull();
+    expect(qs('.memory-capsule-text')!.textContent).toContain('看展');
+    expect(qs('.memory-capsule-text')!.textContent).toContain('没睡好');
+    // The dismissal record is gone from storage — the fact is remembered
+    // again, not merely un-hidden in the DOM.
+    expect(
+      dom.localStorage.getItem('datingagent.memoryDismissals') ?? '',
+    ).not.toContain('看展');
+    // The panel stayed open and shows both rows again.
+    expect(qsa('.memory-panel-row')).toHaveLength(2);
+  });
+
+  it('a second deletion retargets the toast — only the newest is undoable', async () => {
+    await click(deleteBtn('没睡好') ?? null);
+    await click(deleteBtn('看展') ?? null);
+    // Both facts dismissed → the capsule retired entirely, toast still up.
+    expect(qs('.memory-receipt')).toBeNull();
+    expect(qs('.undo-toast')).toBeTruthy();
+
+    await click(qs('.undo-toast-action'));
+    expect(qs('.undo-toast')).toBeNull();
+    // Only 看展 (the newest deletion) comes back; 没睡好 stays forgotten.
+    expect(qs('.memory-capsule-text')!.textContent).toContain('看展');
+    expect(qs('.memory-capsule-text')!.textContent).not.toContain('没睡好');
+    expect(dom.localStorage.getItem('datingagent.memoryDismissals')).toContain(
+      '没睡好',
+    );
+    expect(
+      dom.localStorage.getItem('datingagent.memoryDismissals') ?? '',
+    ).not.toContain('看展');
+  });
+
+  it('the toast × closes it without restoring', async () => {
+    await click(deleteBtn('看展') ?? null);
+    expect(qs('.memory-receipt')).toBeNull();
+    expect(qs('.undo-toast')).toBeTruthy();
+
+    await click(qs('.undo-toast-close'));
+    expect(qs('.undo-toast')).toBeNull();
+    // Nothing was restored — the capsule stays retired and the dismissal
+    // is still persisted.
+    expect(qs('.memory-receipt')).toBeNull();
+    expect(dom.localStorage.getItem('datingagent.memoryDismissals')).toContain(
+      '看展',
+    );
+  });
+});
