@@ -41,3 +41,22 @@ export function stripManualLabels(text: string): string {
     .join('\n')
     .replace(/\n{3,}/g, '\n\n');
 }
+
+// P286: a leading sentence is prompt echo only when it *opens* with a
+// meta-narration phrase (「按规则…」「根据要求…」). 「规则」 appearing
+// mid-sentence in a normal opening does not match.
+const PROMPT_ECHO_LEAD = /^(?:按规则|按约束|按照规则|按照约束|按照要求|根据规则|根据要求|规则要求我|按要求)[，,、 ：:]?[^。！？!?\n「]*[。！？!?\n]/;
+
+/**
+ * P286 — the example-first rule occasionally leaks meta-reasoning as the
+ * reply's first sentence (「按规则第一段必须先给…」) before the actual
+ * example. stripPromptEcho removes that single leading sentence — at most
+ * one, and only when the reply starts with a meta phrase — so the sample
+ * copy that follows it survives. 「…」-wrapped text is never touched:
+ * a lead-in containing a quoted example is left alone.
+ */
+export function stripPromptEcho(text: string): string {
+  const match = PROMPT_ECHO_LEAD.exec(text);
+  if (!match) return text;
+  return text.slice(match[0].length).replace(/^[ \t\n]+/, '');
+}

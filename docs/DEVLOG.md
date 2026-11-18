@@ -211,3 +211,4 @@
 2026-11-17 22:47 | P278 | 侧栏筛选范围文案改为「标题和对话内容都搜」，与正文匹配行为一致
 2026-11-17 22:54 | P280 | hero subtitle nowrap: wrapped 「直接照着用」 in .hero-subtitle-nowrap span + text-wrap:balance on .welcome > p (ChatWindow.tsx/css, new hero-subtitle-wrap test)
 2026-11-18 00:06 | P281 | 桌面端可折叠侧栏，选择存 localStorage，折叠后 aside 宽度归零
+2026-11-18 01:05 | P286 | 资料优化意图第一段先给可粘贴示例(≥15字「…」)再至多追问2问：SYSTEM_PROMPT常量+buildProfileIntentDirective每轮尾部重申；新增stripPromptEcho清除偶发的规则复述首句

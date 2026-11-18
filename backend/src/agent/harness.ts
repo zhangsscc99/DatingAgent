@@ -4,10 +4,27 @@ import { LLMClient } from '../llm/client.js';
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { resolveFocusEntity } from '../lib/focusEntity.js';
 import { usageMetrics } from '../lib/metrics.js';
-import { stripManualLabels, stripStageDirections } from '../lib/reply-clean.js';
+import { stripManualLabels, stripPromptEcho, stripStageDirections } from '../lib/reply-clean.js';
 import { getTool, toolRegistry } from '../tools/registry.js';
 
-const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感的 AI 恋爱关系顾问。
+/**
+ * P286 — the 「帮我优化资料」 chip used to earn back only a four-question
+ * questionnaire and zero sample copy. This rule is the single source of
+ * truth for the profile-optimisation intent: it lives inside SYSTEM_PROMPT
+ * for every turn, and buildProfileIntentDirective restates it at the tail
+ * of the system message when the current user message matches the intent.
+ */
+export const PROFILE_EXAMPLE_FIRST_RULE =
+  '资料优化类提问先给示例再提问：当用户想优化或改写交友资料、个人简介、交友文案' +
+  '（说「资料优化」「帮我优化资料」「交友资料」「个人简介」「简介改写」等）时，' +
+  '第一段必须先给一句可直接粘贴的示例文案——用中文引号「…」或代码块包裹，不少于 15 字，' +
+  '可以带「你的…」这类占位槽但必须成句、填上就能用，示例必须排在所有追问之前；' +
+  '然后最多追问 2 个问题（比如所在平台、想吸引什么样的人），' +
+  '不要把问题排成三四条的清单，也不要每轮用同一种问句收尾。' +
+  '直接照做，不要在回复中提及或复述这些要求。' +
+  '用户明确要求「只问问题不给示例」时不受此限。';
+
+export const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感的 AI 恋爱关系顾问。
 
 你的职责：
 - 帮助用户优化交友资料，提升真实吸引力
@@ -25,6 +42,7 @@ const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感
 - 高情绪场景先接住人再给最少行动：当用户的问题是「首次见家长」「见父母」「第一次见对方家人」这类让人紧张的场合时，先用一句话安抚情绪、肯定他的重视；然后最多给三条可执行动作，覆盖穿什么、带什么、开场怎么开口，各写一行短句；不用 Markdown 标题、不设小节、不展开成清单；最后用一句追问收尾，例如「想先细聊哪一块？」，把详细展开留给下一轮。用户明确要求「详细」时不受此限。
 - 准备/注意事项类问题给短答不给手册：当用户问「要准备什么」「需要注意什么」「有什么清单」这类准备事项时，最多 3 个短段落、最多 3 条要点；不设 h3 编号小标题、不用 ## 标题分节，示例话术写成行内引号（“…”）而不是 blockquote 引用块。用户明确要求「详细」或「完整清单」时不受此限。
 - 话术类提问先给原话：当用户问「怎么回」「怎么接」「要不要发」「该不该回」这类要一句回复话术的问题时，第一段必须是一句可直接发送的原话（用引号包裹），随后最多 2 句理由，最多再给 1 句备选原话；禁止「选项一」「选项二」「解析：」「避坑指南」这类手册化标签，不用 emoji 小标题、不设编号小节；总长控制在约 200 字以内。用户明确要求「多给几种」或「详细」时不受此限。
+- ${PROFILE_EXAMPLE_FIRST_RULE}
 - 当需要专业分析时，主动调用工具
 
 用户资料：{{profile}}`;
@@ -145,6 +163,24 @@ export function buildFocusDirective(history: Message[], currentMessage: string):
   return directive ? '\n\n' + directive : '';
 }
 
+/**
+ * P286 — true when the user message asks for profile/bio optimisation or
+ * rewriting (「帮我优化一下我的个人资料」「交友资料怎么写」「简介改写」).
+ * Keeps copywriting asks like 「帮我写一句回复她的话」 out of scope.
+ */
+export function isProfileIntent(text: string): boolean {
+  return /资料|简介|个人介绍/.test(text) && /优化|改|写|润色|调整|更新/.test(text);
+}
+
+/**
+ * P286 — per-turn tail directive restating PROFILE_EXAMPLE_FIRST_RULE when
+ * the current message is a profile intent, so the example-first constraint
+ * is the last thing the model reads before answering.
+ */
+export function buildProfileIntentDirective(userMessage: string): string {
+  return isProfileIntent(userMessage) ? '\n\n本轮约束：' + PROFILE_EXAMPLE_FIRST_RULE : '';
+}
+
 export class AgentHarness {
   private llm = new LLMClient();
   private maxTurns = 8;
@@ -160,7 +196,8 @@ export class AgentHarness {
         role: 'system',
         content:
           buildSystemPrompt(context.profile, context.language ?? 'auto', replyLength) +
-          buildFocusDirective(context.conversationHistory, userMessage),
+          buildFocusDirective(context.conversationHistory, userMessage) +
+          buildProfileIntentDirective(userMessage),
       },
       // P177: bound the prompt — keep the newest turns within the
       // HISTORY_MAX_MESSAGES / HISTORY_MAX_CHARS budget.
@@ -357,7 +394,7 @@ export class AgentHarness {
       // persisted; if cleaning empties it, fall back the same way.
       // P279: also strip manual-style labels (「解析：」「避坑指南：」and
       // leading emoji) so the persisted and final streamed text agree.
-      const cleanedContent = stripManualLabels(stripStageDirections(response.content ?? ''));
+      const cleanedContent = stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? '')));
       const finalContent = cleanedContent.trim()
         ? cleanedContent
         : fallbackFromToolResults(messages);
