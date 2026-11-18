@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AgentHarness, createSession, parseReplyLanguage, parseReplyLength } from '../agent/harness.js';
@@ -85,6 +86,8 @@ export interface AppOptions {
   llmModel?: string;
   /** P300: access-log sink override for tests; defaults to stdout. */
   requestLogWriter?: (line: string) => void;
+  /** P314: static root override for tests; defaults to <repo>/frontend/dist. */
+  frontendDist?: string;
 }
 
 /** Loopback-only guard for localhost admin surfaces (verbose health, metrics reset). */
@@ -160,6 +163,7 @@ function createChatLatencyRecorder(res: express.Response, startedAt: number) {
 export function createApp(options: AppOptions = {}) {
   const llmConfigured = options.llmConfigured ?? Boolean(process.env.OPENAI_API_KEY?.trim());
   const llmModel = options.llmModel ?? (process.env.LLM_MODEL?.trim() || 'gpt-4o-mini');
+  const distDir = options.frontendDist ?? frontendDist;
   const app = express();
   // P170: same-origin CORS. Reflect the Origin only when it matches the host
   // the request arrived on (Host or X-Forwarded-Host); foreign origins get no
@@ -234,13 +238,13 @@ export function createApp(options: AppOptions = {}) {
 
   app.get('/api/health', (req, res) => {
     res.set('Cache-Control', 'no-store');
-    const report = buildHealthReport(frontendDist, llmConfigured, llmModel);
+    const report = buildHealthReport(distDir, llmConfigured, llmModel);
     // P05: verbose diagnostics are localhost-only; remote callers always get
     // the plain public payload with no `verbose` key.
     if (req.query.verbose === '1' && isLoopback(req)) {
       res.status(report.status === 'ok' ? 200 : 503).json({
         ...report,
-        verbose: buildVerboseHealth(frontendDist, apiErrors.latest()),
+        verbose: buildVerboseHealth(distDir, apiErrors.latest()),
       });
       return;
     }
@@ -543,13 +547,39 @@ export function createApp(options: AppOptions = {}) {
     res.status(404).json(errorBody(res, 'Not found'));
   });
 
-  app.use(express.static(frontendDist));
-  app.get('/favicon.ico', (_req, res) => res.status(204).end());
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
-      if (err) res.status(404).json(errorBody(res, 'Frontend not built'));
+  // P314: serve the SPA shell from a whole-file read, not sendFile's stream —
+  // a mid-build truncation could split a streamed response into "200 +
+  // partial body" before the error callback fired, and the callback then
+  // answered 200 with an error JSON. A read result only counts when it still
+  // contains the #root mount point (a half-written index.html fails the same
+  // way a missing one does). On any failure the last good copy is served;
+  // with none cached the answer is 503 + Retry-After so the client can poll
+  // until the rebuild lands. It is never 200 with `{"error": ...}`.
+  let lastGoodSpaShell: string | null = null;
+  const spaShellFile = path.join(distDir, 'index.html');
+  const serveSpaShell: express.Handler = (_req, res) => {
+    fs.readFile(spaShellFile, 'utf8', (err, html) => {
+      if (!err && html.includes('id="root"')) {
+        lastGoodSpaShell = html;
+        res.type('html').send(html);
+        return;
+      }
+      if (lastGoodSpaShell !== null) {
+        res.type('html').send(lastGoodSpaShell);
+        return;
+      }
+      res.set('Retry-After', '1');
+      res.status(503).json(errorBody(res, 'Frontend not built'));
     });
-  });
+  };
+  // /index.html goes through the guarded read too — express.static would
+  // otherwise stream a half-written shell straight to the client.
+  app.get('/index.html', serveSpaShell);
+  // `index: false` keeps express.static from serving index.html itself —
+  // every shell request (`/`, deep routes) funnels into the guarded read.
+  app.use(express.static(distDir, { index: false }));
+  app.get('/favicon.ico', (_req, res) => res.status(204).end());
+  app.get('*', serveSpaShell);
 
   return app;
 }

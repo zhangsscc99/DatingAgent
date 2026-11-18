@@ -166,17 +166,111 @@ export function normalizeStoredSessions(raw: unknown): StoredChatSession[] {
   return sessions;
 }
 
+/**
+ * P314 — explicit schema version for the STORAGE_KEY payload, stamped under
+ * its own key so the payload shape is untouched. Payloads written before
+ * this stamp existed are schema 1; every persistState write now stamps
+ * CHAT_STORAGE_SCHEMA_VERSION. On load, a missing or older stamp migrates
+ * the payload in place (normalise + rewrite + stamp) — never discards it —
+ * and records the migration so a rebuild that bumps the schema leaves a
+ * console line instead of silently-empty history. A stamp NEWER than this
+ * build (a downgrade) is loaded as-is and left alone: unknown versions
+ * never wipe existing conversations.
+ */
+const SCHEMA_VERSION_KEY = 'datingAgent.schemaVersion';
+const LEGACY_SCHEMA_VERSION = 1;
+export const CHAT_STORAGE_SCHEMA_VERSION = 2;
+
+export interface StorageMigration {
+  fromVersion: number;
+  toVersion: number;
+  sessionCount: number;
+  at: number;
+}
+
+let lastMigration: StorageMigration | null = null;
+let migrationAttempted = false;
+
+/** The in-place schema migration this page load ran, or null when none was needed. */
+export function getLastMigration(): StorageMigration | null {
+  return lastMigration;
+}
+
+/** Mirrors clearLastEvictionNotice: forget the recorded migration so the
+ * next load may detect and record a fresh one. */
+export function clearLastMigration(): void {
+  lastMigration = null;
+  migrationAttempted = false;
+}
+
+function recordMigration(record: StorageMigration): void {
+  lastMigration = record;
+  try {
+    console.info(
+      `[chatStorage] migrated schema v${record.fromVersion} → v${record.toVersion} ` +
+        `(${record.sessionCount} sessions preserved)`,
+    );
+  } catch {
+    /* console unavailable — the migration still proceeds */
+  }
+}
+
+function readSchemaVersion(): number | null {
+  try {
+    const raw = localStorage.getItem(SCHEMA_VERSION_KEY);
+    if (raw === null) return null;
+    const version = Number(raw);
+    return Number.isInteger(version) && version > 0 ? version : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * P314 — migrate a legacy payload to the current schema in place. The v1 →
+ * v2 upgrade adds only the version stamp itself (the payload shape is
+ * unchanged, and normalizeStoredSessions already self-heals the bytes on
+ * every read), so the migration is the stamp: STORAGE_KEY is NOT rewritten
+ * here — a read path stays read-only, and the next persistState writes the
+ * clean payload anyway. A future schema change that alters the payload is
+ * where the rewrite belongs. Best-effort and never throws: a failed stamp
+ * leaves the legacy bytes untouched and migrationAttempted keeps a dead
+ * store from retrying (and logging) once per load within this page's
+ * lifetime.
+ */
+function migrateSchemaIfNeeded(state: ChatStorageState): void {
+  if (migrationAttempted) return;
+  const version = readSchemaVersion();
+  if (version !== null && version >= CHAT_STORAGE_SCHEMA_VERSION) return;
+  migrationAttempted = true;
+  recordMigration({
+    fromVersion: version ?? LEGACY_SCHEMA_VERSION,
+    toVersion: CHAT_STORAGE_SCHEMA_VERSION,
+    sessionCount: state.sessions.length,
+    at: Date.now(),
+  });
+  try {
+    localStorage.setItem(SCHEMA_VERSION_KEY, String(CHAT_STORAGE_SCHEMA_VERSION));
+  } catch {
+    /* storage unavailable — the next page load retries */
+  }
+}
+
 export function loadChatState(): ChatStorageState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultState();
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) return defaultState();
-    return {
+    const state: ChatStorageState = {
       activeSessionId:
         typeof parsed.activeSessionId === 'string' ? parsed.activeSessionId : null,
       sessions: normalizeStoredSessions(parsed.sessions),
     };
+    // P314: a payload written by an older build (missing or older version
+    // stamp) is migrated in place — never discarded.
+    migrateSchemaIfNeeded(state);
+    return state;
   } catch {
     return defaultState();
   }
@@ -243,6 +337,15 @@ function persistState(state: ChatStorageState): void {
     state,
     (json) => {
       localStorage.setItem(STORAGE_KEY, json);
+      try {
+        // P314: stamp the schema version alongside every payload write.
+        // Best-effort inside the quota-guarded write — a missing stamp only
+        // re-runs the in-place migration next load; it must not count as a
+        // payload failure and trigger an unneeded session drop.
+        localStorage.setItem(SCHEMA_VERSION_KEY, String(CHAT_STORAGE_SCHEMA_VERSION));
+      } catch {
+        /* stamp write is best-effort */
+      }
       // P250: remember the bytes only after the write actually landed — a
       // quota/private-mode throw must not mark content as ours.
       lastPersistedJson = json;
