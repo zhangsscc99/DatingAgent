@@ -251,6 +251,58 @@ describe('P296 · durable facts mined from user messages', () => {
   });
 });
 
+describe('P313 · three turns each carrying a distinct fact', () => {
+  /** 看展 / 三小时没回消息 / 带闺蜜 — only 看展 matched the lexicon before. */
+  const p313Turns: ChatMessage[] = [
+    { id: 'u1', role: 'user', content: '周末本来想约她去看展' },
+    { id: 'a1', role: 'assistant', content: '很轻的安排，适合开口。' },
+    { id: 'u2', role: 'user', content: '她已经三个小时没回我消息了' },
+    { id: 'a2', role: 'assistant', content: '先别连发，给她一点空间。' },
+    { id: 'u3', role: 'user', content: '下次见面我想带闺蜜一起去' },
+    { id: 'a3', role: 'assistant', content: '带个朋友反而自然，可以提。' },
+  ];
+
+  it('the receipt names at least two distinct fact keywords', () => {
+    const line = memoryReceiptLine(null, 'default', p313Turns);
+    expect(line).not.toBeNull();
+    const hits = ['看展', '没回', '闺蜜'].filter((k) => line!.includes(k));
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('every turn contributes its own fact, in mention order', () => {
+    const items = conversationFactItems(p313Turns, 10);
+    expect(items).toEqual(['看展', '三个小时没回', '带闺蜜']);
+  });
+
+  it('a fact mentioned twice across turns is stored once', () => {
+    const items = conversationFactItems(
+      [
+        { role: 'user', content: '她三个小时没回消息了' },
+        { role: 'user', content: '对，已经三个小时没回' },
+      ],
+      10,
+    );
+    expect(items.filter((i) => i.includes('没回'))).toHaveLength(1);
+  });
+
+  it('one phrase yields one fact — no 没回消息 on top of 三个小时没回', () => {
+    const items = conversationFactItems(
+      [{ role: 'user', content: '她三个小时没回我消息了' }],
+      10,
+    );
+    expect(items).toEqual(['三个小时没回']);
+  });
+
+  it('renders the capsule with two facts for an empty-profile user', () => {
+    stubStorage();
+    expect(loadProfile()).toBeNull();
+    const markup = renderChat({ messages: p313Turns, profile: null });
+    expect(markup).toContain('memory-receipt');
+    const hits = ['看展', '没回', '闺蜜'].filter((k) => markup.includes(k));
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
 describe('P296 · rendered receipt without a stored profile', () => {
   it('three turns of concrete facts renders the line for an empty-profile user', () => {
     stubStorage();

@@ -20,6 +20,10 @@ import {
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { isCorsAllowed, requestHost } from '../lib/cors.js';
 import { parsePreviousReplies } from '../lib/reply-dedupe.js';
+import {
+  conversationFactItems,
+  MEMORY_FACTS_MAX_ITEMS,
+} from '../lib/conversationFacts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const harness = new AgentHarness();
@@ -112,6 +116,20 @@ function resolveChatSession(
   if (sessionId?.trim()) created.sessionId = sessionId;
   putSession(created);
   return created;
+}
+
+/**
+ * P313 — the durable facts a session has accumulated, derived from the
+ * user messages already retained in conversationHistory so a restored
+ * session reports them too. Surfaced as `memory` on chat replies and the
+ * session read, so clients can show what was kept without re-mining text.
+ */
+function sessionMemory(context: AgentContext): { count: number; items: string[] } {
+  const items = conversationFactItems(
+    context.conversationHistory,
+    MEMORY_FACTS_MAX_ITEMS,
+  );
+  return { count: items.length, items };
 }
 
 /**
@@ -347,6 +365,7 @@ export function createApp(options: AppOptions = {}) {
       sessionId: session.sessionId,
       profile: session.profile,
       history: session.conversationHistory,
+      memory: sessionMemory(session),
     });
   });
 
@@ -401,7 +420,7 @@ export function createApp(options: AppOptions = {}) {
         meta.tokens !== undefined
           ? { ...meta, latencyMs: Date.now() - startedAt }
           : undefined;
-      res.json({ sessionId: session.sessionId, reply: content, language: session.language ?? 'auto', meta: replyMeta });
+      res.json({ sessionId: session.sessionId, reply: content, language: session.language ?? 'auto', meta: replyMeta, memory: sessionMemory(session) });
     } catch (err) {
       usageMetrics.recordChat(Date.now() - startedAt, false);
       const msg = err instanceof Error ? err.message : String(err);
@@ -485,7 +504,11 @@ export function createApp(options: AppOptions = {}) {
           const d = event.data as { sessionId: string };
           event = {
             type: 'done',
-            data: { ...d, latencyMs: Date.now() - startedAt },
+            data: {
+              ...d,
+              latencyMs: Date.now() - startedAt,
+              memory: sessionMemory(session),
+            },
           };
         } else if (event.type === 'error') {
           // P04: harness-level failures get the same correlation id.

@@ -14,6 +14,13 @@ import { replyLengthLabel, type ReplyLengthPreference } from './replyLength';
  * receipt. `conversationFactItems` now mines durable life facts straight
  * from the user's own messages via a small curated lexicon — no LLM, no
  * network, deterministic.
+ *
+ * P313 — three turns each carrying a distinct fact still surfaced only
+ * 「看展」: 「三小时没回」 and 「带闺蜜」 matched no lexicon keyword and
+ * were silently dropped. Extraction now also runs a small set of curated
+ * patterns whose matched span becomes the fact label, so one fact per
+ * turn is admitted. Twin of backend/src/lib/conversationFacts.ts — keep
+ * the lexicon and patterns in sync.
  */
 
 export const MEMORY_RECEIPT_PREFIX = '记得你提到：';
@@ -56,6 +63,21 @@ export const CONVERSATION_FACT_LEXICON: readonly string[] = [
   '催婚',
 ];
 
+/**
+ * P313 — curated patterns for concrete facts a fixed word list cannot
+ * name. The matched span itself becomes the receipt label (clipped
+ * short). Keep it small and predictable; every pattern must name
+ * something worth admitting to remember.
+ */
+export const CONVERSATION_FACT_PATTERNS: readonly RegExp[] = [
+  // 带闺蜜 / 带上猫 / 带着朋友 — who the user plans to bring along.
+  /带[上着]?(?:闺蜜|朋友|兄弟|姐妹|哥们|家人|爸妈|父母|同事|同学|舍友|室友|对象|女朋友|男朋友|女友|男友|猫|狗)/g,
+  // 三个小时没回 / 两天没理我 — a named wait.
+  /(?:[0-9]+|[一二两三四五六七八九十半几]+)个?(?:分钟|小时|钟头|星期|个月|天|周|月|年)(?:没|不)(?:回|理|复|接|睬|应|找)/g,
+  // 没回消息 / 不回我微信 — silence without a stated duration.
+  /(?:没|不)回(?:我|她|他|ta)?(?:消息|微信|电话|信息)/g,
+];
+
 /** One receipt item must stay short enough for a single quiet line. */
 const VALUE_MAX_CHARS = 20;
 
@@ -78,11 +100,23 @@ function scannableText(content: string): string {
     .replace(/\bwww\.\S+/gi, ' ');
 }
 
+interface FactCandidate {
+  /** Start offset in the scannable text. */
+  index: number;
+  /** End offset (exclusive) of the matched span. */
+  end: number;
+  /** Canonical lexicon entry or the matched text itself. */
+  label: string;
+}
+
 /**
- * P296 — durable facts named in the user's own messages, in the order the
- * user first mentioned them, deduped, clipped short, capped at `maxItems`.
- * Assistant text never contributes: the receipt must only echo what the
- * user actually said.
+ * P296/P313 — durable facts named in the user's own messages, in the
+ * order the user first mentioned them, deduped, clipped short, capped at
+ * `maxItems`. Assistant text never contributes: the receipt must only
+ * echo what the user actually said. Candidates within one message are
+ * sorted by position — longer span first on a tie — and a span
+ * overlapping an already-accepted one is dropped, so 「三个小时没回我消息」
+ * yields 「三个小时没回」 alone, never 「没回我消息」 on top.
  */
 export function conversationFactItems(
   messages:
@@ -97,14 +131,42 @@ export function conversationFactItems(
   for (const message of messages) {
     if (items.length >= maxItems) break;
     if (message.role !== 'user') continue;
-    const text = scannableText(message.content).trim().toLowerCase();
-    if (text.length < FACT_MIN_MESSAGE_CHARS) continue;
+    const text = scannableText(message.content);
+    if (text.trim().length < FACT_MIN_MESSAGE_CHARS) continue;
+    const lower = text.toLowerCase();
+
+    const candidates: FactCandidate[] = [];
     for (const keyword of CONVERSATION_FACT_LEXICON) {
+      const index = lower.indexOf(keyword.toLowerCase());
+      if (index !== -1) {
+        candidates.push({ index, end: index + keyword.length, label: keyword });
+      }
+    }
+    for (const pattern of CONVERSATION_FACT_PATTERNS) {
+      for (const match of lower.matchAll(pattern)) {
+        const index = match.index;
+        if (index === undefined) continue;
+        candidates.push({
+          index,
+          end: index + match[0].length,
+          label: text.slice(index, index + match[0].length),
+        });
+      }
+    }
+    candidates.sort((a, b) => a.index - b.index || b.end - a.end);
+    const accepted: Array<readonly [number, number]> = [];
+    for (const candidate of candidates) {
       if (items.length >= maxItems) break;
-      const key = keyword.toLowerCase();
-      if (seen.has(key) || !text.includes(key)) continue;
+      const key = candidate.label.toLowerCase();
+      if (seen.has(key)) continue;
+      if (
+        accepted.some(([s, e]) => candidate.index < e && s < candidate.end)
+      ) {
+        continue;
+      }
+      accepted.push([candidate.index, candidate.end]);
       seen.add(key);
-      items.push(clip(keyword));
+      items.push(clip(candidate.label));
     }
   }
   return items;
