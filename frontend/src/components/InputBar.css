@@ -303,9 +303,26 @@
     min-height: 48px;
   }
 
+  /* P309 — on phones the tool row huddled on the left of its wrap line
+     (~198px of 358px) with the send key stranded mid-bar. Give the row
+     the full column width and let a flex auto-margin pin send to the
+     right edge where the thumb expects it; the length chip and the
+     shortcut hint stay on the left. */
+  .input-tools {
+    flex-basis: 100%;
+  }
+
   .input-bar .input-send {
     width: 48px;
     height: 48px;
+    margin-left: auto;
+  }
+
+  /* P309 — while streaming, 停止 follows the send key at the right edge:
+     only the first .input-send carries the auto margin, otherwise the two
+     auto margins split the free space and send drifts back mid-row. */
+  .input-bar .input-send.input-stop {
+    margin-left: 0;
   }
 
   .input-hint-btn {
