@@ -68,7 +68,7 @@ describe('P211 · settings segmented a11y state', () => {
 
   it('回复长度偏好 and 主题 each select exactly one segment', () => {
     const html = renderSheet('auto');
-    expect(pressedLabels(groupMarkup(html, '回复长度偏好'))).toEqual(['默认']);
+    expect(pressedLabels(groupMarkup(html, '回复长度偏好'))).toEqual(['适中']);
     expect(pressedLabels(groupMarkup(html, '主题'))).toEqual(['浅色']);
   });
 

@@ -60,26 +60,28 @@ describe('P291 · footer copy is plain language', () => {
       snap({ status: 'degraded', lastCheckedAt: 1 }),
       snap({ status: 'ok', reachable: false, lastCheckedAt: 2 }),
     ]) {
-      const label = statusLabel(s);
+      const label = statusLabel(s) ?? '';
       expect(label).not.toContain('运行正常');
       expect(label).not.toContain('服务降级');
       expect(label).not.toContain('无法连接');
+      expect(label).not.toContain('在线');
     }
   });
 
   it('unreachable and degraded states explain it in human words', () => {
-    expect(statusLabel(snap({ reachable: false, lastCheckedAt: 1 }))).toContain('稍等');
+    expect(statusLabel(snap({ reachable: false, lastCheckedAt: 1 }))).toContain('重试');
     expect(statusLabel(snap({ status: 'degraded', lastCheckedAt: 1 }))).toContain('稍等');
   });
 
-  it('ok state reads as a short non-technical phrase', () => {
-    expect(statusLabel(snap({ status: 'ok', lastCheckedAt: 1 }))).toContain('在线');
+  it('ok and pending states show no label at all (P297)', () => {
+    expect(statusLabel(snap({ status: 'ok', lastCheckedAt: 1 }))).toBeNull();
+    expect(statusLabel(snap({}))).toBeNull();
   });
 
-  it('the rendered footer announces through a status live-region', () => {
+  it('a healthy render mounts no footer and no status live-region (P297)', () => {
+    // SSR exercises the pending snapshot — the first poll is an effect.
     const html = renderToStaticMarkup(createElement(SystemStatusFooter));
-    expect(html).toContain('role="status"');
-    expect(html).not.toContain('运行正常');
+    expect(html).toBe('');
   });
 
   it('technical level/status detail lives in title/aria-label only', () => {

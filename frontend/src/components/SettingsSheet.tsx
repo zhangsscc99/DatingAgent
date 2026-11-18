@@ -7,10 +7,12 @@ import type { Theme } from '../hooks/useTheme';
 import type { ReplyLanguage } from '../types';
 import './SettingsSheet.css';
 
+// P297 — the segments speak intent in the user's voice; the mechanical
+// 档位 names 默认/精简/详细 never reach the settings panel.
 const REPLY_LENGTH_OPTIONS: { value: ReplyLengthPreference; label: string }[] = [
-  { value: 'default', label: '默认' },
-  { value: 'concise', label: '精简' },
-  { value: 'detailed', label: '详细' },
+  { value: 'default', label: '适中' },
+  { value: 'concise', label: '简短一些' },
+  { value: 'detailed', label: '详细一些' },
 ];
 
 const LANGUAGE_OPTIONS: { value: ReplyLanguage; label: string }[] = [

@@ -28,27 +28,27 @@ describe('P27 · coarseStatus', () => {
 });
 
 describe('P27 · footerLevel / statusLabel', () => {
-  it('is pending until the first poll completes', () => {
+  it('is pending until the first poll completes — and stays silent (P297)', () => {
     const s = snap({});
     expect(footerLevel(s)).toBe('pending');
-    expect(statusLabel(s)).toBe('检测中…');
+    expect(statusLabel(s)).toBeNull();
   });
 
-  it('is ok only when reachable with an ok status', () => {
+  it('is ok only when reachable with an ok status — no label shown (P297)', () => {
     const s = snap({ status: 'ok', lastCheckedAt: 1 });
     expect(footerLevel(s)).toBe('ok');
-    expect(statusLabel(s)).toBe('● 在线');
+    expect(statusLabel(s)).toBeNull();
   });
 
   it('warns on a degraded payload', () => {
     const s = snap({ status: 'degraded', lastCheckedAt: 1 });
     expect(footerLevel(s)).toBe('warn');
-    expect(statusLabel(s)).toBe('● 有点忙，稍等');
+    expect(statusLabel(s)).toBe('服务有点忙，稍等再试');
   });
 
   it('warns on fetch failure even when the last known status was ok', () => {
     const s = snap({ status: 'ok', reachable: false, lastCheckedAt: 2 });
     expect(footerLevel(s)).toBe('warn');
-    expect(statusLabel(s)).toBe('暂时连不上，稍等再试');
+    expect(statusLabel(s)).toBe('连接有点问题，正在重试');
   });
 });

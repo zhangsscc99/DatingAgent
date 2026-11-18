@@ -110,8 +110,9 @@ describe('P196 · settings sheet', () => {
       for (const heading of ['回复长度偏好', '回复语言', '主题', '数据', '关于']) {
         expect(html).toContain(`<h3>${heading}</h3>`);
       }
-      // Segmented reply-length control: 默认 / 精简 / 详细.
-      for (const label of ['默认', '精简', '详细']) {
+      // Segmented reply-length control: 适中 / 简短一些 / 详细一些 (P297 —
+      // the visible labels are intent phrasing, not the 默认/精简/详细 names).
+      for (const label of ['适中', '简短一些', '详细一些']) {
         expect(html).toContain(label);
       }
       // Data actions + about placeholder (version fetch is an effect — never

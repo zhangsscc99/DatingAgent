@@ -36,13 +36,15 @@ export function footerLevel(snapshot: HealthSnapshot): FooterLevel {
 }
 
 /**
- * P291 — the visible footer label is plain language; internal words like
- * 运行正常 / 服务降级 / level names never reach the screen.
+ * P291 — internal words like 运行正常 / 服务降级 / level names never reach the
+ * screen. P297 — the footer only speaks when something is wrong: a healthy or
+ * still-pending snapshot yields `null` so nothing renders at all, and a
+ * warning is phrased in plain language.
  */
-export function statusLabel(snapshot: HealthSnapshot): string {
-  if (footerLevel(snapshot) === 'pending') return '检测中…';
-  if (!snapshot.reachable) return '暂时连不上，稍等再试';
-  return snapshot.status === 'ok' ? '● 在线' : '● 有点忙，稍等';
+export function statusLabel(snapshot: HealthSnapshot): string | null {
+  if (footerLevel(snapshot) !== 'warn') return null;
+  if (!snapshot.reachable) return '连接有点问题，正在重试';
+  return '服务有点忙，稍等再试';
 }
 
 /**

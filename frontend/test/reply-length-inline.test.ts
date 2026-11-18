@@ -247,10 +247,11 @@ describe('P205 · composer reply-length toggle', () => {
           onReplyLengthChange: noop,
         }),
       );
-      // 精简 is the active segment; the other two stay unpressed.
-      expect(html).toContain('aria-pressed="true" aria-label="精简"');
-      expect(html).toContain('aria-pressed="false" aria-label="默认"');
-      expect(html).toContain('aria-pressed="false" aria-label="详细"');
+      // 简短一些 is the active segment; the other two stay unpressed. (P297 —
+      // the segments carry intent labels, not the 默认/精简/详细 names.)
+      expect(html).toContain('aria-pressed="true" aria-label="简短一些"');
+      expect(html).toContain('aria-pressed="false" aria-label="适中"');
+      expect(html).toContain('aria-pressed="false" aria-label="详细一些"');
     });
 
     it('the toggle reflects a 档位 changed in the sheet', () => {
