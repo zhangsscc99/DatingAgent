@@ -170,10 +170,30 @@
   cursor: not-allowed;
 }
 
-/* P12: stop button swaps in for send while streaming — same box, no jump. */
+/* P326: while a reply streams the queueing send key drops to the same
+   muted-outline secondary register as the empty/disabled key — it stays
+   clickable (drafts park in the P244 queue) but can no longer be read as
+   a second solid-primary beside 停止. */
+.input-bar .input-send[data-variant='secondary'] {
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--text-muted);
+}
+
+/* P12: stop button sits beside send while streaming — same box, no jump.
+   P326: it is the pending state's single primary action, wearing the
+   composer's own accent outline instead of the old solid --danger block —
+   that saturated red was the page's only red and read as a second primary
+   next to the send key. */
 .input-bar .input-stop {
-  background: var(--danger);
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
   font-size: 13px;
+}
+
+.input-bar .input-stop:hover {
+  background: var(--accent-soft);
 }
 
 .input-bar textarea:focus-visible {

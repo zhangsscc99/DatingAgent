@@ -443,19 +443,29 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           </div>
         </div>
         {/* P224: the send button never leaves the DOM — during streaming it
-            renders disabled (first in DOM order, so `.input-send` queries hit
-            the disabled send) and the stop button sits beside it. A second
+            renders first in DOM order (so `.input-send` queries hit the
+            queueing send) and the stop button sits beside it. A second
             send attempt is therefore blocked at the control, at submit(),
             and again at App's sendMessage — never reaching streamReply. */}
         {/* P312: the composer's send key is the first screen's single
             primary action — the welcome block carries no button at all. */}
+        {/* P326: while a reply streams the bottom-right keeps exactly ONE
+            primary — the accent-outlined 停止生成 next to it. The send key
+            stays in the DOM and keeps queueing drafts (P244) but drops to
+            the muted secondary register (data-variant="secondary", no
+            marker) and names its pending semantics — 「排队」 — so pressing
+            it can never be mistaken for interrupting the stream. The
+            data-primary-cta marker follows the primary: send while idle,
+            stop while streaming. */}
         <button
           type="button"
           className="input-send"
-          data-primary-cta
+          data-primary-cta={streaming ? undefined : true}
+          data-variant={streaming ? 'secondary' : undefined}
           onClick={submit}
           disabled={sendBlocked || !text.trim()}
-          aria-label="发送消息"
+          aria-label={streaming ? '排队发送：本条回复结束后发送' : '发送消息'}
+          title={streaming ? '回复仍在生成，点按会把这条消息加入排队' : undefined}
         >
           <svg
             width="16"
@@ -476,6 +486,7 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           <button
             type="button"
             className="input-send input-stop"
+            data-primary-cta
             onClick={onStop}
             aria-label="停止生成"
             title="停止生成回复"

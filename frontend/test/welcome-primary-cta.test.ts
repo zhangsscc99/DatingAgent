@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import ChatWindow from '../src/components/ChatWindow';
+import InputBar from '../src/components/InputBar';
 import { draftStorageKey, DEFAULT_DRAFT_ID } from '../src/lib/chatDrafts';
 import type { ChatMessage } from '../src/types';
 
@@ -146,10 +147,20 @@ describe('P290/P312 · one primary CTA on the first screen — the composer send
     expect(markup).not.toContain('welcome-hint');
   });
 
-  it('marks only the send button — the streaming stop key carries no marker', () => {
-    expect(inputBarTsx.indexOf('data-primary-cta')).toBe(
-      inputBarTsx.lastIndexOf('data-primary-cta'),
+  it('the marker follows the single primary — send while idle, 停止 while streaming', () => {
+    // P326: the pending state hands the one primary slot to 停止生成 —
+    // the queueing send key drops the marker and takes the secondary
+    // register instead. Each state renders exactly one marker.
+    const pending = renderToStaticMarkup(
+      createElement(InputBar, { onSend: noop, streaming: true, onStop: noop }),
     );
+    expect(pending.match(/data-primary-cta/g)).toHaveLength(1);
+    expect(buttonTag(pending, 'input-stop')).toContain('data-primary-cta');
+    expect(buttonTag(pending, 'input-send')).not.toContain('data-primary-cta');
+    // Idle markup keeps the marker on send (asserted above too), and the
+    // source still declares it ahead of the stop button.
+    const idle = renderWelcome();
+    expect(buttonTag(idle, 'input-send')).toContain('data-primary-cta');
     const sendIdx = inputBarTsx.indexOf('data-primary-cta');
     const stopIdx = inputBarTsx.indexOf('input-send input-stop');
     expect(sendIdx).toBeGreaterThan(-1);
