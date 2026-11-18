@@ -32,6 +32,12 @@
   font-size: 14px;
   line-height: 1.65;
   max-width: 100%;
+  /* P327: an unbroken string (a 120-char URL, a long code span) sets the
+     flex item's min-content floor and used to push the box past the
+     column/composer edge — min-width:0 lets it shrink to the row and
+     overflow-wrap:anywhere guarantees a break opportunity everywhere. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .bubble.user {
@@ -44,10 +50,10 @@
   background: var(--assistant-bg);
   border: 1px solid var(--border);
   border-bottom-left-radius: 4px;
-  /* P311: hard cap on the reply card — inside the shared column it never
-     reaches this (600−32−10 = 558px), but the bound keeps CJK lines
-     readable even if the column is widened again later. */
-  max-width: min(100%, 680px);
+  /* P327: the shared column itself is the only cap — the avatar hangs in
+     the .messages gutter (below), so the bubble can span the column edge
+     to edge and its left/right edges equal the textarea's. */
+  max-width: 100%;
 }
 
 .bubble-content p {
@@ -77,6 +83,12 @@
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 13px;
+}
+
+/* P327: a fenced block can hold one unbreakable line — it scrolls inside
+   the bubble rather than inking past the column edge. */
+.bubble-content pre {
+  overflow-x: auto;
 }
 
 /* P235: a single-line `> quote` downgrades to a normal paragraph carrying a
@@ -459,5 +471,23 @@
     justify-content: center;
     min-height: 36px;
     padding: 3px 12px;
+  }
+}
+
+/* P327: the assistant avatar steps out of the shared column into the
+   symmetric 66px gutter .messages reserves at this breakpoint — always
+   ≥42px of room, so it can never push the scrollport sideways — and the
+   bubble becomes the row's only in-flow child, spanning the column edge
+   to edge: its left/right edges equal the textarea's instead of starting
+   42px (32px avatar + 10px row gap) inside the column. */
+@media (min-width: 769px) {
+  .bubble-row.assistant {
+    position: relative;
+  }
+
+  .bubble-row.assistant .avatar {
+    position: absolute;
+    top: 0;
+    left: -42px;
   }
 }

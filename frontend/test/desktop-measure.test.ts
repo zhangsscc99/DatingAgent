@@ -12,20 +12,32 @@ import { fileURLToPath } from 'node:url';
  * the (min-width: 769px) :root block, so it caps .messages > *, the
  * .input-column wrapper and — via var(--column-max, 520px) — .welcome.
  * The composer tool row wraps under the textarea at ≥769px so the field
- * itself spans the column, and .bubble.assistant carries a hard 680 px
- * ceiling. Under the mobile breakpoint the token is undefined, so every
- * reference falls back to its pre-column value and 390×844 is unchanged.
+ * itself spans the column. Under the mobile breakpoint the token is
+ * undefined, so every reference falls back to its pre-column value and
+ * 390×844 is unchanged.
+ *
+ * P327 — the DOM measure showed that still wasn't one column: the AI
+ * bubble started 42px (32px avatar + 10px row gap) inside the column the
+ * textarea spans, and an unbroken string could push a bubble past the
+ * composer's edge through the flex item's min-content floor. Now the
+ * assistant avatar is absolutely positioned into a symmetric 66px gutter
+ * that .messages and .input-bar reserve alike (equal gutters keep both
+ * centred columns pixel-identical at every desktop width), the bubble
+ * spans the column edge to edge (max-width:100%), and min-width:0 +
+ * overflow-wrap:anywhere guarantee nothing escapes it.
  *
  * No layout engine ships with this repo, so widths are resolved from the
  * declared CSS values — the same style as desktop-column-width.test.ts.
  * The arithmetic stated here:
  *
  *   column        = --column-max                          = 600 px
- *   bubble outer  = min(column − avatar − row gap, cap)
- *                 = min(600 − 32 − 10, 680)               = 558 px
- *   bubble text   = outer − 2·16 padding − 2·1 border      = 524 px
- *   CJK per line  = ⌊text / font-size⌋ = ⌊524 / 14⌋         = 37 ≤ 40
+ *   gutter        = .messages/.input-bar padding-inline   = 66 px (≥42)
+ *   avatar        = absolute at row.left − 42, out of flow
+ *   bubble outer  = min(column, 100% of row)              = 600 px
+ *   bubble text   = outer − 2·16 padding − 2·1 border      = 566 px
+ *   CJK per line  = ⌊text / font-size⌋ = ⌊566 / 14⌋         = 40 ≤ 40
  *   textarea      = .input-column width (tools wrapped)    = 600 px
+ *   bubble.left   = row.left = column.left = textarea.left → Δ 0
  *   welcome outer = var(--column-max, 520px) on desktop    = 600 px
  */
 
@@ -138,17 +150,15 @@ const welcomeColumn = resolvePx(
   indexCss,
 );
 
-// Assistant-bubble geometry: the declared hard cap and the space the
-// shared column leaves inside .bubble-row (row width − avatar − gap).
+// Assistant-bubble geometry: P327 took the avatar out of the column (it
+// hangs absolutely in the gutter), so the bubble is the row's only
+// in-flow child and its 100% cap resolves to the full shared column.
 const avatarPx = pxDecl(ruleBody(bubbleCss, '.avatar'), 'width') ?? 0;
 const rowGapPx = pxDecl(ruleBody(bubbleCss, '.bubble-row'), 'gap') ?? 0;
+const avatarHangPx = avatarPx + rowGapPx; // 42
 const assistantCapDecl =
   maxWidthDecl(ruleBody(bubbleCss, '.bubble.assistant')) ?? '';
-const assistantCapPx = /([0-9.]+)px/.exec(assistantCapDecl)?.[1];
-const bubbleOuterPx = Math.min(
-  (columnMax ?? 0) - avatarPx - rowGapPx,
-  assistantCapPx ? parseFloat(assistantCapPx) : Infinity,
-);
+const bubbleOuterPx = columnMax ?? 0;
 
 describe('P311 · one desktop reading column', () => {
   it('declares --column-max for the desktop breakpoint only', () => {
@@ -163,12 +173,11 @@ describe('P311 · one desktop reading column', () => {
     expect(topLevel(indexCss)).not.toMatch(/--column-max:\s*[0-9.]+px/);
   });
 
-  it('caps the AI bubble at ≤680 px', () => {
-    // .bubble.assistant declares the explicit ceiling…
-    expect(assistantCapDecl).toMatch(/min\(100%,\s*([0-9.]+)px\)/);
-    expect(parseFloat(assistantCapPx!)).toBeLessThanOrEqual(680);
-    // …and the geometry inside the column honours it too:
-    // 600 − 32 avatar − 10 gap = 558.
+  it('caps the AI bubble at the shared column itself', () => {
+    // P327: the column is the only ceiling — max-width:100% of a row
+    // that is itself capped at --column-max.
+    expect(assistantCapDecl).toBe('100%');
+    expect(bubbleOuterPx).toBe(columnMax);
     expect(bubbleOuterPx).toBeLessThanOrEqual(680);
     expect(bubbleOuterPx).toBeGreaterThan(0);
   });
@@ -217,25 +226,112 @@ describe('P311 · one desktop reading column', () => {
     const borderPx =
       pxDecl(ruleBody(bubbleCss, '.bubble.assistant'), 'border') ?? 0;
     const textWidth = bubbleOuterPx - 2 * padX - 2 * borderPx;
-    // 558 − 32 − 2 = 524 → ⌊524/14⌋ = 37.
+    // 600 − 32 − 2 = 566 → ⌊566/14⌋ = 40.
     const charsPerLine = Math.floor(textWidth / fontSize);
     expect(charsPerLine).toBeLessThanOrEqual(40);
-    // Robustness: even the whole bubble box over the font size stays ≤40.
-    expect(Math.floor(bubbleOuterPx / fontSize)).toBeLessThanOrEqual(40);
+    // Robustness: the bubble box itself never exceeds the shared column.
+    expect(bubbleOuterPx).toBeLessThanOrEqual(columnMax!);
   });
 
   it('leaves user bubbles right-aligned and the mobile rules untouched', () => {
     const userRow = ruleBody(bubbleCss, '.bubble-row.user');
     expect(userRow).toContain('align-self: flex-end');
     expect(userRow).toContain('flex-direction: row-reverse');
-    // .bubble keeps its plain 100% cap — only .assistant got the ceiling.
+    // .bubble keeps its plain 100% cap.
     expect(maxWidthDecl(ruleBody(bubbleCss, '.bubble'))).toBe('100%');
-    // The ≤768px blocks carry no column reference — same layout as before.
-    expect(mediaBlock(chatWindowCss, '(max-width: 768px)')).not.toContain(
-      'column-max',
-    );
+    // The ≤768px blocks carry no column reference and none of the new
+    // desktop geometry — same layout as before.
+    const narrowChat = mediaBlock(chatWindowCss, '(max-width: 768px)');
+    expect(narrowChat).not.toContain('column-max');
+    expect(narrowChat).not.toContain('padding-left: 66px');
     expect(mediaBlock(inputBarCss, '(max-width: 768px)')).not.toContain(
       'column-max',
+    );
+    expect(mediaBlock(bubbleCss, '(max-width: 768px)')).not.toContain(
+      'position: absolute',
+    );
+  });
+});
+
+describe('P327 · composer and bubbles share one column edge to edge', () => {
+  const chatDesktop = mediaBlock(chatWindowCss, DESKTOP_QUERY);
+  const bubbleDesktop = mediaBlock(bubbleCss, DESKTOP_QUERY);
+
+  it('.messages and .input-bar reserve the same symmetric gutter', () => {
+    // Equal symmetric padding → identical content boxes → the centred
+    // --column-max lands on the same left/right edges in both strips.
+    const msg = ruleBody(chatDesktop, '.messages');
+    const bar = ruleBody(inputDesktopBlock, '.input-bar');
+    const msgL = pxDecl(msg, 'padding-left');
+    const msgR = pxDecl(msg, 'padding-right');
+    const barL = pxDecl(bar, 'padding-left');
+    const barR = pxDecl(bar, 'padding-right');
+    expect(msgL).not.toBeNull();
+    expect(msgL).toBe(msgR);
+    expect(msgL).toBe(barL);
+    expect(msgR).toBe(barR);
+    // The gutter must swallow the out-of-flow avatar so it can never push
+    // the scrollport sideways.
+    expect(msgL!).toBeGreaterThanOrEqual(avatarHangPx);
+  });
+
+  it('hangs the assistant avatar out of the shared column', () => {
+    expect(ruleBody(bubbleDesktop, '.bubble-row.assistant')).toContain(
+      'position: relative',
+    );
+    const avatar = ruleBody(bubbleDesktop, '.bubble-row.assistant .avatar');
+    expect(avatar).toContain('position: absolute');
+    // The hang equals the space the avatar used to eat inside the column:
+    // 32px width + 10px row gap = 42px.
+    const hangPx = /left:\s*(-?[0-9.]+)px/.exec(avatar)?.[1];
+    expect(hangPx).toBe(String(-avatarHangPx));
+  });
+
+  it('AI bubble left edge and textarea left edge differ by ≤8 px', () => {
+    // bubble.left = row.left = column.left: the avatar is out of flow, so
+    // the bubble is the row's only in-flow flex item, packed at flex-start
+    // with no offset — inset 0.
+    const bubbleInset = 0;
+    // textarea.left = .input-column.left = the same column's left:
+    // flex:1 down .input-column → .input-field → textarea, with no left
+    // padding or margin declared anywhere on the chain.
+    const column = ruleBody(topLevel(inputBarCss), '.input-column');
+    const field = ruleBody(topLevel(inputBarCss), '.input-field');
+    const textarea = ruleBody(topLevel(inputBarCss), '.input-bar textarea');
+    for (const rule of [column, field, textarea]) {
+      expect(pxDecl(rule, 'padding-left') ?? 0).toBe(0);
+      expect(pxDecl(rule, 'margin-left') ?? 0).toBe(0);
+    }
+    const textareaInset = 0;
+    // Both centred on the same --column-max inside identical content
+    // boxes (asserted above) → the edges coincide.
+    expect(messageColumn).toBe(composerColumn);
+    expect(Math.abs(bubbleInset - textareaInset)).toBeLessThanOrEqual(8);
+  });
+
+  it('bubble max-width never exceeds the shared column width', () => {
+    // 100% of a row that is itself max-width: --column-max → ≤ column.
+    expect(maxWidthDecl(ruleBody(bubbleCss, '.bubble'))).toBe('100%');
+    expect(assistantCapDecl).toBe('100%');
+    expect(bubbleOuterPx).toBeLessThanOrEqual(columnMax!);
+  });
+
+  it('a 120-char unbroken URL can never push the bubble past the composer right edge', () => {
+    const bubble = ruleBody(bubbleCss, '.bubble');
+    // overflow-wrap:anywhere gives every character a break opportunity →
+    // min-content ≈ 0 → the flex item's min-width:auto floor collapses;
+    // min-width:0 makes that explicit. The box can then only ever be as
+    // wide as its row = the column, so bubble.right ≤ column.right =
+    // textarea.right.
+    expect(bubble).toContain('overflow-wrap: anywhere');
+    expect(bubble).toContain('min-width: 0');
+    expect(bubbleOuterPx + 0 /* bubble.left offset */).toBeLessThanOrEqual(
+      composerColumn!,
+    );
+    // …and a fenced code block scrolls inside the bubble instead of
+    // inking past the edge.
+    expect(ruleBody(bubbleCss, '.bubble-content pre')).toContain(
+      'overflow-x: auto',
     );
   });
 });

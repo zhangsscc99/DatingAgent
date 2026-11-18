@@ -184,6 +184,18 @@
   flex: 1 0 0;
 }
 
+/* P327: symmetric 66px gutters = 42px for the out-of-flow assistant
+   avatar (MessageBubble.css) + the original 24px inset beyond it. The
+   column keeps the same centre and width; .input-bar reserves the same
+   gutter so both centred columns are pixel-identical at every desktop
+   width. */
+@media (min-width: 769px) {
+  .messages {
+    padding-left: 66px;
+    padding-right: 66px;
+  }
+}
+
 .welcome {
   /* P311: on desktop the welcome card rides the same reading column as
      the bubbles and the composer — --column-max is only defined ≥769px,

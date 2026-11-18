@@ -397,6 +397,14 @@
    right edge, where the send key already sat. The ≤768px block applies
    the same wrap on phones. */
 @media (min-width: 769px) {
+  /* P327: the bar's content box matches .messages' (the same 66px
+     symmetric gutter), so the centred --column-max column — and the
+     textarea inside it — lands on exactly the bubble column's edges. */
+  .input-bar {
+    padding-left: 66px;
+    padding-right: 66px;
+  }
+
   .input-tools {
     flex-basis: 100%;
     justify-content: flex-end;
