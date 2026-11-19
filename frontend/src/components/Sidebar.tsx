@@ -138,7 +138,12 @@ export function groupSessionsByDay(
 
 // P199: restrained inline SVGs (currentColor stroke) replace the emoji glyphs;
 // the text label still carries the meaning, so every icon is aria-hidden.
-const QUICK_ICON_PATHS: Record<StarterIconKey, string[]> = {
+// P358: the key space widens past the four starter keys — the 进阶工具 rows
+// mount the same icon + label + chevron anatomy as the 快捷入口 cards, so
+// tool ids resolve onto this one icon set through TOOL_ICON_KEYS below.
+type SidebarIconKey = StarterIconKey | 'advice';
+
+const QUICK_ICON_PATHS: Record<SidebarIconKey, string[]> = {
   profile: ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'],
   chat: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
   calendar: [
@@ -150,9 +155,13 @@ const QUICK_ICON_PATHS: Record<StarterIconKey, string[]> = {
   heart: [
     'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
   ],
+  advice: [
+    'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',
+    'M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z',
+  ],
 };
 
-function SidebarIcon({ iconKey }: { iconKey: StarterIconKey }) {
+function SidebarIcon({ iconKey }: { iconKey: SidebarIconKey }) {
   return (
     <svg
       className="sidebar-icon"
@@ -172,6 +181,43 @@ function SidebarIcon({ iconKey }: { iconKey: StarterIconKey }) {
     </svg>
   );
 }
+
+// P358: the shared right-edge affordance. Both entry groups render the same
+// icon + label + chevron row anatomy, so this chevron is one component —
+// aria-hidden like the icons (the button's aria-label carries the name).
+function SidebarChevron() {
+  return (
+    <svg
+      className="sidebar-chevron"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+// P358 — the 进阶工具 rows carry the same leading-icon anatomy as the
+// 快捷入口 cards above them; each tool id maps onto the shared icon set and
+// an unmapped id falls back to the advice compass rather than rendering a
+// bare row.
+const TOOL_ICON_KEYS: Record<string, SidebarIconKey> = {
+  analyze_profile: 'profile',
+  coach_conversation: 'chat',
+  plan_date: 'calendar',
+  check_compatibility: 'heart',
+  get_relationship_advice: 'advice',
+};
+
+const toolIconKey = (name: string): SidebarIconKey =>
+  TOOL_ICON_KEYS[name] ?? 'advice';
 
 // P355: the 快捷入口 rows render STARTER_ENTRIES from lib/starterEntries.ts —
 // the one array the first screen shares, so the drawer and the welcome block
@@ -692,6 +738,7 @@ export default function Sidebar({
               <button
                 key={p.label}
                 className="quick-btn"
+                data-control="row"
                 onClick={() => onQuickPrompt(p.prompt)}
                 disabled={busy}
                 aria-disabled={busy || undefined}
@@ -699,7 +746,8 @@ export default function Sidebar({
                 aria-label={`快捷提问：${p.label}`}
               >
                 <SidebarIcon iconKey={p.iconKey} />
-                {p.label}
+                <span className="sidebar-row-label">{p.label}</span>
+                <SidebarChevron />
               </button>
             ))}
           </div>
@@ -722,11 +770,14 @@ export default function Sidebar({
                       <button
                         type="button"
                         className="tool-entry tool-entry-skeleton shimmer"
+                        data-control="row"
                         disabled
                         aria-busy="true"
                         aria-label={`进阶工具：${label}`}
                       >
-                        {label}
+                        <SidebarIcon iconKey={toolIconKey(t.name)} />
+                        <span className="sidebar-row-label">{label}</span>
+                        <SidebarChevron />
                       </button>
                     </li>
                   );
@@ -744,13 +795,18 @@ export default function Sidebar({
                   <button
                     type="button"
                     className="tool-entry"
+                    data-control="row"
                     onClick={() => onQuickPrompt(prompt)}
                     disabled={busy}
                     aria-disabled={busy || undefined}
                     title={busy ? '回复生成中，请稍候' : undefined}
                     aria-label={`进阶工具：${toolDisplayName(t.name) ?? t.label}`}
                   >
-                    {toolDisplayName(t.name) ?? t.label}
+                    <SidebarIcon iconKey={toolIconKey(t.name)} />
+                    <span className="sidebar-row-label">
+                      {toolDisplayName(t.name) ?? t.label}
+                    </span>
+                    <SidebarChevron />
                   </button>
                 </li>
               );

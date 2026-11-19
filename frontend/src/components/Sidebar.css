@@ -101,24 +101,26 @@
   border-radius: 4px;
 }
 
-/* P255: the no-profile card collapses to one dashed 完善资料 entry —
- * same visual language as the welcome CTA's dashed accent outline. */
+/* P255: the no-profile card collapses to one 完善资料 entry.
+ * P358: the dashed accent outline read as a third control language next to
+ * the solid row cards — it is now an accent-soft fill, and hover trades the
+ * fill for a single accent edge (still just one ring layer). */
 .profile-setup-btn {
   display: block;
   width: 100%;
   padding: 8px 12px;
-  background: transparent;
-  border: 1px dashed var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid transparent;
   border-radius: var(--radius);
   color: var(--accent);
   font-size: 12px;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .profile-setup-btn:hover {
-  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .profile-setup-btn:focus-visible {
@@ -511,15 +513,18 @@
   opacity: 0.45;
 }
 
-/* P265 — the 回收站 row under 最近对话: a quiet dashed entry, same visual
-   language as the no-profile 完善资料 card. */
+/* P265 — the 回收站 row under 最近对话: a quiet muted-fill entry, same
+   visual language as the no-profile 完善资料 card.
+   P358: the dashed outline read as an unfinished panel edge next to the
+   solid row cards — it is now a --surface-hover fill; hover adds a single
+   accent edge on top of the fill. */
 .recent-chat-trash {
   display: block;
   width: 100%;
   margin-top: 6px;
   padding: 8px 10px;
-  background: transparent;
-  border: 1px dashed var(--border);
+  background: var(--surface-hover);
+  border: 1px solid transparent;
   border-radius: var(--radius);
   color: var(--text-muted);
   font-size: 12px;
@@ -530,7 +535,6 @@
 }
 
 .recent-chat-trash:hover {
-  background: var(--surface-hover);
   border-color: var(--accent);
   color: var(--text);
 }
@@ -590,10 +594,18 @@
   gap: 6px;
 }
 
-.quick-btn {
+/* P358 — one row language for both entry groups: the 快捷入口 cards and the
+   进阶工具 rows share this exact anatomy (leading icon, primary label,
+   right-edge chevron) and the exact same box — same radius, same padding,
+   same 44px min-height, same hover ring — so the two sections can never
+   drift back into two control languages. */
+.quick-btn,
+.tool-entry {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  min-height: 44px;
   padding: 10px 12px;
   background: transparent;
   border: 1px solid var(--border);
@@ -606,23 +618,43 @@
   font-family: inherit;
 }
 
-.quick-btn:hover:not(:disabled) {
+.quick-btn:hover:not(:disabled),
+.tool-entry:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--accent);
 }
 
-.quick-btn:disabled {
+.quick-btn:disabled,
+.tool-entry:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.quick-btn:focus-visible {
+.quick-btn:focus-visible,
+.tool-entry:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
+/* P358 — the shared label slot: flexes to fill the row so the chevron pins
+   to the right edge; long labels truncate instead of wrapping. */
+.sidebar-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* P358 — the right-edge chevron, muted like a disclosure affordance. */
+.sidebar-chevron {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
 /* P199: inline SVG icons must never shrink inside the flex row. */
 .sidebar-icon,
+.sidebar-chevron,
 .settings-open-btn svg {
   flex: none;
 }
@@ -631,41 +663,7 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-/* P316 — every 进阶工具 row is a real button; the <li> is only a list
-   slot, so the button owns the full-row hit area and interaction states. */
-.tool-entry {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
-  font-size: 13px;
-  font-family: inherit;
-  text-align: left;
-  color: var(--text-muted);
-  background: none;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.tool-entry:hover:not(:disabled) {
-  background: var(--surface-hover);
-  color: var(--text);
-}
-
-.tool-entry:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.tool-entry:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  gap: 6px;
 }
 
 /* P322 — while /api/tools is in flight the 进阶工具 list paints the same
@@ -776,6 +774,10 @@
     color: var(--text);
   }
 
+  /* P358 — the button is auto-focused when the drawer opens, so its border
+     ring plus the focus outline read as a double outline that competed with
+     「+ 新对话」. Dropping the border leaves the focus outline as the one
+     ring layer (no box-shadow at all). */
   .sidebar-close-btn {
     width: 36px;
     height: 36px;
@@ -783,7 +785,7 @@
     align-items: center;
     justify-content: center;
     background: var(--bg);
-    border: 1px solid var(--border);
+    border: none;
     border-radius: var(--radius);
     color: var(--text);
     font-size: 22px;
@@ -830,9 +832,11 @@
     color: var(--text-secondary);
   }
 
-  /* P316 — tool rows get the full 44px touch target on phones. */
+  /* P316/P358 — both entry groups get the full 44px touch target on phones
+     (the base rule already pins 44px; this keeps the contract explicit at
+     the breakpoint where it matters). */
+  .quick-btn,
   .tool-entry {
-    color: var(--text-secondary);
     min-height: 44px;
   }
 

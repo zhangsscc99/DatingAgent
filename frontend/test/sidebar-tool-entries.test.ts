@@ -76,11 +76,15 @@ describe('P316 · every 进阶工具 row is a real button', () => {
       html,
     )?.[0];
     expect(section).toBeTruthy();
+    // P358: rows now carry the icon + label + chevron anatomy, so the label
+    // is the button's text content after stripping the inner markup.
     const buttons = [
-      ...section!.matchAll(/<button([^>]*)>([^<]+)<\/button>/g),
+      ...section!.matchAll(/<button([^>]*)>([\s\S]*?)<\/button>/g),
     ];
     expect(buttons.length).toBe(EXPECTED_LABELS.length);
-    expect(buttons.map((b) => b[2])).toEqual(EXPECTED_LABELS);
+    expect(
+      buttons.map((b) => b[2].replace(/<[^>]+>/g, '')),
+    ).toEqual(EXPECTED_LABELS);
     for (const [attrs] of buttons) {
       expect(attrs).toContain('type="button"');
       expect(attrs).toContain('class="tool-entry"');

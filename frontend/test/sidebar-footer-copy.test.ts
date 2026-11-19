@@ -65,10 +65,11 @@ describe('P223 · sidebar footer copy carries no architecture jargon', () => {
 
   it('keeps the five 进阶工具 fallback items unchanged', () => {
     const html = renderSidebar();
-    // P316: the items are .tool-entry buttons inside .tool-item li slots.
+    // P316: the items are .tool-entry buttons inside .tool-item li slots
+    // (P358: icon/chevron markup stripped to recover the label text).
     const items = [
-      ...html.matchAll(/<button[^>]*class="tool-entry"[^>]*>([^<]+)<\/button>/g),
-    ].map((m) => m[1]);
+      ...html.matchAll(/<button[^>]*class="tool-entry"[^>]*>([\s\S]*?)<\/button>/g),
+    ].map((m) => m[1].replace(/<[^>]+>/g, ''));
     expect(items).toEqual([
       '改资料',
       '接话术',
