@@ -628,6 +628,15 @@
    to edge: its left/right edges equal the textarea's instead of starting
    42px (32px avatar + 10px row gap) inside the column. */
 @media (min-width: 769px) {
+  /* P391: the narrowed 660px column pairs with a larger, more open body —
+     16px at 1.7 keeps the desktop assistant text at ⌊626/16⌋ = 39 CJK
+     chars per line (comfortable 36–42). The mobile base rule above stays
+     14px/1.65, so ≤768px rendering is unchanged. */
+  .bubble {
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
   .bubble-row.assistant {
     position: relative;
   }

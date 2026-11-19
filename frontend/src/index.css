@@ -63,10 +63,15 @@
    P342 widened the token 600→720px: at 1440px the 600px column left
    ~290px of dead margin per side inside the ~1180px main area (the
    walkthrough's "主列窄右侧空"), and a reading column up to ~49 CJK
-   chars per line is still inside the comfortable band. */
+   chars per line is still inside the comfortable band.
+   P391 narrowed the token 720→660px: at 14px the 720px column gave
+   686px of text ≈ 49 CJK chars per line, above the comfortable 36–42.
+   At 660px the assistant bubble resolves to 660px outer /
+   660−32(padding)−2(border) = 626px text, and the desktop 16px body
+   (MessageBubble.css) lands ⌊626/16⌋ = 39 CJK chars per line. */
 @media (min-width: 769px) {
   :root {
-    --column-max: 720px;
+    --column-max: 660px;
   }
 }
 

@@ -512,9 +512,10 @@ describe('P336 · the ENABLED send key clears >=3:1 against its composer backgro
  *     breakpoint the drawer keeps it — mobile is unchanged.
  *  2. The empty-state column — `.welcome`/`hero`, the `.messages`
  *     content column and the composer's `.input-column` (textarea) — all
- *     resolve to the shared --column-max ≥ 720 px, so the textarea stays
- *     the first screen's single obvious focal point and the widths match
- *     within the ≤8 px tolerance.
+ *     resolve to the shared --column-max (600–680 px; P391 narrowed it
+ *     to 660 px so an assistant line holds ≤42 CJK glyphs), so the
+ *     textarea stays the first screen's single obvious focal point and
+ *     the widths match within the ≤8 px tolerance.
  *  3. The column is centred by symmetric auto margins on every strip —
  *     the block's right gap equals its left gap (Δ 0 ≤ 10% of 1440).
  */
@@ -622,17 +623,21 @@ describe('P342 · one 「完善资料」 entry and a widened column at 1440×900
     await unmount();
   });
 
-  it('the welcome column is ≥680px and the composer/messages columns match ≤8px', () => {
+  it('the welcome column shares --column-max and the composer/messages columns match ≤8px', () => {
     const welcome = resolveMaxWidthPx(chatWindowCss, '.welcome');
     const messages = resolveMaxWidthPx(chatWindowCss, '.messages > *');
     const composer = resolveMaxWidthPx(inputBarCss, '.input-column');
     expect(welcome).not.toBeNull();
-    // .hero rides .welcome — the one widened empty-state column.
-    expect(welcome!).toBeGreaterThanOrEqual(680);
+    // .hero rides .welcome — the widened empty-state column, now capped
+    // by P391's ≤680 px reading column.
+    expect(welcome!).toBeGreaterThanOrEqual(600);
+    expect(welcome!).toBeLessThanOrEqual(680);
     expect(messages).not.toBeNull();
     expect(composer).not.toBeNull();
-    expect(messages!).toBeGreaterThanOrEqual(680);
-    expect(composer!).toBeGreaterThanOrEqual(680);
+    expect(messages!).toBeGreaterThanOrEqual(600);
+    expect(messages!).toBeLessThanOrEqual(680);
+    expect(composer!).toBeGreaterThanOrEqual(600);
+    expect(composer!).toBeLessThanOrEqual(680);
     // P344: textarea width vs the .messages content column — both resolve
     // the shared --column-max, Δ 0.
     expect(Math.abs(composer! - messages!)).toBeLessThanOrEqual(8);
