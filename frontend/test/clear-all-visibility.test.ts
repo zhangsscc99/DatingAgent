@@ -8,11 +8,13 @@ import { shouldShowClearAll } from '../src/lib/sidebarListState';
 /**
  * P270 — with 0 stored sessions the sidebar still rendered
  * 「清空全部对话」; clicking it opened a confirm for 「将清空 0 段对话，
- * 共 0 条消息」, a destructive no-op. The control now renders only when a
- * session exists, in both the sidebar and the settings sheet, via one
- * shared helper so the two surfaces cannot drift. No DOM harness — pure
- * assertions plus a source-level guard that both components consult the
- * helper.
+ * 共 0 条消息」, a destructive no-op. The sidebar control now renders
+ * only when a session exists, via the shared helper. P353 changed the
+ * settings-sheet surface: hiding the entry there left a phone with no
+ * reachable data-management entry at all, so the sheet keeps it mounted
+ * but inert (disabled + hint, no click handler) — the no-op confirm
+ * still cannot open. No DOM harness — pure assertions plus source-level
+ * guards on both surfaces.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -52,12 +54,17 @@ describe('P270 · clear-all control hidden at zero sessions', () => {
     expect(src).toMatch(/className="recent-chat-clear-all"/);
   });
 
-  it('SettingsSheet gates its clear-all button on the same helper', () => {
+  it('SettingsSheet keeps the entry visible but inert at zero sessions (P353)', () => {
     const src = read('components/SettingsSheet.tsx');
-    expect(src).toContain(
-      "import { shouldShowClearAll } from '../lib/sidebarListState'",
-    );
-    expect(src).toMatch(/shouldShowClearAll\(hasSessions\)\s*&&/);
     expect(src).toMatch(/className="settings-data-btn danger"/);
+    // Rendered unconditionally — the viewport/session gate is gone.
+    expect(src).not.toMatch(/shouldShowClearAll\(hasSessions\)\s*&&/);
+    // …but inert at zero sessions: disabled, no click handler wired, and
+    // a hint explains why instead of a hidden capability.
+    expect(src).toContain('disabled={busy || !hasSessions}');
+    expect(src).toContain('aria-disabled');
+    expect(src).toContain('onClick={hasSessions ? onClearAll : undefined}');
+    expect(src).toContain('还没有对话可以清空');
+    expect(src).toContain('CLEAR_ALL_LABEL');
   });
 });

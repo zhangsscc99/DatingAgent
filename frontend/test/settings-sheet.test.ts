@@ -122,11 +122,19 @@ describe('P196 · settings sheet', () => {
       expect(html).toContain('版本');
     });
 
-    it('renders the clear-all action only when conversations exist', () => {
-      // P270: at zero sessions the destructive control is a no-op confirm —
-      // it must not render; with sessions it appears again.
-      expect(renderSheet(true)).not.toContain('清空全部对话');
-      expect(renderSheet(true, { hasSessions: true })).toContain('清空全部对话');
+    it('keeps the clear-all entry mounted at zero sessions, inert until conversations exist', () => {
+      // P353: the entry is always rendered — hiding it left a phone with
+      // no reachable clear entry. P270's guard moved inside the button:
+      // at zero sessions it is disabled and carries the why-hint; with
+      // sessions it activates and drops the hint.
+      const empty = renderSheet(true);
+      expect(empty).toContain('清空全部对话');
+      expect(empty).toContain(
+        'aria-label="清空全部对话（还没有对话可以清空）"',
+      );
+      const active = renderSheet(true, { hasSessions: true });
+      expect(active).toContain('aria-label="清空全部对话"');
+      expect(active).not.toContain('还没有对话可以清空');
     });
 
     it('renders nothing when closed', () => {

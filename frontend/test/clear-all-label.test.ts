@@ -24,14 +24,21 @@ describe('P267 · one clear-all label everywhere', () => {
     for (const file of ['components/Sidebar.tsx', 'components/SettingsSheet.tsx']) {
       const src = read(file);
       expect(src).toContain("import { CLEAR_ALL_LABEL } from '../lib/copy'");
-      expect(src).toContain('aria-label={CLEAR_ALL_LABEL}');
-      expect(src).toContain('title={CLEAR_ALL_LABEL}');
       // No hard-coded clear-all label strings left for that button.
       expect(src).not.toMatch(/aria-label="清空/);
       expect(src).not.toMatch(/title="清空/);
       expect(src).not.toMatch(/>\s*清空全部[^<]*</);
       expect(src).not.toContain('清空全部历史对话');
     }
+    const sidebar = read('components/Sidebar.tsx');
+    expect(sidebar).toContain('aria-label={CLEAR_ALL_LABEL}');
+    expect(sidebar).toContain('title={CLEAR_ALL_LABEL}');
+    // P353: the sheet's zero-session hint is still built from the one
+    // constant — a suffix on CLEAR_ALL_LABEL, not a second wording.
+    const sheet = read('components/SettingsSheet.tsx');
+    expect(sheet).toContain('aria-label={clearAllHint}');
+    expect(sheet).toContain('title={clearAllHint}');
+    expect(sheet).toContain('`${CLEAR_ALL_LABEL}（还没有对话可以清空）`');
   });
 
   it('App.tsx uses the constant for the clear-all confirm title', () => {

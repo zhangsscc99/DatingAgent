@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { CLEAR_ALL_LABEL } from '../lib/copy';
-import { shouldShowClearAll } from '../lib/sidebarListState';
 import { startDialogDismiss } from '../lib/dialogDismiss';
 import type { ReplyLengthPreference } from '../lib/replyLength';
 import type { Theme } from '../hooks/useTheme';
@@ -123,6 +122,12 @@ export default function SettingsSheet({
 
   if (!open) return null;
 
+  // P353: at zero sessions the entry stays mounted but inert — the hint
+  // says why (P270: a 「清空 0 段对话」 confirm must still never open).
+  const clearAllHint = hasSessions
+    ? CLEAR_ALL_LABEL
+    : `${CLEAR_ALL_LABEL}（还没有对话可以清空）`;
+
   const renderSegmented = <T extends string>(
     label: string,
     options: { value: T; label: string }[],
@@ -207,19 +212,22 @@ export default function SettingsSheet({
             >
               导出 JSON
             </button>
-            {/* P270: zero conversations → no destructive no-op control. */}
-            {shouldShowClearAll(hasSessions) && (
-              <button
-                type="button"
-                className="settings-data-btn danger"
-                onClick={onClearAll}
-                disabled={busy}
-                aria-label={CLEAR_ALL_LABEL}
-                title={CLEAR_ALL_LABEL}
-              >
-                {CLEAR_ALL_LABEL}
-              </button>
-            )}
+            {/* P353: always rendered, on every viewport — hiding it in
+                the empty state left a phone with no reachable clear
+                entry at all. At zero sessions it is inert: no handler,
+                disabled, and the hint explains why (P270's no-op
+                confirm stays impossible). */}
+            <button
+              type="button"
+              className="settings-data-btn danger"
+              onClick={hasSessions ? onClearAll : undefined}
+              disabled={busy || !hasSessions}
+              aria-disabled={busy || !hasSessions || undefined}
+              aria-label={clearAllHint}
+              title={clearAllHint}
+            >
+              {CLEAR_ALL_LABEL}
+            </button>
           </div>
         </section>
 
