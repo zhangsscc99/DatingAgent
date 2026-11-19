@@ -217,9 +217,11 @@
 
 /* P319: the accent border-color used to repaint the 1px border pink under
    the 2px accent outline — two stacked pink rings on focus. A single
-   outline ring is the focus affordance; the border stays neutral. */
+   outline ring is the focus affordance; the border stays neutral.
+   P354: the ring drops to 1px — vision review called the 2px pink stroke
+   too heavy for a quiet filter box. */
 .recent-chat-filter:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 1px solid var(--accent);
   outline-offset: 1px;
 }
 
@@ -360,6 +362,17 @@
   white-space: nowrap;
   width: 100%;
   font-weight: 500;
+}
+
+/* P354: a line carrying a <mark> renders the searchSnippet window (≤ ±12
+   chars of context) and wraps instead of truncating — CSS ellipsis must
+   never be free to swallow the hit the row was matched for. The window is
+   bounded, so wrapping stays ≤2 lines; break-word keeps long latin runs
+   from overflowing the card at 390px. */
+.recent-chat-title.has-hit,
+.recent-chat-excerpt.has-hit {
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 /* P319: a filter hit renders as a real <mark> — visible accent chip with

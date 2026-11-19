@@ -10,6 +10,7 @@ import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
 import { formatRelativeTime, isRenderableTimestamp } from '../lib/relativeTime';
 import { highlightSegments } from '../lib/messageSearch';
 import { filterRecentSessions, matchSessionMessage } from '../lib/sessionFilter';
+import { searchSnippet } from '../lib/searchSnippet';
 import { FILTER_SESSIONS_HINT, FILTER_SESSIONS_LABEL } from '../lib/searchLabels';
 import { nextSessionIndex, sessionNavDirection } from '../lib/sessionListNav';
 import {
@@ -503,6 +504,12 @@ export default function Sidebar({
                       !s.title.toLowerCase().includes(trimmedQuery)
                         ? matchSessionMessage(s, filterQuery)
                         : null;
+                    // P354: a title hit renders the ±12-char window centred
+                    // on the match — the full title used to keep CSS
+                    // ellipsis free to swallow the <mark> in its tail.
+                    const titleSnippet = trimmedQuery
+                      ? searchSnippet(s.title, filterQuery)
+                      : null;
                     const commitRename = () => {
                       // Enter already exits edit mode; ignore the blur that follows.
                       if (editingId !== s.id) return;
@@ -542,11 +549,19 @@ export default function Sidebar({
                               title={s.title}
                               aria-current={s.id === activeSessionId ? 'true' : undefined}
                             >
-                              <span className="recent-chat-title">
-                                {highlightHit(s.title)}
+                              <span
+                                className={`recent-chat-title${titleSnippet ? ' has-hit' : ''}`}
+                              >
+                                {highlightHit(
+                                  titleSnippet
+                                    ? titleSnippet.before +
+                                        titleSnippet.match +
+                                        titleSnippet.after
+                                    : s.title,
+                                )}
                               </span>
                               {bodyMatch && (
-                                <span className="recent-chat-excerpt">
+                                <span className="recent-chat-excerpt has-hit">
                                   {highlightHit(bodyMatch.excerpt)}
                                 </span>
                               )}

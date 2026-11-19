@@ -160,7 +160,34 @@ const SESSIONS: StoredChatSession[] = [
   },
 ];
 
-async function mountSidebar() {
+/* P354 fixtures — replays of the observed card: the title lacks the
+ * keyword and the only hit sits deep inside a message, so the ±12-char
+ * window clips on BOTH ends and the centred-slice assertions exercise the
+ * … markers rather than the short-text fallback. */
+const BODY_HIT_SESSIONS: StoredChatSession[] = [
+  {
+    id: 's-obs',
+    title: '她三天没回我消息了',
+    updatedAt: NOW,
+    messages: [
+      msg(
+        'm1',
+        'user',
+        '前面铺垫了很长一段日常聊天文字之后，明天第一次约会，我有点紧张还想继续往下多说几句',
+      ),
+    ],
+  },
+];
+const TITLE_HIT_SESSIONS: StoredChatSession[] = [
+  {
+    id: 's-long-title',
+    title: '前面很长的一段标题铺垫文字之后终于说到约会这件小事',
+    updatedAt: NOW,
+    messages: [],
+  },
+];
+
+async function mountSidebar(sessions: StoredChatSession[] = SESSIONS) {
   const dom = installFakeDom();
   const { createRoot } = await import('react-dom/client');
   const { default: Sidebar } = await import('../src/components/Sidebar');
@@ -171,7 +198,7 @@ async function mountSidebar() {
     root.render(
       createElement(Sidebar, {
         tools: [],
-        recentSessions: SESSIONS,
+        recentSessions: sessions,
         onQuickPrompt: () => {},
         onNewChat: () => {},
       }),
@@ -320,6 +347,88 @@ describe('P319 · search box never stacks accent rings', () => {
     expect(boxShadowLayers(focusBody)).toBe(0);
     // The second pink edge (accent border under the accent outline) is gone.
     expect(focusBody).not.toContain('border-color');
+  });
+});
+
+describe('P354 · real filter path centres the hit in a marked window', () => {
+  it('typing 约会 into the real input renders a <mark> inside the result card', async () => {
+    const { dom, root } = await mountSidebar(BODY_HIT_SESSIONS);
+    await typeFilter(dom, '约会');
+
+    const items = dom.document.querySelectorAll('.recent-chat-item');
+    expect(items).toHaveLength(1);
+    const marks = items[0].querySelectorAll('mark');
+    expect(marks.length).toBeGreaterThanOrEqual(1);
+    expect(
+      marks.some((m) => (m.innerText ?? '').includes('约会')),
+    ).toBe(true);
+
+    const count = dom.document.querySelector('.recent-chat-filter-count');
+    expect(count!.textContent).toBe('找到 1 段对话');
+
+    await act(async () => {
+      (root as Root).unmount();
+    });
+  });
+
+  it('the preview line is the hit-centred window — ≥8 chars of context each side or … at the clipped end', async () => {
+    const { dom, root } = await mountSidebar(BODY_HIT_SESSIONS);
+    await typeFilter(dom, '约会');
+
+    const excerpt = dom.document.querySelector('.recent-chat-excerpt');
+    expect(excerpt, 'preview line').toBeTruthy();
+    const mark = excerpt!.querySelector('mark');
+    expect(mark, 'preview mark').toBeTruthy();
+    expect(mark!.innerText).toContain('约会');
+
+    const text = excerpt!.textContent ?? '';
+    const hitText = mark!.innerText!;
+    const idx = text.indexOf(hitText);
+    const before = text.slice(0, idx);
+    const after = text.slice(idx + hitText.length);
+    expect(before.length >= 8 || before.startsWith('…')).toBe(true);
+    expect(after.length >= 8 || after.endsWith('…')).toBe(true);
+    // The fixture clips both ends, so the … markers must be real.
+    expect(before.startsWith('…')).toBe(true);
+    expect(after.endsWith('…')).toBe(true);
+
+    await act(async () => {
+      (root as Root).unmount();
+    });
+  });
+
+  it('a hit inside a long title gets the same centred window + <mark> instead of a truncated tail', async () => {
+    const { dom, root } = await mountSidebar(TITLE_HIT_SESSIONS);
+    await typeFilter(dom, '约会');
+
+    const title = dom.document.querySelector('.recent-chat-title');
+    expect(title, 'title line').toBeTruthy();
+    expect(title!.classList.contains('has-hit')).toBe(true);
+    const mark = title!.querySelector('mark');
+    expect(mark, 'title mark').toBeTruthy();
+    expect(mark!.innerText).toContain('约会');
+    // The keyword sat 18 chars in — the old full-title render let CSS
+    // ellipsis hide it; the window surfaces it.
+    expect(title!.textContent).toContain('约会');
+    expect(title!.textContent!.startsWith('…')).toBe(true);
+
+    await act(async () => {
+      (root as Root).unmount();
+    });
+  });
+
+  it('the search input box-shadow stays <= 1 layer across base/focus/focus-visible', () => {
+    const layers =
+      boxShadowLayers(ruleBody(sidebarCss, '.recent-chat-filter')) +
+      boxShadowLayers(ruleBody(sidebarCss, '.recent-chat-filter:focus')) +
+      boxShadowLayers(
+        ruleBody(sidebarCss, '.recent-chat-filter:focus-visible'),
+      );
+    expect(layers).toBeLessThanOrEqual(1);
+    // …and the single ring itself is 1px — the heavy pink stroke is gone.
+    expect(
+      ruleBody(sidebarCss, '.recent-chat-filter:focus-visible'),
+    ).toMatch(/outline:\s*1px/);
   });
 });
 
