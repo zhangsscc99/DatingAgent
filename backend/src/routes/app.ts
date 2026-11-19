@@ -2,7 +2,7 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AgentHarness, createSession, parseReplyLanguage, parseReplyLength } from '../agent/harness.js';
+import { AgentHarness, createSession, parseChatIntent, parseReplyLanguage, parseReplyLength } from '../agent/harness.js';
 import type { AgentContext, AgentEvent, ChatResult, ReplyLanguage, UserProfile } from '../agent/types.js';
 import { buildHealthReport, buildVerboseHealth } from '../lib/health.js';
 import { apiErrors } from '../lib/last-error.js';
@@ -409,13 +409,14 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.post('/api/chat', ...chatGuards, async (req, res) => {
-    const { sessionId, message, profile, language, replyLength, previousReplies } = req.body as {
+    const { sessionId, message, profile, language, replyLength, previousReplies, intent } = req.body as {
       sessionId?: string;
       message: string;
       profile?: UserProfile;
       language?: unknown;
       replyLength?: unknown;
       previousReplies?: unknown;
+      intent?: unknown;
     };
 
     const sanitized = sanitizeMessage(message ?? '');
@@ -441,6 +442,12 @@ export function createApp(options: AppOptions = {}) {
       return res.status(400).json(errorBody(res, 'previousReplies must be an array of strings'));
     }
 
+    // P345: the starter capsule this turn opened with — a malformed value
+    // gets the same 400 the other enum hints get.
+    if (intent !== undefined && parseChatIntent(intent) === undefined) {
+      return res.status(400).json(errorBody(res, 'intent must be one of "profile", "chat-coach", "date-plan"'));
+    }
+
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
     const startedAt = Date.now();
     const latency = createChatLatencyRecorder(res, startedAt);
@@ -456,6 +463,7 @@ export function createApp(options: AppOptions = {}) {
         parseReplyLength(replyLength),
         avoidReplies,
         latency.onEvent,
+        parseChatIntent(intent),
       );
       usageMetrics.recordChat(Date.now() - startedAt, true);
       // F21: meta omitted entirely when tokens are unknown (badge stays hidden).
@@ -473,13 +481,14 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.post('/api/chat/stream', ...chatGuards, async (req, res) => {
-    const { sessionId, message, profile, language, replyLength, previousReplies } = req.body as {
+    const { sessionId, message, profile, language, replyLength, previousReplies, intent } = req.body as {
       sessionId?: string;
       message: string;
       profile?: UserProfile;
       language?: unknown;
       replyLength?: unknown;
       previousReplies?: unknown;
+      intent?: unknown;
     };
 
     const sanitized = sanitizeMessage(message ?? '');
@@ -498,6 +507,11 @@ export function createApp(options: AppOptions = {}) {
     const avoidReplies = parsePreviousReplies(previousReplies);
     if (avoidReplies === null) {
       return res.status(400).json(errorBody(res, 'previousReplies must be an array of strings'));
+    }
+
+    // P345: same starter-intent validation as /api/chat.
+    if (intent !== undefined && parseChatIntent(intent) === undefined) {
+      return res.status(400).json(errorBody(res, 'intent must be one of "profile", "chat-coach", "date-plan"'));
     }
 
     const session = resolveChatSession(sessionId, profile, parseReplyLanguage(language));
@@ -534,7 +548,7 @@ export function createApp(options: AppOptions = {}) {
     // character and the double-upstream-call signal, respectively.
     const latency = createChatLatencyRecorder(res, startedAt);
     try {
-      for await (const ev of harness.run(sanitized, session, controller.signal, parseReplyLength(replyLength), avoidReplies)) {
+      for await (const ev of harness.run(sanitized, session, controller.signal, parseReplyLength(replyLength), avoidReplies, parseChatIntent(intent))) {
         // Socket already closed: stop before writing to it again.
         if (controller.signal.aborted) break;
         if (!firstEventRecorded) {

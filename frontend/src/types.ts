@@ -14,6 +14,13 @@ export type ToolPhaseKind = 'calling' | 'summarizing';
 /** Mirrors ReplyLanguage in backend/src/agent/types.ts. */
 export type ReplyLanguage = 'zh' | 'en' | 'auto';
 
+/**
+ * P345: which welcome starter capsule composed this message — mirrors
+ * ChatIntent in backend/src/agent/types.ts. Sent only on the first turn a
+ * starter produced; a hand-typed message sends no intent.
+ */
+export type ChatIntent = 'profile' | 'chat-coach' | 'date-plan';
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';

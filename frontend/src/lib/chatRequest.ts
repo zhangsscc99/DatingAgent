@@ -1,4 +1,4 @@
-import type { ReplyLanguage, UserProfile } from '../types';
+import type { ChatIntent, ReplyLanguage, UserProfile } from '../types';
 import type { ReplyLengthRequest } from './replyLength';
 
 export interface ChatRequestFields {
@@ -10,6 +10,8 @@ export interface ChatRequestFields {
   replyLength?: ReplyLengthRequest;
   /** P284: reply versions 「换一个」 must not repeat; omitted on normal sends. */
   previousReplies?: string[];
+  /** P345: which starter capsule composed the first message; omitted for typed input. */
+  intent?: ChatIntent;
 }
 
 /**
@@ -26,5 +28,6 @@ export function buildChatRequestBody(fields: ChatRequestFields): string {
   };
   if (fields.replyLength) body.replyLength = fields.replyLength;
   if (fields.previousReplies?.length) body.previousReplies = fields.previousReplies;
+  if (fields.intent) body.intent = fields.intent;
   return JSON.stringify(body);
 }

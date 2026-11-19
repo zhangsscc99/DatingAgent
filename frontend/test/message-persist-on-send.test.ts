@@ -231,7 +231,7 @@ describe('P253 · send-path wiring (source guards)', () => {
   it('runSend persists before the stream starts and forwards the minted id', () => {
     const runSend = app.slice(app.indexOf('const runSend'));
     const persistIdx = runSend.indexOf('saveChatSession(sid');
-    const streamIdx = runSend.indexOf('await streamReply(prompt, assistantId, sid)');
+    const streamIdx = runSend.indexOf('await streamReply(prompt, assistantId, sid');
     expect(persistIdx).toBeGreaterThan(-1);
     expect(streamIdx).toBeGreaterThan(persistIdx);
     expect(runSend).toContain('sessionId ?? newSessionId()');

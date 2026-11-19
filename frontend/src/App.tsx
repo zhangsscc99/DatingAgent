@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
+  ChatIntent,
   ChatMessage,
   ConversationMemory,
   MemoryFact,
@@ -520,6 +521,8 @@ export default function App() {
       requestSessionId: string | null = sessionId,
       // P284: versions the reply must not repeat — only 「换一个」 sends them.
       previousReplies?: string[],
+      // P345: which starter intake composed the turn — only a starter send sets it.
+      intent?: ChatIntent,
     ): Promise<StreamOutcome> => {
       const toolEvents: ToolEvent[] = [];
       let finalContent = '';
@@ -547,6 +550,7 @@ export default function App() {
             language,
             replyLength: replyLengthRequestField(replyLength),
             previousReplies,
+            intent,
           }),
           signal: abortRef.current.signal,
         });
@@ -828,7 +832,7 @@ export default function App() {
    * a rapid double-submit can still only produce one turn at a time.
    */
   const runSend = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, intent?: ChatIntent) => {
       if (!prompt || replyInFlightRef.current) return;
 
       const now = Date.now();
@@ -872,7 +876,7 @@ export default function App() {
       setLoading(true);
 
       try {
-        const outcome = await streamReply(prompt, assistantId, sid);
+        const outcome = await streamReply(prompt, assistantId, sid, undefined, intent);
         noteStreamOutcome(outcome);
       } finally {
         replyInFlightRef.current = false;
@@ -883,7 +887,7 @@ export default function App() {
   );
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, intent?: ChatIntent) => {
       const prompt = text.trim();
       if (!prompt) return;
       // P224: `loading` only flips after React commits, so a second send
@@ -899,7 +903,7 @@ export default function App() {
         enqueuePending(prompt);
         return;
       }
-      await runSend(prompt);
+      await runSend(prompt, intent);
     },
     [loading, runSend, enqueuePending],
   );

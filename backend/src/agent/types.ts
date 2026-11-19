@@ -52,6 +52,14 @@ export type ReplyLanguage = 'zh' | 'en' | 'auto';
 /** Reply-length hint. Absent keeps the model's default verbosity (P196). */
 export type ReplyLength = 'concise' | 'detailed';
 
+/**
+ * P345 — which starter capsule opened the conversation. The three entries
+ * are structural branches: each sends its own intent so the first-turn
+ * reply follows a different skeleton instead of the shared
+ * 归因 + 可照抄 + 解释 shape. Absent = typed by hand (today's shape).
+ */
+export type ChatIntent = 'profile' | 'chat-coach' | 'date-plan';
+
 export interface ToolCall {
   id: string;
   name: string;

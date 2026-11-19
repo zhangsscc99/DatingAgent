@@ -6,12 +6,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { ChatMessage, ConversationMemory, UserProfile } from '../types';
+import type { ChatIntent, ChatMessage, ConversationMemory, UserProfile } from '../types';
 import MessageBubble from './MessageBubble';
 import InputBar, { type InputBarHandle } from './InputBar';
 import SessionSkeleton from './SessionSkeleton';
 import ChatSearchBar from './ChatSearchBar';
 import ErrorToast from './ErrorToast';
+import StarterIntake from './StarterIntake';
 import UndoToast from './UndoToast';
 import { DEFAULT_DRAFT_ID } from '../lib/chatDrafts';
 import {
@@ -36,6 +37,7 @@ import {
 } from '../lib/memoryReceiptDismissals';
 import { hasInteracted } from '../lib/interactionState';
 import { shouldAutoScroll } from '../lib/autoScroll';
+import { STARTERS } from '../lib/starterIntents';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
 import type { ReplyLengthPreference } from '../lib/replyLength';
@@ -55,12 +57,10 @@ const SCROLL_BOTTOM_THRESHOLD = 150;
 /** P330: how long the 已忘记 undo toast stays armed. */
 const MEMORY_UNDO_MS = 6000;
 
-/** F20: empty-state starter prompts; clicking one prefills the composer. */
-const STARTER_PROMPTS = [
-  { label: '资料优化', prompt: '帮我优化一下我的个人资料' },
-  { label: '聊天指导', prompt: '对方回复很冷淡，我该怎么继续聊？' },
-  { label: '约会规划', prompt: '帮我规划一次第一次约会' },
-];
+// P345: the F20 starter capsules no longer prefill a canned sentence —
+// that made them dead options (a prefilled prompt is identical to typing
+// it). Each chip now opens its own intake (STARTERS in starterIntents.ts)
+// which collects the branch's real inputs and assembles the first message.
 
 type FeatureIconKey = 'wrench' | 'chat' | 'chart';
 
@@ -104,7 +104,8 @@ interface Props {
   restoring?: boolean;
   profile?: UserProfile | null;
   sessionId?: string | null;
-  onSend: (text: string) => void;
+  /** P345: `intent` rides along when the text came from a starter intake. */
+  onSend: (text: string, intent?: ChatIntent) => void;
   /** P12: abort the in-flight streamed reply. */
   onStop?: () => void;
   onRetry?: (messageId: string, prompt: string) => void;
@@ -203,6 +204,13 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // quiet non-interactive summary line so the phone first screen keeps a
   // single focus — the composer send key.
   const compactFeatures = useMediaQuery('(max-width: 768px)');
+
+  // P345: which starter intake is open under the chips (null = the three
+  // capsules sit idle), and the intent armed by the last intake fill —
+  // attached to the very next send, then cleared. A typed message that
+  // never touched a starter sends no intent.
+  const [activeStarter, setActiveStarter] = useState<ChatIntent | null>(null);
+  const [pendingIntent, setPendingIntent] = useState<ChatIntent | null>(null);
 
   // P293/P296/P308: the memory receipt — a small icon capsule anchored at
   // the right of the session header area naming what the agent already
@@ -482,9 +490,20 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
 
   // P162: sending while the search bar is open would hide the new message
   // behind the stale filter — close search first so it appears immediately.
+  // P345: a starter-assembled draft carries its branch's intent with it.
   const handleSend = (text: string) => {
     if (searchOpen) closeSearch();
-    onSend(text);
+    onSend(text, pendingIntent ?? undefined);
+    setPendingIntent(null);
+  };
+
+  // P345: the intake hands its assembled message to the composer (the same
+  // prefill path the sidebar entries use — the user still presses send)
+  // and arms the intent that rides on the request body.
+  const handleStarterFill = (text: string) => {
+    if (activeStarter !== null) setPendingIntent(activeStarter);
+    setActiveStarter(null);
+    inputRef.current?.prefill(text);
   };
 
   useEffect(() => {
@@ -679,22 +698,37 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 action. The tappable chips keep working ≥769px. */}
             {compactFeatures ? (
               <p className="starter-chips-line">
-                也可以直接问：{STARTER_PROMPTS.map((p) => p.label).join(' · ')}
+                也可以直接问：{STARTERS.map((s) => s.label).join(' · ')}
               </p>
             ) : (
               <div className="starter-chips" role="group" aria-label="开始话题">
-                {STARTER_PROMPTS.map((p) => (
+                {STARTERS.map((s) => (
                   <button
-                    key={p.label}
+                    key={s.intent}
                     type="button"
                     className="starter-chip secondary"
-                    aria-label={p.label}
-                    onClick={() => inputRef.current?.prefill(p.prompt)}
+                    aria-label={s.label}
+                    aria-expanded={activeStarter === s.intent}
+                    data-active={activeStarter === s.intent ? 'true' : undefined}
+                    onClick={() =>
+                      setActiveStarter((cur) => (cur === s.intent ? null : s.intent))
+                    }
                   >
-                    {p.label}
+                    {s.label}
                   </button>
                 ))}
               </div>
+            )}
+            {/* P345: the branch's intake sits under the chips — each
+                starter asks for its own inputs and assembles a first
+                message that prefills the composer with its intent armed. */}
+            {!compactFeatures && activeStarter !== null && (
+              <StarterIntake
+                key={activeStarter}
+                intent={activeStarter}
+                onSubmit={handleStarterFill}
+                onCancel={() => setActiveStarter(null)}
+              />
             )}
             {/* P336: ≤768px renders one muted non-interactive line instead
                 of the three cards — the card grid stays ≥769px. */}

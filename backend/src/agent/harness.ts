@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { AgentContext, AgentEvent, ChatResult, Message, ReplyLanguage, ReplyLength } from './types.js';
+import type { AgentContext, AgentEvent, ChatIntent, ChatResult, Message, ReplyLanguage, ReplyLength } from './types.js';
 import { LLMClient } from '../llm/client.js';
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { resolveFocusEntity } from '../lib/focusEntity.js';
@@ -118,6 +118,66 @@ export function parseReplyLength(value: unknown): ReplyLength | undefined {
   return typeof value === 'string' && (REPLY_LENGTHS as readonly string[]).includes(value)
     ? (value as ReplyLength)
     : undefined;
+}
+
+/** Accepted `intent` values on the chat endpoints (P345). */
+export const CHAT_INTENTS: readonly ChatIntent[] = ['profile', 'chat-coach', 'date-plan'];
+
+/** Returns the intent when it is one of CHAT_INTENTS, otherwise undefined. */
+export function parseChatIntent(value: unknown): ChatIntent | undefined {
+  return typeof value === 'string' && (CHAT_INTENTS as readonly string[]).includes(value)
+    ? (value as ChatIntent)
+    : undefined;
+}
+
+/**
+ * P345 — the three starter capsules used to prefill one sentence each, so
+ * all three entries funnelled into the same 归因 + 可照抄 + 解释 reply:
+ * dead options next to just typing. Each starter now sends its own intent
+ * and the first-turn reply follows a different skeleton — a different
+ * opening line and a different section plan per entry.
+ */
+export const STARTER_INTENT_SKELETONS: Record<ChatIntent, string> = {
+  profile:
+    '本轮是资料优化入口的第一轮，回复骨架固定为三段式：' +
+    '首句直接点名最该先补的那一项资料，不寒暄；' +
+    '中段给一条可直接粘贴的示例文案，用「…」包裹、标明是示例模板、保留可替换的占位槽；' +
+    '收尾一句话列出还缺的其余资料项，最多追问一个问题。' +
+    '不写归因分析小节，不分小标题。',
+  'chat-coach':
+    '本轮是聊天指导入口的第一轮，回复骨架固定为三步：' +
+    '首句先解读她原话里的态度或情绪信号；' +
+    '第二段只放一句可直接发送的回复原话，「…」包裹、不超过 60 字；' +
+    '末段用一两句话说明这样接的理由，并指出她下一句可能的走向。' +
+    '不列选项一选项二，不写手册式小标题。',
+  'date-plan':
+    '本轮是约会规划入口的第一轮，回复骨架固定为一张行程单：' +
+    '首句给出具体方案，含时段与场所类型；' +
+    '随后按时段顺序列 3 到 4 步当天流程，每行一步；' +
+    '最后一行写预算的大致分配。' +
+    '不解释为什么这么排、不写追问清单、不用 Markdown 小标题。',
+};
+
+/** Marks where the per-intent skeleton begins inside the system message. */
+export const STARTER_INTENT_MARKER = '本轮骨架约束：';
+
+/**
+ * P345 — the intent only shapes the FIRST turn of a conversation: later
+ * replies settle back into the shared shape (the starter's job is to open
+ * the right kind of conversation, not to pin it forever). Returns '' for
+ * a hand-typed first message or any follow-up turn.
+ */
+export function buildStarterIntentDirective(
+  intent: ChatIntent | undefined,
+  historyLength: number,
+): string {
+  if (!intent || historyLength > 0) return '';
+  return (
+    '\n\n' +
+    STARTER_INTENT_MARKER +
+    STARTER_INTENT_SKELETONS[intent] +
+    '直接照做，不要在回复中提及或复述这些要求。'
+  );
 }
 
 /**
@@ -258,6 +318,7 @@ export class AgentHarness {
     signal?: AbortSignal,
     replyLength?: ReplyLength,
     previousReplies?: string[],
+    intent?: ChatIntent,
   ): AsyncGenerator<AgentEvent> {
     const messages: Message[] = [
       {
@@ -266,6 +327,7 @@ export class AgentHarness {
           buildSystemPrompt(context.profile, context.language ?? 'auto', replyLength) +
           buildFocusDirective(context.conversationHistory, userMessage) +
           buildProfileIntentDirective(userMessage) +
+          buildStarterIntentDirective(intent, context.conversationHistory.length) +
           buildAvoidRepeatDirective(previousReplies ?? []),
       },
       // P177: bound the prompt — keep the newest turns within the
@@ -543,11 +605,12 @@ export class AgentHarness {
     replyLength?: ReplyLength,
     previousReplies?: string[],
     onEvent?: (event: AgentEvent) => void,
+    intent?: ChatIntent,
   ): Promise<ChatResult> {
     let content = '';
     let tool: string | undefined;
     let tokens: number | undefined;
-    for await (const event of this.run(userMessage, context, undefined, replyLength, previousReplies)) {
+    for await (const event of this.run(userMessage, context, undefined, replyLength, previousReplies, intent)) {
       onEvent?.(event);
       if (event.type === 'message') {
         content = (event.data as { content: string }).content;
