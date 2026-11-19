@@ -609,6 +609,27 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     prefillComposer,
   ]);
 
+  // P375: publish the composer's live height as --composer-h so .messages
+  // can hold a scroll-end inset of composer+16px — the tail bubble then
+  // stops clear of the bar (the bar grows with the textarea, so a fixed
+  // value would drift; the CSS fallback covers the unmeasured case).
+  useEffect(() => {
+    const win = listRef.current?.closest(
+      '.chat-window',
+    ) as HTMLElement | null;
+    const bar = win?.querySelector('.input-bar') as HTMLElement | null;
+    if (!win || !bar) return;
+    const apply = () => {
+      const h = bar.getBoundingClientRect().height;
+      if (h > 0) win.style.setProperty('--composer-h', `${Math.round(h)}px`);
+    };
+    apply();
+    if (typeof ResizeObserver !== 'function') return;
+    const ro = new ResizeObserver(apply);
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, []);
+
   const nextMatch = () => {
     if (matchCount > 0) setActiveIndex((i) => (i + 1) % matchCount);
   };
@@ -1079,26 +1100,30 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
 
           <div ref={bottomRef} />
         </div>
-
-        {showScrollToBottom && (
-          <button
-            type="button"
-            className={
-              hasNewBelow ? 'scroll-to-bottom has-new' : 'scroll-to-bottom'
-            }
-            aria-label={hasNewBelow ? '有新内容，回到底部' : '滚动到底部'}
-            onClick={scrollToLatest}
-          >
-            ↑
-            {hasNewBelow && (
-              <span className="scroll-to-bottom-hint">有新内容</span>
-            )}
-          </button>
-        )}
         <span className="sr-only" role="status" aria-live="polite">
           {scrollLiveText}
         </span>
       </div>
+
+      {/* P375: the jump control moved out of .messages-wrap — floating at
+          the port's bottom-right put it on top of user bubbles (they pack
+          to the right edge). As a normal-flow strip it owns a slot between
+          the scrollport and the composer and can never overlap a bubble. */}
+      {showScrollToBottom && (
+        <button
+          type="button"
+          className={
+            hasNewBelow ? 'scroll-to-bottom has-new' : 'scroll-to-bottom'
+          }
+          aria-label={hasNewBelow ? '有新内容，回到底部' : '滚动到底部'}
+          onClick={scrollToLatest}
+        >
+          ↑
+          {hasNewBelow && (
+            <span className="scroll-to-bottom-hint">有新内容</span>
+          )}
+        </button>
+      )}
 
       {offline && (
         <p className="offline-note" role="status">
