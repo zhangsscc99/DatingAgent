@@ -774,21 +774,35 @@ export function clearActiveSession(): void {
   setActiveSessionId(null);
 }
 
+/**
+ * P359 — what the session check found on the server. `present`: a 2xx came
+ * back, the server still holds the conversation. `missing`: the server
+ * answered 404 — it has no such session, the data-loss case the
+ * 「上次的对话未保存」 notice reports. `unreachable`: the check never got
+ * an answer or got a 5xx (offline, restarting) — claiming data loss would
+ * be a false alarm, so callers must not surface the notice for it.
+ */
+export type SessionSyncResult = 'present' | 'missing' | 'unreachable';
+
 /** Ensure backend has this session's conversation history (e.g. after reload). */
 export async function syncSessionWithBackend(
   sessionId: string,
   messages: ChatMessage[],
   profile?: UserProfile | null,
-): Promise<void> {
+): Promise<SessionSyncResult> {
+  let serverMissing = false;
   try {
     const check = await fetch(`/api/session/${sessionId}`);
-    if (check.ok) return;
+    if (check.ok) return 'present';
+    // Only a definitive miss counts as lost — a 5xx says the server cannot
+    // answer, not that the conversation is gone.
+    serverMissing = check.status === 404;
   } catch {
-    /* fall through to restore */
+    /* the check never reached the server — fall through to restore anyway */
   }
 
   const serialized = serializeMessages(messages).filter((m) => !m.error);
-  if (serialized.length === 0) return;
+  if (serialized.length === 0) return serverMissing ? 'missing' : 'unreachable';
 
   try {
     await fetch('/api/session/restore', {
@@ -803,4 +817,5 @@ export async function syncSessionWithBackend(
   } catch {
     /* best-effort sync */
   }
+  return serverMissing ? 'missing' : 'unreachable';
 }

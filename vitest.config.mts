@@ -13,6 +13,9 @@ export default defineConfig({
   test: {
     include: ['backend/test/**/*.test.ts', 'frontend/test/**/*.test.ts'],
     environment: 'node',
+    // P359: point session shards at a fresh temp dir per test file —
+    // backend/test/setup-env.ts is a no-op for the frontend suite.
+    setupFiles: ['backend/test/setup-env.ts'],
     restoreMocks: true,
     testTimeout: 30000,
     hookTimeout: 30000,

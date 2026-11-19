@@ -14,3 +14,6 @@ scripts/make-ecosystem.py
 
 # walkthrough screenshots written by the product-walkthrough job (never committed)
 docs/runs/
+
+# P359 — runtime session shards (never commit user conversation state)
+backend/data/

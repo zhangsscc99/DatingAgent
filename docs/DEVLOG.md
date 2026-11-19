@@ -285,3 +285,4 @@
 2026-11-19 07:17 | P356 | pending 气泡打字指示接入 polite live region：StreamingIndicator 改 role="status" aria-live="polite" aria-label="正在输入"+sr-only 静态文案，可见逐秒计时 label/dots 保持 aria-hidden 不刷屏；占位气泡本就在 submit 同步 setMessages 追加、首 delta 即切换正文；排查确认记忆注入为亚毫秒同步正则（访问日志 firstEventMs≈0–12ms）、前端按 SSE 行增量渲染无整段缓冲，多出的 ~1s 属上游模型首 token 延迟（firstTokenMs 691–2068ms），不动 LLM 链路；新增 frontend/test/first-token-latency.test.ts（mock SSE 200ms 首 token，断言 300ms 内出现指示、首 token 后消失）；204 文件 1592 例全绿，ci-deploy 通过
 2026-11-19 07:40 | P357 | 清空确认弹层统一口径，危险按钮改实心红
 2026-11-19 08:0x | P358 | 侧栏进阶工具与快捷入口统一控件语言（图标+文案+chevron），去掉无归属虚线与双描边关闭键
+2026-11-19 08:36 | P359 | 会话与记忆落盘（backend/data/sessions/<id>.json，原子写+懒加载），重启不再清空对话，前端缺失会话提示「上次的对话未保存」

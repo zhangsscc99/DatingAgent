@@ -27,6 +27,7 @@ import {
   rememberUserMessage,
   sessionMemoryFacts,
 } from '../lib/memory-extract.js';
+import { SessionStore } from '../lib/session-store.js';
 import type { MemoryFact } from '../agent/types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -43,47 +44,6 @@ interface SessionEntry {
   lastActiveAt: number;
 }
 
-const sessions = new Map<string, SessionEntry>();
-
-/** Drop sessions that have been idle past the TTL. Cheap: at most MAX_SESSIONS entries. */
-function evictIdleSessions(now = Date.now()): void {
-  for (const [id, entry] of sessions) {
-    if (now - entry.lastActiveAt > SESSION_IDLE_TTL_MS) sessions.delete(id);
-  }
-}
-
-/** Keep the store bounded by dropping the least recently active sessions first. */
-function enforceSessionCap(): void {
-  if (sessions.size <= MAX_SESSIONS) return;
-  const oldestFirst = [...sessions.entries()].sort(
-    (a, b) => a[1].lastActiveAt - b[1].lastActiveAt,
-  );
-  for (const [id] of oldestFirst) {
-    if (sessions.size <= MAX_SESSIONS) break;
-    sessions.delete(id);
-  }
-}
-
-/** Insert or refresh a session, then trim the store to its cap. */
-function putSession(context: AgentContext, now = Date.now()): void {
-  evictIdleSessions(now);
-  sessions.set(context.sessionId, { context, lastActiveAt: now });
-  enforceSessionCap();
-}
-
-/** Read a session and mark it active. Returns undefined when missing or expired. */
-function touchSession(id: string | undefined, now = Date.now()): AgentContext | undefined {
-  if (!id) return undefined;
-  const entry = sessions.get(id);
-  if (!entry) return undefined;
-  if (now - entry.lastActiveAt > SESSION_IDLE_TTL_MS) {
-    sessions.delete(id);
-    return undefined;
-  }
-  entry.lastActiveAt = now;
-  return entry.context;
-}
-
 export interface AppOptions {
   llmConfigured?: boolean;
   llmModel?: string;
@@ -97,31 +57,6 @@ export interface AppOptions {
 function isLoopback(req: express.Request): boolean {
   const remote = req.ip ?? req.socket.remoteAddress ?? '';
   return remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
-}
-
-/**
- * Resolve the session for one chat turn. A pinned `language` sticks to the
- * session so later turns keep the same reply language without resending it.
- * P253: an unknown but client-issued sessionId is adopted (the same
- * convention /api/session/restore already follows), so the frontend can
- * mint the session id at send time and persist the user's message under it
- * before the turn finishes.
- */
-function resolveChatSession(
-  sessionId: string | undefined,
-  profile: UserProfile | undefined,
-  language: ReplyLanguage | undefined,
-): AgentContext {
-  const existing = touchSession(sessionId);
-  if (existing) {
-    if (profile) existing.profile = { ...existing.profile, ...profile };
-    if (language) existing.language = language;
-    return existing;
-  }
-  const created = createSession(profile ?? {}, language ?? 'auto');
-  if (sessionId?.trim()) created.sessionId = sessionId;
-  putSession(created);
-  return created;
 }
 
 /**
@@ -171,6 +106,111 @@ export function createApp(options: AppOptions = {}) {
   const llmModel = options.llmModel ?? (process.env.LLM_MODEL?.trim() || 'gpt-4o-mini');
   const distDir = options.frontendDist ?? frontendDist;
   const app = express();
+
+  /**
+   * P359 — per-instance session cache backed by JSON shards on disk. The
+   * Map lives inside createApp on purpose: a second app instance in the
+   * same process starts with an empty cache and must rehydrate from the
+   * same shards a fresh process would read, so "new instance" is exactly
+   * "restart". Every mutation path below ends in save(); every eviction
+   * or delete drops the shard too, keeping disk and memory in lockstep.
+   */
+  const sessions = new Map<string, SessionEntry>();
+  const sessionStore = new SessionStore();
+
+  /** Drop sessions that have been idle past the TTL. Cheap: at most MAX_SESSIONS entries. */
+  function evictIdleSessions(now = Date.now()): void {
+    for (const [id, entry] of sessions) {
+      if (now - entry.lastActiveAt > SESSION_IDLE_TTL_MS) {
+        sessions.delete(id);
+        sessionStore.delete(id);
+      }
+    }
+  }
+
+  /** Keep the store bounded by dropping the least recently active sessions first. */
+  function enforceSessionCap(): void {
+    if (sessions.size <= MAX_SESSIONS) return;
+    const oldestFirst = [...sessions.entries()].sort(
+      (a, b) => a[1].lastActiveAt - b[1].lastActiveAt,
+    );
+    for (const [id] of oldestFirst) {
+      if (sessions.size <= MAX_SESSIONS) break;
+      sessions.delete(id);
+      sessionStore.delete(id);
+    }
+  }
+
+  /** Persist one entry's current state to its shard (atomic write). */
+  function persistEntry(entry: SessionEntry): void {
+    sessionStore.save(entry.context, entry.lastActiveAt);
+  }
+
+  /** Persist whatever the cache currently holds for this context's id —
+   * falls back to a fresh timestamp when the entry is not cached. */
+  function persistContext(context: AgentContext): void {
+    const entry = sessions.get(context.sessionId);
+    sessionStore.save(context, entry?.lastActiveAt ?? Date.now());
+  }
+
+  /** Insert or refresh a session, persist it, then trim the store to its cap. */
+  function putSession(context: AgentContext, now = Date.now()): void {
+    evictIdleSessions(now);
+    const entry: SessionEntry = { context, lastActiveAt: now };
+    sessions.set(context.sessionId, entry);
+    persistEntry(entry);
+    enforceSessionCap();
+  }
+
+  /**
+   * Read a session and mark it active. On a cache miss the shard is loaded
+   * lazily — that is the restart path. Returns undefined when missing or
+   * expired; an expired shard is dropped like an in-memory eviction.
+   */
+  function touchSession(id: string | undefined, now = Date.now()): AgentContext | undefined {
+    if (!id) return undefined;
+    let entry = sessions.get(id);
+    if (!entry) {
+      const stored = sessionStore.load(id);
+      if (!stored) return undefined;
+      entry = { context: stored.context, lastActiveAt: stored.lastActiveAt };
+      sessions.set(id, entry);
+    }
+    if (now - entry.lastActiveAt > SESSION_IDLE_TTL_MS) {
+      sessions.delete(id);
+      sessionStore.delete(id);
+      return undefined;
+    }
+    entry.lastActiveAt = now;
+    persistEntry(entry);
+    return entry.context;
+  }
+
+  /**
+   * Resolve the session for one chat turn. A pinned `language` sticks to the
+   * session so later turns keep the same reply language without resending it.
+   * P253: an unknown but client-issued sessionId is adopted (the same
+   * convention /api/session/restore already follows), so the frontend can
+   * mint the session id at send time and persist the user's message under it
+   * before the turn finishes.
+   */
+  function resolveChatSession(
+    sessionId: string | undefined,
+    profile: UserProfile | undefined,
+    language: ReplyLanguage | undefined,
+  ): AgentContext {
+    const existing = touchSession(sessionId);
+    if (existing) {
+      if (profile) existing.profile = { ...existing.profile, ...profile };
+      if (language) existing.language = language;
+      return existing;
+    }
+    const created = createSession(profile ?? {}, language ?? 'auto');
+    if (sessionId?.trim()) created.sessionId = sessionId;
+    putSession(created);
+    return created;
+  }
+
   // P170: same-origin CORS. Reflect the Origin only when it matches the host
   // the request arrived on (Host or X-Forwarded-Host); foreign origins get no
   // Access-Control-* headers, so browsers block cross-site calls to /api/*.
@@ -366,9 +406,12 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.delete('/api/session/:id', (req, res) => {
-    // Deleting must not count as activity, so touch the map directly.
-    const deleted = sessions.delete(req.params.id);
-    res.json({ deleted });
+    // Deleting must not count as activity, so touch the map directly. The
+    // shard goes with it — a session dropped before its shard was ever
+    // rehydrated still reports deleted.
+    const inMemory = sessions.delete(req.params.id);
+    const onDisk = sessionStore.delete(req.params.id);
+    res.json({ deleted: inMemory || onDisk });
   });
 
   app.get('/api/session/:id', (req, res) => {
@@ -405,6 +448,7 @@ export function createApp(options: AppOptions = {}) {
         .status(404)
         .json(errorBody(res, 'Memory fact not found', { deleted: false }));
     }
+    persistContext(session);
     res.json({ deleted: true });
   });
 
@@ -471,9 +515,13 @@ export function createApp(options: AppOptions = {}) {
         meta.tokens !== undefined
           ? { ...meta, latencyMs: Date.now() - startedAt }
           : undefined;
+      persistContext(session);
       res.json({ sessionId: session.sessionId, reply: content, language: session.language ?? 'auto', meta: replyMeta, memory: sessionMemory(session) });
     } catch (err) {
       usageMetrics.recordChat(Date.now() - startedAt, false);
+      // The user's turn already mutated the session memory — persist that
+      // even though the reply never landed.
+      persistContext(session);
       const msg = err instanceof Error ? err.message : String(err);
       // P166: an upstream deadline is a 504 Gateway Timeout, not a server bug.
       res.status(err instanceof LLMTimeoutError ? 504 : 500).json(errorBody(res, msg));
@@ -586,6 +634,9 @@ export function createApp(options: AppOptions = {}) {
       }
     }
     stopKeepalive();
+    // Whatever the turn left behind — history on success, just the new
+    // memory facts on an abort or error — is now on disk.
+    persistContext(session);
 
     // Aborted turns are not success samples: skip them and leave the dead
     // socket alone (no res.end on a closed connection).

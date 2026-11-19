@@ -248,6 +248,10 @@ export default function App() {
   const jsonExportTimer = useRef<number | null>(null);
   // P11: top banner for outage-class failures (network error or HTTP 5xx).
   const [serviceDownBanner, setServiceDownBanner] = useState(false);
+  // P359: the session id the browser holds is gone server-side (restart /
+  // expiry before the P359 shards). A dismissible one-line notice tells the
+  // user instead of silently re-pinning and pretending nothing happened.
+  const [sessionLostNotice, setSessionLostNotice] = useState(false);
   // P17: single-slot error toast — a fresh failure replaces it and restarts
   // the 8 s auto-dismiss window.
   const [errorToast, setErrorToast] = useState<ErrorToastState | null>(null);
@@ -345,9 +349,13 @@ export default function App() {
     const { activeSessionId, sessions } = loadChatState();
     const session = sessions.find((s) => s.id === activeSessionId);
     if (session && session.messages.length > 0) {
-      syncSessionWithBackend(session.id, session.messages, loadProfile()).finally(() => {
-        setRestoringSession(false);
-      });
+      syncSessionWithBackend(session.id, session.messages, loadProfile())
+        .then((result) => {
+          if (result === 'missing') setSessionLostNotice(true);
+        })
+        .finally(() => {
+          setRestoringSession(false);
+        });
     } else {
       setRestoringSession(false);
     }
@@ -1336,6 +1344,7 @@ export default function App() {
   const handleNewChat = () => {
     abortRef.current?.abort();
     toastCtl.dismiss();
+    setSessionLostNotice(false);
     setMessages([]);
     setSessionId(null);
     setLoading(false);
@@ -1357,9 +1366,14 @@ export default function App() {
     setMessages(session.messages);
     setActiveSessionId(session.id);
     setLoading(false);
-    syncSessionWithBackend(session.id, session.messages, profile).finally(() => {
-      setRestoringSession(false);
-    });
+    setSessionLostNotice(false);
+    syncSessionWithBackend(session.id, session.messages, profile)
+      .then((result) => {
+        if (result === 'missing') setSessionLostNotice(true);
+      })
+      .finally(() => {
+        setRestoringSession(false);
+      });
     closeSidebar();
   };
 
@@ -1515,6 +1529,7 @@ export default function App() {
         abortRef.current?.abort();
         toastCtl.dismiss();
         setServiceDownBanner(false);
+        setSessionLostNotice(false);
         setMessages([]);
         setSessionId(null);
         setLoading(false);
@@ -2048,6 +2063,20 @@ export default function App() {
           onRetry={handleServiceRetry}
           onDismiss={() => setServiceDownBanner(false)}
         />
+        {sessionLostNotice && (
+          <div className="session-lost-notice" role="status">
+            <span className="session-lost-notice-text">上次的对话未保存</span>
+            <button
+              type="button"
+              className="session-lost-notice-close"
+              aria-label="关闭提示"
+              title="关闭提示"
+              onClick={() => setSessionLostNotice(false)}
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          </div>
+        )}
         <ChatWindow
           ref={chatWindowRef}
           messages={messages}
