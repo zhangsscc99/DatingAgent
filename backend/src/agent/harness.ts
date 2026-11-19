@@ -51,6 +51,13 @@ export const CLOSING_VARIETY_RULE =
   '用户情绪脆弱或焦虑时，收尾优先给一条可以直接做的动作，而不是再抛一个问题；' +
   '不要把提问当成每条回复的固定结尾。不使用 emoji，不要在回复中提及或复述这些要求。';
 
+export const STANCE_HOLD_RULE =
+  '不被辱骂改变判断：当用户人身攻击、辱骂或施压（「你有病吧」「你是不是傻」「滚」「凭什么」等）时，' +
+  '不要道歉、不要认错、不要用「你说得对」「抱歉」「这不是你的问题」开头，也不要把责任 100% 推给对方；' +
+  '先用一句不卑不亢的话把情绪降下来，再平静地保留你原本的判断（包括用户自己那一小部分责任，只说一次），' +
+  '并且始终给出恰好一句可以直接照抄发出去的话，用「…」或中文引号包裹、不少于 6 个字。' +
+  '被骂不等于被推翻：观点只因为论据改变，不因为对方骂人而改变。';
+
 export const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感的 AI 恋爱关系顾问。
 
 你的职责：
@@ -71,6 +78,7 @@ export const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有�
 - 话术类提问先给原话：当用户问「怎么回」「怎么接」「要不要发」「该不该回」这类要一句回复话术的问题时，第一段必须是一句可直接发送的原话（用引号包裹），随后最多 2 句理由，最多再给 1 句备选原话；禁止「选项一」「选项二」「解析：」「避坑指南」这类手册化标签，不用 emoji 小标题、不设编号小节；总长控制在约 200 字以内。用户明确要求「多给几种」或「详细」时不受此限。
 - ${PROFILE_EXAMPLE_FIRST_RULE}
 - ${CLOSING_VARIETY_RULE}
+- ${STANCE_HOLD_RULE}
 - 当需要专业分析时，主动调用工具；但日常闲聊、情绪倾诉或一般问答不要为了调用而调用工具——直接回复即可，只有用户明确提出分析资料、规划约会、评估匹配或要聊天话术时才调用。
 
 用户资料：{{profile}}`;
@@ -282,6 +290,60 @@ export function buildProfileIntentDirective(userMessage: string): string {
 }
 
 /**
+ * P365 — a personal insult (「你有病吧？凭什么让我低头？」) made the advisor
+ * abandon its stance: 「你说得对…我刚才那句建议确实不妥，抱歉…这不是你的
+ * 问题。」 — an apology for a mistake it never made, 100% of the blame moved
+ * onto the other person, and no line the user could actually send. The
+ * SYSTEM_PROMPT clause alone was too far from the last thing the model reads,
+ * so an abusive turn also gets a tail directive, and a reply that still caves
+ * in is retried once.
+ */
+export const ABUSIVE_INPUT_PATTERN =
+  /你有病|有病吧|你是不是傻|傻子|弱智|智障|脑残|滚吧|滚开|给我滚|(?:^|[，。！？；、\s])滚(?:$|[，。！？；、\s])|闭嘴|废话少|垃圾|废物|神经病|你懂个屁|别装了|少来这套/i;
+
+/** True when the user's message attacks the advisor personally rather than the situation. */
+export function isAbusiveMessage(text: string): boolean {
+  return ABUSIVE_INPUT_PATTERN.test(text);
+}
+
+/** A quoted, copy-ready line: 「…」or “…” with at least 6 characters inside. */
+const QUOTABLE_LINE_PATTERN = /[「“][^「」“”]{6,}[」”]/;
+
+export function hasQuotableLine(text: string): boolean {
+  return QUOTABLE_LINE_PATTERN.test(text);
+}
+
+/** The sycophancy signature: apology or total absolution of the user. */
+const STANCE_CAVE_PATTERN = /你说得对|抱歉|对不起|不好意思|这不是你的问题|你没有任何义务/;
+
+/**
+ * P365 — a reply to an insult that either caves in （apology / absolution）
+ * or leaves the user without a single sendable line.
+ */
+export function violatesStance(text: string): boolean {
+  if (STANCE_CAVE_PATTERN.test(text)) return true;
+  return !hasQuotableLine(text);
+}
+
+/** Per-turn tail directive for abusive input: state the shape, then hold it. */
+export const STANCE_TURN_DIRECTIVE =
+  '本轮用户在对顾问进行人身攻击或施压：先用一句不卑不亢的话承接情绪，' +
+  '不要道歉、不要认错、不要把责任全推给对方，保留你原本的判断（含用户自己那一小部分责任，只说一次），' +
+  '最后给出恰好一句可以直接照抄发给对方的话，用「…」包裹、不少于 6 个字。' +
+  '直接照做，不要在回复中提及或复述这些要求。';
+
+export function buildStanceDirective(userMessage: string): string {
+  return isAbusiveMessage(userMessage) ? '\n\n本轮约束：' + STANCE_TURN_DIRECTIVE : '';
+}
+
+/** P365 — sharpened directive for the single server-side stance retry. */
+const STANCE_RETRY_DIRECTIVE =
+  '你刚才的回复对用户的辱骂让步了：道歉、认错，或者把责任全推给对方，' +
+  '并且没有给出可以直接照抄发送的一句话。重写：不道歉、不认错，平静保留你的判断，' +
+  '并用「…」包裹给出恰好一句可直接发送的话（不少于 6 个字）。' +
+  '直接照做，不要在回复中提及或复述这些要求。';
+
+/**
  * P284 — 「换一个」 used to re-ask the identical question blind, so the model
  * happily shrank or repeated its answer (measured: 8 regens converging on one
  * fixed 40-char sentence). The regenerate request carries the last versions
@@ -327,6 +389,7 @@ export class AgentHarness {
           buildSystemPrompt(context.profile, context.language ?? 'auto', replyLength) +
           buildFocusDirective(context.conversationHistory, userMessage) +
           buildProfileIntentDirective(userMessage) +
+          buildStanceDirective(userMessage) +
           buildStarterIntentDirective(intent, context.conversationHistory.length) +
           buildAvoidRepeatDirective(previousReplies ?? []),
       },
@@ -348,6 +411,8 @@ export class AgentHarness {
     // P284: a regenerate that still echoes a shown version is retried once —
     // the flag keeps a stubbornly repeating model from looping forever.
     let dedupeRetried = false;
+    // P365: one stance retry when an abusive turn still caves in.
+    let stanceRetried = false;
 
     yield { type: 'thinking', data: { message: '正在思考…' } };
 
@@ -556,6 +621,16 @@ export class AgentHarness {
         dedupeRetried = true;
         messages.push({ role: 'system', content: REGEN_DUPLICATE_RETRY_DIRECTIVE });
         yield { type: 'thinking', data: { message: '正在换一个说法…' } };
+        continue;
+      }
+
+      // P365: an insult that still produced an apology, total absolution, or
+      // no sendable line gets exactly one re-ask with the stance rule pinned
+      // to the tail of the conversation.
+      if (!stanceRetried && isAbusiveMessage(userMessage) && violatesStance(finalContent)) {
+        stanceRetried = true;
+        messages.push({ role: 'system', content: STANCE_RETRY_DIRECTIVE });
+        yield { type: 'thinking', data: { message: '正在重写这一条…' } };
         continue;
       }
 

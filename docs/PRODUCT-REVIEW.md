@@ -3144,6 +3144,7 @@ step10 | 桌面搜索空态 d3 | 清晰度 4/5 | 层级 4/5   | 排版问题: �
 | 2026-11-19 04:35 | P349 | devin swe-2-high 报 `Reached free model rate limit`（05:01 UTC 复位，本小时额度已被 04:03 中断的尝试用尽） | Hermes 调度器（opencode-go / deepseek-v4.1-flash） | 完成并验收：1559 例全绿、ci-deploy 退出 0、390×844 与 1440×900 实测胶囊 32px |
 | 2026-11-19 04:55 | P350 | devin swe-2-high 报 `Reached free model rate limit`（reset in 4 minutes / 05:01 UTC） | Hermes 调度器（opencode-go / deepseek-v4.1-flash） | 完成并验收：1565 例全绿、ci-deploy 退出 0、实测 390×844 coarse 指针下首屏「点发送即可开始。」、1440×900 仍「回车发送即可开始。」 |
 | 2026-11-19 09:36 | P361 | devin swe-2-high 报 `Reached free model rate limit`（reset in 23 minutes / 10:01 UTC），中断时已留下新测试文件 `frontend/test/sidebar-controls-consistency.test.ts`（4 例红） | Hermes 调度器（opencode-go / deepseek-v4.1-flash），沿用 devin 同一工作区与测试 | 完成并验收：入口统一 data-control="row" + 10px/12px/44px/共享半径，dashed 归零；209 文件 1645 例全绿、ci-deploy 退出 0、真机 390×844 七个入口实测同盒、关闭键 box-shadow none |
+| 2026-11-19 10:49 | P365 | devin swe-2-high 首次派活即报 `Reached free model rate limit`（reset in 7 minutes / 11:01 UTC） | Hermes 调度器（opencode-go / deepseek-v4.1-flash） | 完成并验收：SYSTEM_PROMPT 增 STANCE_HOLD_RULE + 攻击性输入本轮尾约束 + 谄媚回复服务端重写 1 次；新增 `backend/test/reply-stance.test.ts` 17 例 2 连绿，backend 全套 301 例绿，`tsc -p backend` 干净，ci-deploy 退出 0 |
 
 ## Round 96 — 2026-11-19 04:29–05:02 UTC（真实用户走查，dating，干净 context，390×844 + 1440×900，HEAD 5a84813，dist 04:06）
 
