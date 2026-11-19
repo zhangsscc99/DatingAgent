@@ -284,18 +284,24 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
           </svg>
         </div>
       )}
-      <div
-        className={`bubble ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}${searchHit ? ' search-match' : ''}`}
-        data-search-match={searchHit ? 'true' : undefined}
-      >
-        {message.toolEvents && message.toolEvents.length > 0 && (
-          <div className="tool-events">
+      <div className={`bubble-col ${isUser ? 'user' : 'assistant'}`}>
+        {/* P370: the tool/intent chips are action feedback, not reply text —
+            rendered inside the bubble they made the bubble's innerText begin
+            with a UI label (「排约会\n✓」) on every tool-using reply; as a
+            strip above the bubble they stay visible without polluting the
+            reply's first line. */}
+        {!isUser && message.toolEvents && message.toolEvents.length > 0 && (
+          <div className="tool-events" data-role="intent-chip">
             {message.toolEvents.map((t, i) => (
               <ToolBadge key={`${t.name}-${i}`} event={t} />
             ))}
           </div>
         )}
-        <div className="bubble-content">
+        <div
+          className={`bubble ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}${searchHit ? ' search-match' : ''}`}
+          data-search-match={searchHit ? 'true' : undefined}
+        >
+          <div className="bubble-content">
           {isUser ? (
             highlightQuery ? (
               highlightSegments(message.content, highlightQuery).map((segment, i) =>
@@ -522,6 +528,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
           </div>
         )}
         {!(canCopy || showRegenButton) && replyMeta}
+        </div>
       </div>
     </div>
   );

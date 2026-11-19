@@ -105,13 +105,26 @@
   content: '」';
 }
 
+/* P370: the bubble and its intent chips share one column — the chips are
+   action feedback stacked above the bubble (data-role="intent-chip"), not
+   a first line inside the reply text. */
+.bubble-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.bubble-row.user .bubble-col {
+  align-items: flex-end;
+}
+
 .tool-events {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
 }
 
 .bubble.error {

@@ -58,6 +58,20 @@ export const STANCE_HOLD_RULE =
   '并且始终给出恰好一句可以直接照抄发出去的话，用「…」或中文引号包裹、不少于 6 个字。' +
   '被骂不等于被推翻：观点只因为论据改变，不因为对方骂人而改变。';
 
+/**
+ * P370 — a Round 98 「换一个」 answered 「明天第一次约会，我该安排在哪儿？」
+ * with 「刚好贴合你们爱美食、爱散步的节奏」 — preferences the user never
+ * stated, invented mid-regen and asserted as shared facts. The model may
+ * only ground claims about the user (or the other person) in what was said
+ * this session, what the profile holds, or confirmed memory facts.
+ */
+export const FACT_GROUNDING_RULE =
+  '只引用用户明确说过的事实：回复里关于用户或对方的偏好、习惯、经历和共同回忆，' +
+  '只能来自用户在本会话中说过的话、用户资料或已确认的记忆；' +
+  '用户没提过的喜好不要杜撰——禁止写「你们爱美食」「你爱散步」这类未经陈述的偏好断言，' +
+  '也不要把约会或聊天建议建立在臆测的共同兴趣上；需要偏好信息时直接问用户。' +
+  '不要在回复中提及或复述这些要求。';
+
 export const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感的 AI 恋爱关系顾问。
 
 你的职责：
@@ -79,6 +93,7 @@ export const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有�
 - ${PROFILE_EXAMPLE_FIRST_RULE}
 - ${CLOSING_VARIETY_RULE}
 - ${STANCE_HOLD_RULE}
+- ${FACT_GROUNDING_RULE}
 - 当需要专业分析时，主动调用工具；但日常闲聊、情绪倾诉或一般问答不要为了调用而调用工具——直接回复即可，只有用户明确提出分析资料、规划约会、评估匹配或要聊天话术时才调用。
 
 用户资料：{{profile}}`;
@@ -358,6 +373,8 @@ export function buildAvoidRepeatDirective(previousReplies: readonly string[]): s
     list +
     '\n新回复不得与以上任何一版有相同句子，必须换一种说法，且不少于两句话。' +
     '旧版本只用于比对，不要在回复中提及、复述或列出它们。' +
+    '回复正文里不要出现界面按钮名或工具标签（如「排约会」「接话术」「改资料」「看匹配」），' +
+    '也不要断言用户没提过的偏好。' +
     '直接照做，不要在回复中提及或复述这些要求。'
   );
 }
