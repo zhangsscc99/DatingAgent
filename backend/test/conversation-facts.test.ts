@@ -86,6 +86,8 @@ describe('P323 · the Round-88 reagent — four turns that mostly matched nothin
    * 「明天第一次约会，穿什么」 and 「要不要提前到」 matched neither the
    * lexicon nor a pattern, so the session memory froze at one item. The
    * clause fallback now admits one anchored fact per unmatched turn.
+   * P387: the deliberation 「要不要提前到」 is a question, not a fact —
+   * the hard interrogative gate drops it outright.
    */
   const fourTurns = [
     { role: 'user' as const, content: '她三天没回我' },
@@ -105,7 +107,6 @@ describe('P323 · the Round-88 reagent — four turns that mostly matched nothin
       '三天没回',
       '一直是我主动',
       '明天第一次约会',
-      '要不要提前到',
     ]);
   });
 
@@ -184,18 +185,20 @@ describe('P313 · /api/chat memory payload across three turns', () => {
     expect(second.memory!.count).toBe(first.memory!.count);
   });
 
-  it('P323 — four turns report >= 3 memories with no duplicates', async () => {
+  it('P323 — four turns report >= 2 declarative memories, the deliberation stores nothing (P387)', async () => {
     const first = await postChat('她三天没回我');
     await postChat('一直是我主动', first.sessionId);
     await postChat('明天第一次约会，穿什么', first.sessionId);
     const fourth = await postChat('要不要提前到', first.sessionId);
     expect(fourth.memory).toBeDefined();
-    expect(fourth.memory!.count).toBeGreaterThanOrEqual(3);
+    expect(fourth.memory!.count).toBeGreaterThanOrEqual(2);
     expect(new Set(fourth.memory!.items).size).toBe(fourth.memory!.items.length);
     const joined = fourth.memory!.items.join('；');
-    const hits = ['三天没回', '一直是我主动', '明天第一次约会', '要不要提前到'].filter(
+    const hits = ['三天没回', '一直是我主动', '明天第一次约会'].filter(
       (k) => joined.includes(k),
     );
-    expect(hits.length).toBeGreaterThanOrEqual(3);
+    expect(hits.length).toBeGreaterThanOrEqual(2);
+    // The deliberation turn contributes nothing — a question is not a fact.
+    expect(joined).not.toContain('要不要');
   });
 });

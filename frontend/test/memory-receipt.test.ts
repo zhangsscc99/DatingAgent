@@ -439,13 +439,14 @@ describe('P323 · the Round-88 reagent — four turns, three remembered facts', 
     expect(line!.split('；').length).toBeGreaterThanOrEqual(3);
   });
 
-  it('every unmatched turn still contributes exactly one clause fact', () => {
+  it('every unmatched non-question turn still contributes exactly one clause fact', () => {
+    // P387: the deliberation 「要不要提前到」 is dropped by the hard
+    // interrogative gate — a question is never a durable fact.
     const items = conversationFactItems(p323Turns, 10);
     expect(items).toEqual([
       '三天没回',
       '一直是我主动',
       '明天第一次约会',
-      '要不要提前到',
     ]);
   });
 

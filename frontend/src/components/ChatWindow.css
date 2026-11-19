@@ -130,6 +130,24 @@
   transform: rotate(180deg);
 }
 
+/* P387 — when every candidate was a question there is nothing worth
+ * remembering; a quiet non-interactive capsule says so plainly instead
+ * of rendering a restated question. Same quiet-pill shape as
+ * .memory-capsule, one notch dimmer and without the pointer affordance. */
+.memory-empty {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
 /* Click-expanded management list — one row per remembered item, each
  * with its own delete control. */
 .memory-panel {

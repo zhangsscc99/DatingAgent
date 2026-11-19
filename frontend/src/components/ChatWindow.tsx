@@ -278,6 +278,9 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const capsuleTitle = normalizeFactText(sessionTitle ?? '');
   const seenCapsuleLabels = new Set<string>();
   const capsuleRows = visibleRows.filter((row) => {
+    // P387: a fact text that still carries a question mark is the user's
+    // question restated — it never renders as a pill.
+    if (/[?？]/.test(row.label)) return false;
     const label = normalizeFactText(row.label);
     if (label.length === 0) return false;
     if (capsuleTitle.length > 0 && label === capsuleTitle) return false;
@@ -287,6 +290,15 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   });
   const capsuleFacts = capsuleRows.slice(0, MEMORY_RECEIPT_MAX_ITEMS);
   const hiddenFactCount = capsuleRows.length - capsuleFacts.length;
+  // P387: with the server-held memory loaded and every candidate filtered
+  // out (questions are never facts), the capsule admits it holds nothing
+  // instead of rendering a degenerate/partial list. The pre-P339 local
+  // derivation (memory === undefined) keeps its quiet no-receipt behaviour.
+  const showEmptyMemory =
+    memory !== undefined &&
+    !restoring &&
+    messages.some((m) => m.role === 'user') &&
+    capsuleRows.length === 0;
   const handleDismissFact = (item: string) => {
     setDismissedFacts(dismissReceiptItem(item));
     setMemoryUndoItem(item);
@@ -678,8 +690,11 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
 
   return (
     <div className="chat-window">
-      {capsuleRows.length > 0 && (
+      {(capsuleRows.length > 0 || showEmptyMemory) && (
         <div className="memory-receipt" role="status">
+          {showEmptyMemory ? (
+            <span className="memory-empty">暂无可记住的信息</span>
+          ) : (
           <div className="memory-capsule-wrap">
             <button
               type="button"
@@ -768,6 +783,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
               </div>
             )}
           </div>
+          )}
         </div>
       )}
       <div className="messages-wrap">

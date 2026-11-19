@@ -141,44 +141,46 @@ function inferSubject(
   return `我${body}`;
 }
 
-/** Time anchors that pin an undecided plan to a when. */
-const UNDECIDED_TIME = /(今天|明天|后天|今晚|明晚|周末|下周|这周)/;
-
-/** The choice a plan question asks about, kept as the fact's tail. */
-const UNDECIDED_FOCUS =
-  /(穿什么|穿啥|怎么穿|带什么|带啥|送什么|送啥|买什么|买啥|吃什么|喝什么|说什么|说啥|聊什么|做什么|选什么|写什么|去哪儿|去哪|在哪儿|在哪里|到哪里|怎么去|怎么回|什么时候|几点|怎么约|怎么安排|怎么办)/;
-
 /**
- * P382 — a plan question whose declarative core clipped too short to
- * stand alone still names a real fact: the user has an undecided plan.
- * 「我明天穿什么去见面比较不尴尬？」 reads back as 「我明天还没定穿
- * 什么」 — a statement about the user, never the question restated.
- * Requires a time anchor: a choice with no when is too vague to store.
+ * P387 — hard interrogative rejection: a question the user asked is not
+ * a fact about them. Four walkthrough rounds kept restating the user's
+ * own question as a stored fact (「我明天直接当面质问她行不行」), so a
+ * candidate is now dropped completely — never paraphrased, prefer
+ * missing over wrong — when it
+ *   - carries a question mark, or
+ *   - contains a question/deliberation marker (吗 / 呢 / 行不行 /
+ *     要不要 / 该不该 / 怎么 / 哪儿 / 哪里 / 什么 / 是不是 / 能不能 /
+ *     可不可以), or
+ *   - sits inside a clause that was uttered as a question: the first
+ *     clause boundary after the candidate's offset is ?/？, so a
+ *     marker-less question (「我们明天几点见面？」) still dies here.
  */
-function undecidedFact(text: string): string | null {
-  const time = UNDECIDED_TIME.exec(text)?.[1];
-  const focus = UNDECIDED_FOCUS.exec(text)?.[1];
-  if (!time || !focus) return null;
-  const tail = focus.replace(/[?？!！。…]+$/, '').replace(/[儿里]$/, '');
-  const fact = `我${time}还没定${tail}`;
-  return isStandaloneFact(fact) ? fact : null;
+const FACT_INTERROGATIVE =
+  /[?？]|吗|呢|行不行|要不要|该不该|怎么|哪儿|哪里|什么|是不是|能不能|可不可以/;
+
+const FACT_CLAUSE_BOUNDARY = /[，。！？；、,.!?;\n]/;
+
+function isInterrogativeCandidate(
+  raw: string,
+  source: string,
+  index: number,
+): boolean {
+  if (FACT_INTERROGATIVE.test(raw)) return true;
+  const boundary = FACT_CLAUSE_BOUNDARY.exec(source.slice(index));
+  return boundary !== null && (boundary[0] === '？' || boundary[0] === '?');
 }
 
 /**
- * Shape one candidate into a storable fact: question text loses its
- * question mark first, the subject moves up front, then the standalone
- * gates decide. A candidate that only survives as an undecided plan is
- * rewritten (「我明天还没定穿什么」); one that survives neither way is
- * dropped. Returns null when nothing readable remains.
+ * Shape one candidate into a storable fact: question-shaped candidates
+ * are dropped outright (P387), the subject moves up front, then the
+ * standalone gates decide. Returns null when nothing readable remains.
  */
 function shapeFact(raw: string, source: string, index: number): string | null {
+  if (isInterrogativeCandidate(raw, source, index)) return null;
   const cored = declarativeCore(raw);
-  if (cored !== null) {
-    const fact = clip(inferSubject(cored, source, index, cored !== raw));
-    if (isStandaloneFact(fact)) return fact;
-  }
-  const pending = undecidedFact(raw);
-  return pending === null ? null : clip(pending);
+  if (cored === null) return null;
+  const fact = clip(inferSubject(cored, source, index, cored !== raw));
+  return isStandaloneFact(fact) ? fact : null;
 }
 
 /** Clause boundaries: CJK and ASCII punctuation plus newlines. */

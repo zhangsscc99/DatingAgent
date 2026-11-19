@@ -67,9 +67,6 @@ export const CONVERSATION_FACT_PATTERNS: readonly RegExp[] = [
   // 「想约」「想带」 are excluded on purpose: the lexicon and the 「带…」
   // pattern above already name those facts with cleaner labels.
   /想(?:问|邀|请|见|送|表白|复合|确认|知道)[^，。！？!?；;：:、\s]{0,10}/g,
-  // 要不要再发一条 / 要不要主动一点 — an open deliberation. Narrow
-  // second char keeps 「要不要约出来」「要不要一起去」 out.
-  /要不要(?:再|补|继续|主动|直接|先)[^，。！？!?；;：:、\s]{0,8}/g,
 ];
 
 /**
@@ -104,8 +101,18 @@ const CONVERSATION_FACT_FILLER: readonly string[] = [
  * P376 — a clause carrying a question word is the user's question, not a
  * fact about the user (「第一次约会安排在哪儿比较好」); the clause
  * fallback must never name it. Twin of memory-extract.ts QUESTION_MARK.
+ * P387 widens it into the same hard rejection the extraction layer
+ * applies: deliberation markers (行不行/要不要/该不该/是不是/能不能/
+ * 可不可以) make the candidate a question, never a fact.
  */
-const CONVERSATION_FACT_QUESTION = /哪儿|哪里|怎么|怎样|如何|为什么|为啥|什么|吗|呢|哪/;
+const CONVERSATION_FACT_QUESTION =
+  /哪儿|哪里|怎么|怎样|如何|为什么|为啥|什么|吗|呢|哪|行不行|要不要|该不该|是不是|能不能|可不可以/;
+
+/** P387 — a candidate whose clause was uttered as a question is dropped. */
+function clauseEndsAsQuestion(text: string, index: number): boolean {
+  const boundary = /[，。！？；、,.!?;\n]/.exec(text.slice(index));
+  return boundary !== null && (boundary[0] === '？' || boundary[0] === '?');
+}
 
 /** Clause boundaries for the P323 fallback split. */
 const CONVERSATION_FACT_CLAUSE = /[^，。！？；、,.!?;\n]+/g;
@@ -190,6 +197,10 @@ export function conversationFactItems(
       if (items.length >= maxItems) break;
       const key = candidate.label.toLowerCase();
       if (seen.has(key)) continue;
+      // P387 — a candidate that is itself a question, or whose clause was
+      // uttered as one, is dropped completely; prefer missing over wrong.
+      if (CONVERSATION_FACT_QUESTION.test(candidate.label)) continue;
+      if (clauseEndsAsQuestion(text, candidate.index)) continue;
       if (accepted.some(([s, e]) => candidate.index < e && s < candidate.end)) {
         continue;
       }
@@ -216,6 +227,7 @@ export function conversationFactItems(
         if (CONVERSATION_FACT_OPEN_DELIBERATION.test(label)) continue;
         // P376 — a question clause is never a durable fact.
         if (CONVERSATION_FACT_QUESTION.test(label)) continue;
+        if (clauseEndsAsQuestion(text, index)) continue;
         if (!CONVERSATION_FACT_ANCHORS.test(label)) continue;
         if (
           candidates.some((c) => index < c.end && c.index < index + clause[0].length)

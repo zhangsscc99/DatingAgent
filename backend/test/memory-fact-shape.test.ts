@@ -270,27 +270,21 @@ describe('P376 · three rounds keep ≤2 distinct facts and none repeats the tit
  * The contract pinned here: every produced fact is a 「主语 + 状态/
  * 动作」 declarative sentence — it must lead with 她/他/我/我们/对方
  * and may never end on a question shape (吗|呢|哪儿|哪里|怎么). A
- * question is rewritten to its statement (「我明天穿什么去见面比较不
- * 尴尬？」 → 「我明天还没定穿什么」) or dropped; a fact identical to
- * the session title is never stored; stored facts stay pairwise
- * distinct.
+ * fact identical to the session title is never stored; stored facts
+ * stay pairwise distinct.
+ *
+ * P387 supersedes the rewrite path: the paraphrase (「我明天穿什么去
+ * 见面比较不尴尬？」 → 「我明天还没定穿什么」) still left a
+ * deliberation-shaped pill, so question candidates are now dropped
+ * outright — never rewritten. Prefer missing over wrong.
  */
 describe('P382 · facts are subject-led declaratives — questions rewritten or dropped', () => {
   const QUESTION_END = /(吗|呢|哪儿|哪里|怎么)$/;
   const LEADING_SUBJECT = /^(她|他|我|我们|对方)/;
 
-  it('「我明天穿什么去见面比较不尴尬？」 never stores the question verbatim', () => {
+  it('「我明天穿什么去见面比较不尴尬？」 stores nothing — questions are dropped, not rewritten (P387)', () => {
     const facts = extractMemoryFacts('我明天穿什么去见面比较不尴尬？');
-    for (const fact of facts) {
-      expect(fact.text, fact.text).not.toMatch(QUESTION_END);
-      expect(fact.text, fact.text).toMatch(LEADING_SUBJECT);
-    }
-    // The verbatim question text itself is never a fact.
-    expect(
-      facts.some((f) => f.text.includes('我明天穿什么去见面比较不尴尬')),
-    ).toBe(false);
-    // …but the undecided plan inside it still lands as a statement.
-    expect(facts.some((f) => f.text === '我明天还没定穿什么')).toBe(true);
+    expect(facts).toEqual([]);
   });
 
   it('「明天第一次约会我该安排在哪儿」 produces only leading-subject declaratives', () => {
@@ -390,17 +384,9 @@ describe('P382 · a fact identical to the session title is never stored', () => 
     }
   });
 
-  it('a question first message stores only the rewritten statement, never the question', async () => {
+  it('a question first message stores nothing — no rewrite, no question (P387)', async () => {
     const firstMessage = '我明天穿什么去见面比较不尴尬？';
     const first = await postChat(firstMessage);
-    const items = first.memory?.items ?? [];
-    for (const item of items) {
-      // The title keeps the ？ the question carries — the stored fact is
-      // the declarative rewrite, not a restated question.
-      expect(item).not.toMatch(/(吗|呢|哪儿|哪里|怎么)$/);
-      expect(item).toMatch(/^(她|他|我|我们|对方)/);
-      expect(item).not.toContain('不尴尬');
-    }
-    expect(items).toEqual(['我明天还没定穿什么']);
+    expect(first.memory?.items ?? []).toEqual([]);
   });
 });
