@@ -3265,3 +3265,4 @@ step10| 桌面首屏 d1        | 清晰度 4/5 | 层级 4/5 | 排版问题: 无�
 - **P367（P3，visual）** 手机首屏无主 CTA（视觉 3/5，第 5 次同域）。
 - **P368（P3，visual）** 侧栏控件趋同 + 虚线泛滥（第 3 次）。
 - **P369（P1，test）** 侧栏「筛选」「清空」缺可执行的机器断言，导致走查只能靠肉眼判存疑。
+⚠️ 全量 E2E 失败：`first-token-latency.test.ts` › "typing indicator mounts within 300 ms of submit"（elapsed 334ms > 300ms，隔离单文件 2 次全绿 → 墙钟抖动；commit `79ea75d`，2026-11-19T09:27Z，已建阻塞项 DAE2E-20261119）

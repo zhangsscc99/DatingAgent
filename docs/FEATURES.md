@@ -5,6 +5,9 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 
 ## [BLOCKING] 机器验收阻塞项
 
+- [ ] **DAE2E-20261119 · 全量回归不稳定：`first-token-latency.test.ts > P356 typing indicator ... mounts within 300 ms of submit` 墙钟阈值抖动**（全量实测 submit→指示器 334ms vs `toBeLessThan(300)`；单文件隔离连跑 2 次均 3/3 全绿 → 满载并行下的时序脆弱，非功能回归；与 DAE2E-20261118 同类：硬墙钟阈值断言在 4 核满载全量下不可靠）｜verify: `npm test`（失败日志 `/www/hermes-home/cache/scratch/e2e-dating.log`，记录 `docs/runs/e2e-20261119T0927Z.md`）｜risk: high
+  修法方向：把 300ms 预算改成事件驱动（等指示器挂载事件/mutation）或留足余量（如 <1000ms 仍能区分「立即挂载」与「等首 token 才显示」），不要用紧贴真实耗时的硬墙钟。
+
 - [x] **DAE2E-20261118 · 全量回归不稳定：`llm-timeout.test.ts > /api/chat returns 504 JSON with requestId within ~1s when upstream stalls` 墙钟阈值抖动**（实测 elapsed=1021ms vs `toBeLessThan(1000)`，功能断言全通过；单文件隔离 2 次与全量重跑 1 次均 1437/1437 全绿 → 满载并行下的时序脆弱，非功能回归）｜verify: `npm test`（失败日志 `/www/hermes-home/run/fulle2e-dating-20261118T1933Z.log`，重跑证据 `fulle2e-dating-rerun-20261118T1940Z.log`）｜risk: high｜fixed
   修法方向：断言改成带余量（如 <1500ms）或事件驱动（mock 上游 stall + 等待 504 事件），不要用硬 1000ms 墙钟。
 
