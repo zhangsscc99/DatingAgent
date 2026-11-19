@@ -783,6 +783,20 @@
   margin-top: 10px;
 }
 
+/* P384 — the fold must remove the rows' boxes, not just their paint.
+   Chromium keeps unslotted <details> children laid out (44px rects with a
+   live offsetParent) while skipping their paint (innerText ''), so the
+   five rows sat invisibly over ~240px of dead space — a real walkthrough
+   read them as five clickable blanks. A declared display:none drops the
+   boxes entirely; [open] restores the flex list. */
+.tools-details > .tool-list {
+  display: none;
+}
+
+.tools-details[open] > .tool-list {
+  display: flex;
+}
+
 .tools-toggle {
   list-style: none;
   display: flex;

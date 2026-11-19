@@ -318,6 +318,188 @@ function shadowLayers(el: FakeElement, width: number): number {
   return layers;
 }
 
+/* ---------- P384 · painted-surface / laid-out helpers ----------
+ * The density audit above only reads raw declarations. P384's two extra
+ * contracts — the 最近对话 section must paint ≥2 distinguishable
+ * luminances, and a folded 进阶工具 row must own no layout box — need
+ * var() resolution (light-theme :root tokens, mobile overrides below
+ * 768px) and an ancestor walk for inherited paint. */
+
+const INDEX_CSS = readFileSync(join(SRC, 'index.css'), 'utf8');
+const LIGHT_ROOT_BLOCK = /(?:^|\n)\s*:root\s*\{([^}]*)\}/.exec(INDEX_CSS)![1];
+const LIGHT_ROOT_MOBILE =
+  /@media \(max-width: 768px\)\s*\{\s*:root\s*\{([^}]*)\}/.exec(
+    INDEX_CSS,
+  )?.[1] ?? '';
+
+function themeVarsFor(width: number): Map<string, string> {
+  const vars = new Map<string, string>();
+  const src = LIGHT_ROOT_BLOCK + (width <= 768 ? LIGHT_ROOT_MOBILE : '');
+  for (const m of src.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+    vars.set(m[1], m[2].trim());
+  }
+  return vars;
+}
+
+function resolveVars(value: string, vars: Map<string, string>): string {
+  return value.replace(
+    /var\((--[\w-]+)\)/g,
+    (_, name) => vars.get(name) ?? 'unset',
+  );
+}
+
+interface Rgba {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
+
+function parseColor(value: string): Rgba | null {
+  const c = value.trim();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(c);
+  if (hex) {
+    let h = hex[1];
+    if (h.length === 3)
+      h = h
+        .split('')
+        .map((x) => x + x)
+        .join('');
+    const n = parseInt(h, 16);
+    const hasAlpha = h.length === 8;
+    return {
+      r: (n >> (hasAlpha ? 24 : 16)) & 255,
+      g: (n >> (hasAlpha ? 16 : 8)) & 255,
+      b: (n >> (hasAlpha ? 8 : 0)) & 255,
+      a: hasAlpha ? (n & 255) / 255 : 1,
+    };
+  }
+  const fn =
+    /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+%?))?\s*\)/.exec(
+      c,
+    );
+  if (fn) {
+    const a = fn[4] === undefined ? 1 : fn[4].endsWith('%') ? Number(fn[4].slice(0, -1)) / 100 : Number(fn[4]);
+    return { r: Number(fn[1]), g: Number(fn[2]), b: Number(fn[3]), a };
+  }
+  return null;
+}
+
+/** The flat colour an element paints as its OWN background, var()
+ *  resolved — null for 'unset'/'transparent'/'none'/non-colour
+ *  shorthands (gradients, urls, multi-token backgrounds). */
+function ownPaint(
+  el: FakeElement,
+  width: number,
+  vars: Map<string, string>,
+): Rgba | null {
+  for (const prop of ['background-color', 'background']) {
+    const raw = resolveProp(el, prop, width);
+    if (raw === 'unset') continue;
+    const v = resolveVars(raw, vars).trim();
+    if (
+      v === 'unset' ||
+      v === 'transparent' ||
+      v === 'none' ||
+      v === 'initial' ||
+      v === 'inherit'
+    ) {
+      return null;
+    }
+    const single = parseColor(v);
+    if (single) return single;
+    // A shorthand holding more than a colour (image, position, …) paints
+    // no flat fill — only accept it when one bare colour token survives.
+    const tok = v.split(/\s+/).find((t) => parseColor(t) !== null);
+    return tok ? parseColor(tok) : null;
+  }
+  return null;
+}
+
+/** Effective painted surface under `el`: its own fill composited over the
+ *  nearest painted ancestor, so a transparent row reads as the sidebar's
+ *  surface and an --accent-soft card reads as pink-on-white — the same
+ *  luminance a screenshot sees. */
+function effectivePaint(
+  el: FakeElement,
+  width: number,
+  vars: Map<string, string>,
+): [number, number, number] | null {
+  const layers: Rgba[] = [];
+  for (let n: FakeElement | null = el; n; n = n.parentElement) {
+    const p = ownPaint(n, width, vars);
+    if (p) {
+      layers.push(p);
+      if (p.a >= 1) break;
+    }
+  }
+  if (!layers.length) return null;
+  let rgb: [number, number, number] = [layers[0].r, layers[0].g, layers[0].b];
+  let a = layers[0].a;
+  for (let i = 1; i < layers.length && a < 1; i++) {
+    const under = layers[i];
+    rgb = [
+      a * rgb[0] + (1 - a) * under.a * under.r + (1 - a) * (1 - under.a) * 255,
+      a * rgb[1] + (1 - a) * under.a * under.g + (1 - a) * (1 - under.a) * 255,
+      a * rgb[2] + (1 - a) * under.a * under.b + (1 - a) * (1 - under.a) * 255,
+    ];
+    a = a + (1 - a) * under.a;
+  }
+  return rgb;
+}
+
+function lumChannel(v: number): number {
+  return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+/** WCAG relative luminance of a composited rgb triple. */
+function luminance(rgb: [number, number, number]): number {
+  return (
+    0.2126 * lumChannel(rgb[0] / 255) +
+    0.7152 * lumChannel(rgb[1] / 255) +
+    0.0722 * lumChannel(rgb[2] / 255)
+  );
+}
+
+/** P384's "laid out" predicate: the walkthrough counted a row as laid out
+ *  when it had a box (getBoundingClientRect().height > 0). The fake DOM has
+ *  no layout engine, so the equivalent is the resolved display chain — any
+ *  ancestor display:none removes the boxes for the whole subtree. */
+function laidOut(el: FakeElement, width: number, stopAt: FakeElement): boolean {
+  for (let n: FakeElement | null = el; n && n !== stopAt; n = n.parentElement) {
+    if (resolveProp(n, 'display', width) === 'none') return false;
+  }
+  return true;
+}
+
+const INHERITED_PROPS = new Set([
+  'color',
+  'font-size',
+  'font-family',
+  'font-weight',
+  'line-height',
+  'visibility',
+]);
+
+/** Cascade-resolved value with inheritance: the element's own declaration
+ *  wins; inheritable properties fall back up the ancestor chain and the
+ *  result is var()-resolved against the light theme tokens. */
+function cascadeProp(
+  el: FakeElement,
+  prop: string,
+  width: number,
+  vars: Map<string, string>,
+): string {
+  let v = resolveProp(el, prop, width);
+  if (v === 'unset' && INHERITED_PROPS.has(prop)) {
+    for (let n = el.parentElement; n; n = n.parentElement) {
+      v = resolveProp(n, prop, width);
+      if (v !== 'unset') break;
+    }
+  }
+  return v === 'unset' ? v : resolveVars(v, vars);
+}
+
 /* ---------- mounted-DOM harness ---------- */
 
 function mediaQueryForWidth(px: number) {
@@ -512,6 +694,20 @@ describe('P378 · sidebar chrome density — borders, inset filter, one clear-al
             resolveProp(btn!, 'background-color', vp.width) !== 'unset',
           'secondary pill should carry a soft fill',
         ).toBe(true);
+        // P384: secondary means non-primary and non-bare — the fill is a
+        // real painted colour (the walkthrough's defect was
+        // `backgroundColor rgba(0,0,0,0)`) and it is NOT the brand accent.
+        const vars = themeVarsFor(vp.width);
+        const paint = ownPaint(btn!, vp.width, vars);
+        expect(paint, 'clear-all fill must be a real colour').not.toBeNull();
+        expect(paint!.a, 'clear-all fill must not be transparent').toBeGreaterThan(0);
+        const accent = parseColor(resolveVars('var(--accent)', vars))!;
+        const isBrandFill =
+          Math.abs(paint!.r - accent.r) <= 8 &&
+          Math.abs(paint!.g - accent.g) <= 8 &&
+          Math.abs(paint!.b - accent.b) <= 8 &&
+          paint!.a === accent.a;
+        expect(isBrandFill, 'clear-all must not reuse the primary brand fill').toBe(false);
         await unmount();
       });
 
@@ -586,6 +782,117 @@ describe('P378 · sidebar chrome density — borders, inset filter, one clear-al
         expect(resolveProp(list!, 'max-height', vp.width)).toBe('unset');
         expect(resolveProp(list!, 'overflow', vp.width)).toBe('unset');
         expect(resolveProp(list!, 'overflow-y', vp.width)).toBe('unset');
+        await unmount();
+      });
+
+      it('进阶工具 fold: closed rows own no layout box, opened rows carry painted labels', async () => {
+        // P384 reproduce-check — walkthrough 1795109419 (390×844, Chromium):
+        // inside a closed <details> the five rows still had 44px boxes and
+        // a live offsetParent but painted nothing (innerText ''). The fold
+        // is now a declared display:none — zero boxes, not just zero paint —
+        // and an opened row must carry a non-empty, actually-painted label.
+        await mount(vp.width, vp.mobile);
+        const vars = themeVarsFor(vp.width);
+        const aside = qs('.sidebar')!;
+        const details = aside.querySelector(
+          'details.tools-details',
+        ) as FakeElement;
+        const list = details.querySelector('ul.tool-list') as FakeElement;
+        const rows = aside
+          ._walk()
+          .filter(
+            (el) =>
+              el.tagName === 'BUTTON' &&
+              (el.getAttribute('aria-label') ?? '').startsWith('进阶工具：'),
+          );
+        expect(rows.length).toBeGreaterThanOrEqual(TOOL_FALLBACK.length);
+
+        // Folded at rest: the list and every row inside it own no box.
+        expect(resolveProp(list, 'display', vp.width)).toBe('none');
+        for (const row of rows) {
+          expect(
+            laidOut(row, vp.width, aside),
+            `${row.getAttribute('aria-label')} must not lay out while folded`,
+          ).toBe(false);
+        }
+
+        // Opened (the disclosure click adds `open` in a real browser): each
+        // row is laid out AND its label is painted — non-empty text at a
+        // positive font size in an opaque, non-hidden colour, in a flex
+        // slot that can widen past zero.
+        details.setAttribute('open', '');
+        expect(resolveProp(list, 'display', vp.width)).toBe('flex');
+        for (const row of rows) {
+          const name = row.getAttribute('aria-label')!;
+          expect(laidOut(row, vp.width, aside), `${name} laid out`).toBe(true);
+          const label = row.querySelector(
+            '.sidebar-row-label',
+          ) as FakeElement | null;
+          expect(label, `${name} label span`).not.toBeNull();
+          expect(
+            label!.textContent.trim().length,
+            `${name} label text`,
+          ).toBeGreaterThanOrEqual(2);
+          const fontSize = cascadeProp(label!, 'font-size', vp.width, vars);
+          expect(
+            parseFloat(fontSize),
+            `${name} font-size ${fontSize}`,
+          ).toBeGreaterThan(0);
+          const colour = parseColor(
+            cascadeProp(label!, 'color', vp.width, vars),
+          );
+          expect(colour, `${name} colour resolves`).not.toBeNull();
+          expect(colour!.a, `${name} colour opaque`).toBeGreaterThan(0);
+          expect(
+            cascadeProp(label!, 'visibility', vp.width, vars),
+            `${name} visibility`,
+          ).not.toMatch(/hidden|collapse/);
+          // The flex slot grows — the label can never be squeezed to a
+          // zero-width clip while the row itself has width.
+          expect(
+            parseFloat(resolveProp(label!, 'flex', vp.width)),
+            `${name} label flex-grow`,
+          ).toBeGreaterThanOrEqual(1);
+          expect(
+            resolveProp(label!, 'display', vp.width),
+            `${name} label display`,
+          ).not.toBe('none');
+          expect(
+            row.querySelector('.sidebar-icon'),
+            `${name} leading icon`,
+          ).not.toBeNull();
+          expect(
+            row.querySelector('.sidebar-chevron'),
+            `${name} trailing chevron`,
+          ).not.toBeNull();
+        }
+        await unmount();
+      });
+
+      it('最近对话 is not one uniform grey stack: ≥2 distinguishable background luminances', async () => {
+        // P384 verify — white-filled cards vs grey-filled rows must resolve
+        // to at least two painted luminances. Effective paint walks up the
+        // ancestor chain, so a transparent session row counts as the
+        // sidebar's white surface, the clear-all pill as --surface-hover
+        // grey, and the active card as accent-soft pink-on-white.
+        await mount(vp.width, vp.mobile);
+        const vars = themeVarsFor(vp.width);
+        const section = qs('.sidebar')!.querySelector('.recent-chats') as FakeElement;
+        expect(section, 'recent-chats section').not.toBeNull();
+        const luminances = [section, ...section._walk()]
+          .map((el) => effectivePaint(el, vp.width, vars))
+          .filter((rgb): rgb is [number, number, number] => rgb !== null)
+          .map(luminance);
+        expect(luminances.length).toBeGreaterThan(0);
+        const levels = new Set(
+          luminances.map((l) => Math.round(l * 100)),
+        );
+        const spread = Math.max(...luminances) - Math.min(...luminances);
+        expect(
+          levels.size,
+          `luminance levels ${[...levels].sort().join(', ')}`,
+        ).toBeGreaterThanOrEqual(2);
+        expect(spread, `luminance spread ${spread.toFixed(3)}`).toBeGreaterThanOrEqual(0.05);
         await unmount();
       });
     });
