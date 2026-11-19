@@ -36,31 +36,39 @@ const FACT_MAX_CHARS = 20;
 /** A fact shorter than this cannot carry a subject + action/state. */
 const FACT_MIN_CHARS = 6;
 
-/** P366 — a pronoun anywhere in the clause makes its subject explicit. */
-const FACT_SUBJECT = /我|你|她|他|它|ta/i;
+/**
+ * P382 — a stored fact leads with its subject: the 「主语 + 状态/动作」
+ * shape is what separates a remembered fact from a restated fragment.
+ * 「对方」 covers clauses written about the match without a pronoun.
+ */
+const FACT_LEADING_SUBJECT = /^(她|他|我|我们|对方)/;
 
 /**
- * P366 — a leading time/plan anchor lets a subject-free clause still
- * read as a standalone headline fact (「明天第一次约会」); a clause
- * without either is a dangling fragment.
+ * P382 — these endings mark the text as the user's question, not a
+ * statement about them (「…怎么办」「…在哪儿」「…有空吗」); nothing
+ * shaped like that may be stored.
  */
-const FACT_HEADLINE_LEAD =
-  /^(?:今天|明天|后天|昨天|昨晚|周末|下周|这周|今晚|明晚|第[一二两三四五六七八九十0-9]+次)/;
+const FACT_QUESTION_END = /(?:吗|呢|哪儿|哪里|怎么|怎样|如何|为什么|为啥)$/;
 
 /**
  * P366 — every stored fact must read as a standalone sentence: an
  * explicit subject plus an action/state. The Round-97 walkthrough
  * caught 「她先不回我的」 — a clause clipped on a dangling 的 — and
  * 「就是烦」 — no subject, three chars — sitting in the sidebar and
- * capsule where a reader could not tell what was remembered. A
- * candidate that fails here is dropped, never stored.
+ * capsule where a reader could not tell what was remembered. P382
+ * tightens the subject gate to a LEADING subject: a headline clause
+ * like 「明天第一次约会」 is rewritten as 「我明天第一次约会」 before
+ * it reaches the store, so no fragment leads the fact. A candidate
+ * that fails here is dropped, never stored.
  */
 function isStandaloneFact(text: string): boolean {
   const t = text.trim();
   if (t.length < FACT_MIN_CHARS) return false;
   // A clause ending in 的/地/得 is a clipped fragment, not a fact.
   if (/[的地得]$/.test(t)) return false;
-  return FACT_SUBJECT.test(t) || FACT_HEADLINE_LEAD.test(t);
+  // A question ending is the user's question restated, not a fact.
+  if (FACT_QUESTION_END.test(t)) return false;
+  return FACT_LEADING_SUBJECT.test(t);
 }
 
 /**
@@ -88,6 +96,89 @@ function declarativeCore(text: string): string | null {
   if (!mark) return text;
   const core = text.slice(0, mark.index).replace(QUESTION_LEAD_IN, '');
   return core.length > 0 ? core : null;
+}
+
+/**
+ * P382 — a silence span with no named subject is the other side going
+ * quiet: 「三个小时没回」「没回消息」 read as her silence in this
+ * product's context, so the inferred subject is 她 — unless the span
+ * was preceded by an explicit pronoun (「我三个小时没回她」).
+ */
+const SILENCE_SPAN =
+  /^(?:(?:[0-9]+|[一二两三四五六七八九十半几]+)个?(?:分钟|小时|钟头|星期|个月|天|周|月|年)(?:没|不)(?:回|理|复|接|睬|应|找)|(?:没|不)回)/;
+
+/** A bare trailing pronoun that was really the subject of the question. */
+const TRAILING_SUBJECT = /(我们|对方|我|她|他|咱)$/;
+
+/**
+ * P382 — put the subject in front. A candidate already leading with
+ * 她/他/我/我们/对方 is returned as-is (a leading 它/ta reads as 她);
+ * a core cut out of a question can end on the pronoun that started it
+ * (「明天第一次约会我该安排在」 → 「明天第一次约会我」), which moves
+ * back up front when the body names no other pronoun. Otherwise an
+ * explicit pronoun right before the matched span wins, a silent-phone
+ * span belongs to 她, and every remaining clause is the user's own
+ * plan or state — the subject is 我.
+ */
+function inferSubject(
+  candidate: string,
+  source: string,
+  index: number,
+  questionCore: boolean,
+): string {
+  const t = candidate.trim().replace(/^(ta|它)/i, '她');
+  if (FACT_LEADING_SUBJECT.test(t)) return t;
+  let body = t.replace(/^是/, '');
+  const trailing = questionCore ? TRAILING_SUBJECT.exec(body) : null;
+  if (trailing && !/[我你她他它]|ta/i.test(body.slice(0, -trailing[1].length))) {
+    const pronoun = trailing[1] === '咱' ? '我们' : trailing[1];
+    body = `${pronoun}${body.slice(0, -trailing[1].length)}`;
+  }
+  if (FACT_LEADING_SUBJECT.test(body)) return body;
+  const before = /(我们|对方|她|他|我)$/.exec(source.slice(0, index))?.[1];
+  if (before) return `${before}${body}`;
+  if (SILENCE_SPAN.test(body)) return `她${body}`;
+  return `我${body}`;
+}
+
+/** Time anchors that pin an undecided plan to a when. */
+const UNDECIDED_TIME = /(今天|明天|后天|今晚|明晚|周末|下周|这周)/;
+
+/** The choice a plan question asks about, kept as the fact's tail. */
+const UNDECIDED_FOCUS =
+  /(穿什么|穿啥|怎么穿|带什么|带啥|送什么|送啥|买什么|买啥|吃什么|喝什么|说什么|说啥|聊什么|做什么|选什么|写什么|去哪儿|去哪|在哪儿|在哪里|到哪里|怎么去|怎么回|什么时候|几点|怎么约|怎么安排|怎么办)/;
+
+/**
+ * P382 — a plan question whose declarative core clipped too short to
+ * stand alone still names a real fact: the user has an undecided plan.
+ * 「我明天穿什么去见面比较不尴尬？」 reads back as 「我明天还没定穿
+ * 什么」 — a statement about the user, never the question restated.
+ * Requires a time anchor: a choice with no when is too vague to store.
+ */
+function undecidedFact(text: string): string | null {
+  const time = UNDECIDED_TIME.exec(text)?.[1];
+  const focus = UNDECIDED_FOCUS.exec(text)?.[1];
+  if (!time || !focus) return null;
+  const tail = focus.replace(/[?？!！。…]+$/, '').replace(/[儿里]$/, '');
+  const fact = `我${time}还没定${tail}`;
+  return isStandaloneFact(fact) ? fact : null;
+}
+
+/**
+ * Shape one candidate into a storable fact: question text loses its
+ * question mark first, the subject moves up front, then the standalone
+ * gates decide. A candidate that only survives as an undecided plan is
+ * rewritten (「我明天还没定穿什么」); one that survives neither way is
+ * dropped. Returns null when nothing readable remains.
+ */
+function shapeFact(raw: string, source: string, index: number): string | null {
+  const cored = declarativeCore(raw);
+  if (cored !== null) {
+    const fact = clip(inferSubject(cored, source, index, cored !== raw));
+    if (isStandaloneFact(fact)) return fact;
+  }
+  const pending = undecidedFact(raw);
+  return pending === null ? null : clip(pending);
 }
 
 /** Clause boundaries: CJK and ASCII punctuation plus newlines. */
@@ -207,20 +298,16 @@ export function extractMemoryFacts(message: string): ExtractedFact[] {
     for (const match of text.matchAll(rule.re)) {
       if (match.index === undefined) continue;
       if (rule.accept && !rule.accept(match)) continue;
-      const cored = declarativeCore(rule.text(match));
-      if (cored === null) continue;
-      const label = clip(cored);
-      if (!isStandaloneFact(label)) continue;
+      const label = shapeFact(rule.text(match), text, match.index);
+      if (label === null) continue;
       candidates.push({ index: match.index, end: match.index + match[0].length, text: label });
     }
   }
   for (const pattern of CONVERSATION_FACT_PATTERNS) {
     for (const match of text.matchAll(pattern)) {
       if (match.index === undefined) continue;
-      const cored = declarativeCore(match[0]);
-      if (cored === null) continue;
-      const label = clip(cored);
-      if (!isStandaloneFact(label)) continue;
+      const label = shapeFact(match[0], text, match.index);
+      if (label === null) continue;
       candidates.push({
         index: match.index,
         end: match.index + match[0].length,
@@ -231,9 +318,10 @@ export function extractMemoryFacts(message: string): ExtractedFact[] {
   const lower = text.toLowerCase();
   for (const keyword of CONVERSATION_FACT_LEXICON) {
     const index = lower.indexOf(keyword.toLowerCase());
-    if (index !== -1 && isStandaloneFact(keyword)) {
-      candidates.push({ index, end: index + keyword.length, text: keyword });
-    }
+    if (index === -1) continue;
+    const label = shapeFact(keyword, text, index);
+    if (label === null) continue;
+    candidates.push({ index, end: index + keyword.length, text: label });
   }
 
   candidates.sort((a, b) => a.index - b.index || b.end - a.end);
@@ -258,17 +346,15 @@ export function extractMemoryFacts(message: string): ExtractedFact[] {
     for (const clause of text.matchAll(CLAUSE_SPLIT)) {
       if (clause.index === undefined) continue;
       const label = clause[0].trim();
-      const cored = declarativeCore(label);
-      if (cored === null) continue;
-      const clipped = clip(cored);
-      const key = factKey(clipped);
-      if (key.length < 2 || clipped.length > FACT_MAX_CHARS) continue;
-      if (!isStandaloneFact(clipped)) continue;
       if (FACT_FILLER.includes(label.toLowerCase())) continue;
       if (OPEN_DELIBERATION.test(label)) continue;
       if (!CLAUSE_ANCHORS.test(label)) continue;
+      const shaped = shapeFact(label, text, clause.index);
+      if (shaped === null) continue;
+      const key = factKey(shaped);
+      if (key.length < 2 || seen.has(key)) continue;
       seen.add(key);
-      items.push({ key, text: clipped });
+      items.push({ key, text: shaped });
       break;
     }
   }
@@ -290,11 +376,9 @@ function sameFact(a: string, b: string): boolean {
 
 /**
  * P376 — the session title is derived client-side from the first user
- * message (trimmed, 20 chars then an ellipsis). A fact byte-identical
- * to it renders the same sentence twice — but only when the shared text
- * is the user's question restated: a declarative first message like
- * 「她三天没回我消息了」 is a real fact (the capsule already hides the
- * echo at render time), while a question adds no information at all.
+ * message (trimmed, 20 chars then an ellipsis). P382: a fact that only
+ * restates the title adds no information at all — declarative or not,
+ * it is dropped, so the capsule never shows the same sentence twice.
  */
 const SESSION_TITLE_MAX = 20;
 
@@ -306,6 +390,15 @@ function sessionTitleText(context: AgentContext, message: string): string {
   if (raw.length <= SESSION_TITLE_MAX) return raw;
   const sliced = raw.slice(0, SESSION_TITLE_MAX).trimEnd();
   return sliced ? `${sliced}…` : '';
+}
+
+/**
+ * P382 — compare a fact against the title on the text that carries the
+ * information: the title keeps the question mark the fact drops, and
+ * either side can wear a trailing 。/… the other lacks.
+ */
+function titleKey(text: string): string {
+  return factKey(text).replace(/[?？!！。…、，,；;：:]+$/u, '');
 }
 
 /**
@@ -366,11 +459,12 @@ function mergeableFact(a: string, b: string): boolean {
 
 /**
  * Fold one user message's facts into the session memory: forgotten keys
- * are never re-added, a fact byte-identical to the session title is
- * refused, and duplicates / same-event facts merge — the longer wording
- * carries more information, so it replaces the stored row in place while
- * keeping the first-stated timestamp. The list is capped at
- * SESSION_MEMORY_MAX. Returns the live fact array.
+ * are never re-added, a fact identical to the session title is refused
+ * (P382 — declarative echoes included: the title already says it), and
+ * duplicates / same-event facts merge — the longer wording carries more
+ * information, so it replaces the stored row in place while keeping the
+ * first-stated timestamp. The list is capped at SESSION_MEMORY_MAX.
+ * Returns the live fact array.
  */
 export function rememberUserMessage(
   context: AgentContext,
@@ -379,18 +473,17 @@ export function rememberUserMessage(
 ): MemoryFact[] {
   const facts = (context.memoryFacts ??= []);
   const forgotten = (context.forgottenFactKeys ??= new Set<string>());
-  const title = sessionTitleText(context, message);
-  // A question the title already states verbatim is never a fact — drop
-  // such rows even when a pre-gate shard carried them over.
-  const titleIsQuestion = title.length > 0 && QUESTION_MARK.test(title);
-  if (titleIsQuestion) {
+  const tKey = titleKey(sessionTitleText(context, message));
+  // The title already states this fact — drop such rows even when a
+  // pre-P382 shard carried them over.
+  if (tKey.length > 0) {
     for (let i = facts.length - 1; i >= 0; i--) {
-      if (facts[i].text === title) facts.splice(i, 1);
+      if (titleKey(facts[i].text) === tKey) facts.splice(i, 1);
     }
   }
   for (const fact of extractMemoryFacts(message)) {
     if (forgotten.has(fact.key)) continue;
-    if (titleIsQuestion && fact.text === title) continue;
+    if (tKey.length > 0 && titleKey(fact.text) === tKey) continue;
     const mergeIndex = facts.findIndex((f) => mergeableFact(f.key, fact.key));
     if (mergeIndex !== -1) {
       if (fact.key.length > facts[mergeIndex].key.length) {

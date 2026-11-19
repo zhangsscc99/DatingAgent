@@ -103,3 +103,97 @@ describe('P376 · the capsule never renders the same fact text twice', () => {
     expect(texts).not.toContain(TITLE);
   });
 });
+
+/**
+ * P382 — the Round-104 walkthrough (1795101019) reproduced the echo
+ * again with a twist: the session title keeps the trailing punctuation
+ * the stored fact drops, so a byte-compare let the title-shaped fact
+ * through as a pill. The capsule now dedupes on normalised text —
+ * 「我明天穿什么去见面比较不尴尬？」 (title) and the stored
+ * 「我明天穿什么去见面比较不尴尬」 count as the same sentence.
+ */
+describe('P382 · the capsule dedupes on normalised text — punctuation variants collapse', () => {
+  const TITLE_P382 = '我明天穿什么去见面比较不尴尬？';
+  const TURNS_P382: ChatMessage[] = [
+    { id: 'u1', role: 'user', content: TITLE_P382 },
+    { id: 'a1', role: 'assistant', content: '干净利落就好，别太用力。' },
+  ];
+  /** Title minus its ？, a duplicate pair, and two real facts. */
+  const LABELS_P382 = [
+    '我明天穿什么去见面比较不尴尬',
+    '我明天还没定穿什么',
+    '她三天没回我消息了',
+    '她三天没回我消息了',
+    '我明天第一次约会',
+  ];
+
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qsa = (sel: string) => dom.document.querySelectorAll(sel);
+  const flush = async () => {
+    await act(async () => {
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await Promise.resolve();
+    });
+  };
+
+  beforeAll(async () => {
+    dom = installFakeDom();
+    const memory: ConversationMemory = {
+      count: LABELS_P382.length,
+      items: LABELS_P382.map((label, i) => ({
+        key: `${label}#${i}`,
+        text: label,
+        ts: i + 1,
+      })) as MemoryFact[],
+    };
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    const { createRoot } = await import('react-dom/client');
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(ChatWindow, {
+          messages: TURNS_P382,
+          loading: false,
+          onSend: noop,
+          profile: null,
+          sessionId: 's-p382',
+          memory,
+          onForgetMemory: noop,
+          sessionTitle: TITLE_P382,
+        }),
+      );
+    });
+    await flush();
+  });
+
+  afterAll(async () => {
+    if (root) {
+      const current = root;
+      root = null;
+      await act(async () => {
+        current.unmount();
+      });
+    }
+    vi.unstubAllGlobals();
+  });
+
+  it('each pill carries data-fact and no two pills repeat a text or echo the title', () => {
+    const pills = qsa('span[data-fact]');
+    expect(pills.length).toBeGreaterThanOrEqual(1);
+    for (const pill of pills) {
+      expect(pill.getAttribute('data-fact')).toBe('true');
+    }
+    const texts = pills.map((el) => el.textContent ?? '');
+    expect(texts).toEqual(['我明天还没定穿什么', '她三天没回我消息了', '我明天第一次约会']);
+    expect(new Set(texts).size).toBe(texts.length);
+    const titleText = TITLE_P382.replace(/[?？!！。…]+$/, '');
+    for (const text of texts) {
+      expect(text).not.toBe(TITLE_P382);
+      expect(text).not.toBe(titleText);
+    }
+  });
+});

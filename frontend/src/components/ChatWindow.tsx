@@ -270,11 +270,18 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // P376: sessions written before the same-event merge can still hold
   // two keys with one display text — the capsule never renders the same
   // pill twice (the panel keeps every row for management).
-  const capsuleTitle = (sessionTitle ?? '').trim();
+  // P382: dedupe on the text that carries the information — the title
+  // keeps the ？/。 a stored fact drops, and either side can wear a
+  // trailing ellipsis the other lacks, so byte-compare misses the echo.
+  const normalizeFactText = (value: string): string =>
+    value.trim().replace(/[\s?？!！。…、，,；;：:]+$/u, '');
+  const capsuleTitle = normalizeFactText(sessionTitle ?? '');
   const seenCapsuleLabels = new Set<string>();
   const capsuleRows = visibleRows.filter((row) => {
-    const label = row.label.trim();
-    if (label === capsuleTitle || seenCapsuleLabels.has(label)) return false;
+    const label = normalizeFactText(row.label);
+    if (label.length === 0) return false;
+    if (capsuleTitle.length > 0 && label === capsuleTitle) return false;
+    if (seenCapsuleLabels.has(label)) return false;
     seenCapsuleLabels.add(label);
     return true;
   });

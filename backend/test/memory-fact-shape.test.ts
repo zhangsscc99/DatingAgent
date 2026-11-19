@@ -132,9 +132,12 @@ describe('P366 · /api/chat never stores a fragment', () => {
   }
 
   it('the Round-97 message keeps 她三天没回我消息了 and drops 她先不回我的', async () => {
-    const first = await postChat('她三天没回我消息了');
-    const second = await postChat('你有病吧？凭什么让我低头？是她先不回我的！', first.sessionId);
-    const items = second.memory?.items ?? [];
+    // P382: a fact identical to the session title is never stored, so a
+    // filler opener leads — the real fact lands on turn two.
+    const first = await postChat('你好');
+    const second = await postChat('她三天没回我消息了', first.sessionId);
+    const third = await postChat('你有病吧？凭什么让我低头？是她先不回我的！', first.sessionId);
+    const items = third.memory?.items ?? [];
     expect(items.some((i) => i.includes('她三天没回我消息了'))).toBe(true);
     expect(items.some((i) => i.includes('她先不回我的'))).toBe(false);
     for (const item of items) {
@@ -178,8 +181,9 @@ describe('P376 · user questions are never stored as facts', () => {
         fact.text,
       ).toBe(true);
     }
-    // The real fact inside the question still lands.
-    expect(facts.some((f) => f.text === '明天第一次约会')).toBe(true);
+    // The real fact inside the question still lands — subject first
+    // since P382, so the clause reads as a statement, not a fragment.
+    expect(facts.some((f) => f.text === '我明天第一次约会')).toBe(true);
   });
 
   it('a question trailing a statement is rewritten to its declarative core', () => {
@@ -253,5 +257,150 @@ describe('P376 · three rounds keep ≤2 distinct facts and none repeats the tit
       expect(item).not.toBe(sessionTitle);
       expect(item).not.toMatch(/^.{0,6}(哪儿|哪里|怎么|吗|呢)/);
     }
+  });
+});
+
+/**
+ * P382 — the Round-104 walkthrough (1795101019, 390×844 and 1440×900)
+ * showed the capsule listing 「记得 2 件事 / 她三天没回我消息了 / 我明
+ * 天穿什么去见面比较不尴尬」: the second pill is the user's own
+ * question stored verbatim, and the first is byte-identical to the
+ * session title — memory looked like the system parroting its input.
+ *
+ * The contract pinned here: every produced fact is a 「主语 + 状态/
+ * 动作」 declarative sentence — it must lead with 她/他/我/我们/对方
+ * and may never end on a question shape (吗|呢|哪儿|哪里|怎么). A
+ * question is rewritten to its statement (「我明天穿什么去见面比较不
+ * 尴尬？」 → 「我明天还没定穿什么」) or dropped; a fact identical to
+ * the session title is never stored; stored facts stay pairwise
+ * distinct.
+ */
+describe('P382 · facts are subject-led declaratives — questions rewritten or dropped', () => {
+  const QUESTION_END = /(吗|呢|哪儿|哪里|怎么)$/;
+  const LEADING_SUBJECT = /^(她|他|我|我们|对方)/;
+
+  it('「我明天穿什么去见面比较不尴尬？」 never stores the question verbatim', () => {
+    const facts = extractMemoryFacts('我明天穿什么去见面比较不尴尬？');
+    for (const fact of facts) {
+      expect(fact.text, fact.text).not.toMatch(QUESTION_END);
+      expect(fact.text, fact.text).toMatch(LEADING_SUBJECT);
+    }
+    // The verbatim question text itself is never a fact.
+    expect(
+      facts.some((f) => f.text.includes('我明天穿什么去见面比较不尴尬')),
+    ).toBe(false);
+    // …but the undecided plan inside it still lands as a statement.
+    expect(facts.some((f) => f.text === '我明天还没定穿什么')).toBe(true);
+  });
+
+  it('「明天第一次约会我该安排在哪儿」 produces only leading-subject declaratives', () => {
+    const facts = extractMemoryFacts('明天第一次约会我该安排在哪儿');
+    expect(facts.length).toBeGreaterThanOrEqual(1);
+    for (const fact of facts) {
+      expect(fact.text, fact.text).not.toMatch(QUESTION_END);
+      expect(fact.text, fact.text).toMatch(LEADING_SUBJECT);
+    }
+    expect(facts.some((f) => f.text === '我明天第一次约会')).toBe(true);
+  });
+
+  it('every produced fact across the live-repro inputs leads with a subject', () => {
+    const samples = [
+      '我明天穿什么去见面比较不尴尬？',
+      '明天第一次约会我该安排在哪儿',
+      '她三天没回我消息了',
+      '已经三个小时没回我了',
+      '一直是我主动',
+      '要不要提前到',
+    ];
+    for (const sample of samples) {
+      for (const fact of extractMemoryFacts(sample)) {
+        expect(fact.text, `${sample} → ${fact.text}`).toMatch(LEADING_SUBJECT);
+        expect(fact.text, `${sample} → ${fact.text}`).not.toMatch(QUESTION_END);
+      }
+    }
+  });
+});
+
+describe('P382 · a fact identical to the session title is never stored', () => {
+  let server: ReturnType<ReturnType<typeof createApp>['listen']> | undefined;
+  let baseUrl = '';
+
+  beforeAll(async () => {
+    const app = createApp();
+    server = app.listen(0);
+    await new Promise<void>((resolve) => server!.once('listening', resolve));
+    const addr = server.address();
+    if (typeof addr === 'object' && addr) baseUrl = `http://127.0.0.1:${addr.port}`;
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => server?.close(() => resolve()));
+  });
+
+  beforeEach(() => {
+    chatMock.mockReset();
+    chatMock.mockResolvedValue(response({ content: '嗯，我记下了。' }));
+  });
+
+  async function postChat(message: string, sessionId?: string): Promise<ChatBody> {
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message, sessionId }),
+    });
+    expect(res.status).toBe(200);
+    return (await res.json()) as ChatBody;
+  }
+
+  /** The title the sidebar derives from the first user message. */
+  function titleOf(message: string): string {
+    const text = message.trim();
+    if (text.length <= 20) return text;
+    const sliced = text.slice(0, 20).trimEnd();
+    return sliced ? `${sliced}…` : '新会话';
+  }
+
+  it('the live-repro conversation: no title echo, pairwise-distinct subject-led facts', async () => {
+    const firstMessage = '她三天没回我消息了';
+    const first = await postChat(firstMessage);
+    const sessionTitle = titleOf(firstMessage);
+    // The declarative first message is already the title — storing it as
+    // a fact would render the same sentence twice, so nothing is kept.
+    expect(first.memory?.count ?? 0).toBe(0);
+    for (const item of first.memory?.items ?? []) {
+      expect(item).not.toBe(sessionTitle);
+    }
+
+    await postChat('我明天穿什么去见面比较不尴尬？', first.sessionId);
+    const third = await postChat('明天第一次约会我该安排在哪儿', first.sessionId);
+
+    const items = third.memory?.items ?? [];
+    // Facts are pairwise distinct — no question parrot, no title echo.
+    for (let i = 0; i < items.length; i++) {
+      expect(items[i]).not.toBe(sessionTitle);
+      expect(items[i]).toMatch(/^(她|他|我|我们|对方)/);
+      expect(items[i]).not.toMatch(/(吗|呢|哪儿|哪里|怎么)$/);
+      for (let j = i + 1; j < items.length; j++) {
+        expect(items[i], `${items[i]} vs ${items[j]}`).not.toBe(items[j]);
+        expect(
+          factSimilarity(items[i], items[j]),
+          `${items[i]} vs ${items[j]}`,
+        ).toBeLessThan(0.8);
+      }
+    }
+  });
+
+  it('a question first message stores only the rewritten statement, never the question', async () => {
+    const firstMessage = '我明天穿什么去见面比较不尴尬？';
+    const first = await postChat(firstMessage);
+    const items = first.memory?.items ?? [];
+    for (const item of items) {
+      // The title keeps the ？ the question carries — the stored fact is
+      // the declarative rewrite, not a restated question.
+      expect(item).not.toMatch(/(吗|呢|哪儿|哪里|怎么)$/);
+      expect(item).toMatch(/^(她|他|我|我们|对方)/);
+      expect(item).not.toContain('不尴尬');
+    }
+    expect(items).toEqual(['我明天还没定穿什么']);
   });
 });

@@ -176,7 +176,10 @@ describe('P313 · /api/chat memory payload across three turns', () => {
   });
 
   it('repeating the same fact does not inflate the count', async () => {
-    const first = await postChat('她三个小时没回消息了');
+    // P382: a fact identical to the session title is never stored, so the
+    // first message keeps a trailing clause — the fact it names differs
+    // from the title and lands in memory.
+    const first = await postChat('她三个小时没回消息了，我有点着急');
     const second = await postChat('对，三个小时没回', first.sessionId);
     expect(second.memory!.count).toBe(first.memory!.count);
   });
