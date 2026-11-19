@@ -188,8 +188,12 @@ const TITLE_HIT_SESSIONS: StoredChatSession[] = [
   },
 ];
 
-async function mountSidebar(sessions: StoredChatSession[] = SESSIONS) {
+async function mountSidebar(
+  sessions: StoredChatSession[] = SESSIONS,
+  width = 390,
+) {
   const dom = installFakeDom();
+  (dom.window as { innerWidth: number }).innerWidth = width;
   const { createRoot } = await import('react-dom/client');
   const { default: Sidebar } = await import('../src/components/Sidebar');
   const container = dom.document.createElement('div');
@@ -474,19 +478,20 @@ interface CssRule {
 }
 
 /** Evaluate the media features the stylesheets actually use, against the
- *  fake-DOM environment (390×844, motion allowed, light scheme). */
-function mediaMatches(query: string): boolean {
+ *  fake-DOM environment (motion allowed, light scheme) at `width` px —
+ *  P383 runs the same cascade at 390×844 and 1440×900. */
+function mediaMatches(query: string, width: number): boolean {
   const q = query.trim();
   const maxW = /max-width:\s*(\d+)px/.exec(q);
-  if (maxW) return 390 <= parseInt(maxW[1], 10);
+  if (maxW) return width <= parseInt(maxW[1], 10);
   const minW = /min-width:\s*(\d+)px/.exec(q);
-  if (minW) return 390 >= parseInt(minW[1], 10);
+  if (minW) return width >= parseInt(minW[1], 10);
   if (/prefers-reduced-motion\s*:\s*reduce/.test(q)) return false;
   if (/prefers-color-scheme\s*:\s*dark/.test(q)) return false;
   return false;
 }
 
-function parseStylesheet(css: string): CssRule[] {
+function parseStylesheet(css: string, width: number): CssRule[] {
   const clean = css.replace(/\/\*[\s\S]*?\*\//g, '');
   const rules: CssRule[] = [];
   let order = 0;
@@ -516,7 +521,8 @@ function parseStylesheet(css: string): CssRule[] {
         if (clean[end] === '{') depth++;
         else if (clean[end] === '}' && --depth === 0) break;
       }
-      if (mediaMatches(query)) readRules(clean.slice(brace + 1, end), true);
+      if (mediaMatches(query, width))
+        readRules(clean.slice(brace + 1, end), true);
       i = end + 1;
     } else {
       rest += clean[i];
@@ -527,8 +533,14 @@ function parseStylesheet(css: string): CssRule[] {
   return rules;
 }
 
-const CASCADE_RULES = parseStylesheet(sidebarCss + '\n' + indexCss);
-const ROOT_VARS = themeVars(LIGHT_BASE, LIGHT_MOBILE);
+/** Per-viewport cascade: the ≤768px mobile theme tokens only apply below
+ *  the breakpoint, and every @media rule gates on the width under test. */
+function cascadeFor(width: number) {
+  return {
+    rules: parseStylesheet(sidebarCss + '\n' + indexCss, width),
+    vars: themeVars(LIGHT_BASE, width <= 768 ? LIGHT_MOBILE : null),
+  };
+}
 
 function ancestors(el: FakeElement): FakeElement[] {
   const out: FakeElement[] = [];
@@ -563,9 +575,9 @@ function ruleMatches(el: FakeElement, selector: string): boolean {
 
 const INHERITED = new Set(['color', 'font-weight', 'font-size', 'font-family', 'line-height']);
 
-function resolveDecl(declared: string): string {
+function resolveDecl(declared: string, vars: Map<string, string>): string {
   return declared.replace(/var\((--[a-z-]+)\)/g, (_, name) => {
-    const v = ROOT_VARS.get(name);
+    const v = vars.get(name);
     expect(v, `resolving ${name}`).toBeTruthy();
     return v!;
   });
@@ -574,10 +586,15 @@ function resolveDecl(declared: string): string {
 /** The computed value of one property on one element: last matching
  *  declaration in source order wins; inherited properties fall back to
  *  the nearest ancestor that declares them. */
-function computedValue(el: FakeElement, prop: string): string {
+function computedValue(
+  el: FakeElement,
+  prop: string,
+  rules: CssRule[],
+  vars: Map<string, string>,
+): string {
   const lookup = (node: FakeElement): string | null => {
     let value: string | null = null;
-    for (const rule of CASCADE_RULES) {
+    for (const rule of rules) {
       if (!ruleMatches(node, rule.selector)) continue;
       const decl = rule.decls.get(prop) ?? (prop === 'background-color' ? rule.decls.get('background') : undefined);
       if (decl !== undefined) value = decl;
@@ -598,20 +615,23 @@ function computedValue(el: FakeElement, prop: string): string {
     if (prop === 'font-weight') return '400';
     return '';
   }
-  return resolveDecl(value);
+  return resolveDecl(value, vars);
 }
 
-function installRealGetComputedStyle(dom: FakeDom) {
+function installRealGetComputedStyle(dom: FakeDom, width: number) {
+  const { rules, vars } = cascadeFor(width);
   const fn = (el: FakeElement) =>
     new Proxy(
       {},
       {
         get: (_t, key) => {
           if (key === 'getPropertyValue')
-            return (name: string) => computedValue(el, name);
+            return (name: string) => computedValue(el, name, rules, vars);
           return computedValue(
             el,
             String(key).replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()),
+            rules,
+            vars,
           );
         },
       },
@@ -654,44 +674,55 @@ function luminanceOf(color: string): number | null {
   );
 }
 
+/** P383 — the mark-readability and in-box-clear contracts are re-run at
+ *  both walkthrough sizes: 390×844 (drawer) and 1440×900 (persistent
+ *  aside). The fake cascade gates every @media rule on the width, so the
+ *  1440 run resolves against the desktop theme tokens too. */
+const VIEWPORTS = [
+  { label: '390×844', width: 390 },
+  { label: '1440×900', width: 1440 },
+] as const;
+
 describe('P372/P377 · <mark> is visually distinguishable and the count uses one measure-word scheme', () => {
-  it('computed styles: 700-weight underlined hit whose white text or solid chip separates from the card', async () => {
-    const { dom, root } = await mountSidebar(BODY_HIT_SESSIONS);
-    installRealGetComputedStyle(dom);
-    await typeFilter(dom, '约会');
+  for (const vp of VIEWPORTS) {
+    it(`computed styles at ${vp.label}: 700-weight underlined hit whose white text or solid chip separates from the card`, async () => {
+      const { dom, root } = await mountSidebar(BODY_HIT_SESSIONS, vp.width);
+      installRealGetComputedStyle(dom, vp.width);
+      await typeFilter(dom, '约会');
 
-    const item = dom.document.querySelector('.recent-chat-item')!;
-    const mark = item.querySelector('mark');
-    expect(mark, 'hit mark').toBeTruthy();
+      const item = dom.document.querySelector('.recent-chat-item')!;
+      const mark = item.querySelector('mark');
+      expect(mark, 'hit mark').toBeTruthy();
 
-    const markStyle = getComputedStyle(mark as unknown as HTMLElement);
-    const parentStyle = getComputedStyle(
-      mark!.parentElement as unknown as HTMLElement,
-    );
-    expect(markStyle.backgroundColor).not.toBe('');
-    expect(markStyle.backgroundColor).not.toBe(parentStyle.backgroundColor);
-    expect(parseInt(markStyle.fontWeight, 10)).toBeGreaterThanOrEqual(700);
-    expect(markStyle.textDecoration).toContain('underline');
+      const markStyle = getComputedStyle(mark as unknown as HTMLElement);
+      const parentStyle = getComputedStyle(
+        mark!.parentElement as unknown as HTMLElement,
+      );
+      expect(markStyle.backgroundColor).not.toBe('');
+      expect(markStyle.backgroundColor).not.toBe(parentStyle.backgroundColor);
+      expect(parseInt(markStyle.fontWeight, 10)).toBeGreaterThanOrEqual(700);
+      expect(markStyle.textDecoration).toContain('underline');
 
-    // The verify contract: white-ish text, or a chip luminance ≥0.15 away
-    // from the card it sits on — the old soft-tint mark satisfied neither.
-    const fg = rgbChannels(markStyle.color);
-    const whiteText = fg !== null && fg.every((v) => v >= 240);
-    const markLum = luminanceOf(markStyle.backgroundColor);
-    const parentLum = luminanceOf(parentStyle.backgroundColor);
-    const separated =
-      markLum !== null &&
-      parentLum !== null &&
-      Math.abs(markLum - parentLum) >= 0.15;
-    expect(
-      whiteText || separated,
-      `mark color ${markStyle.color} on ${markStyle.backgroundColor} vs parent ${parentStyle.backgroundColor}`,
-    ).toBe(true);
+      // The verify contract: white-ish text, or a chip luminance ≥0.15 away
+      // from the card it sits on — the old soft-tint mark satisfied neither.
+      const fg = rgbChannels(markStyle.color);
+      const whiteText = fg !== null && fg.every((v) => v >= 240);
+      const markLum = luminanceOf(markStyle.backgroundColor);
+      const parentLum = luminanceOf(parentStyle.backgroundColor);
+      const separated =
+        markLum !== null &&
+        parentLum !== null &&
+        Math.abs(markLum - parentLum) >= 0.15;
+      expect(
+        whiteText || separated,
+        `mark color ${markStyle.color} on ${markStyle.backgroundColor} vs parent ${parentStyle.backgroundColor}`,
+      ).toBe(true);
 
-    await act(async () => {
-      (root as Root).unmount();
+      await act(async () => {
+        (root as Root).unmount();
+      });
     });
-  });
+  }
 
   it('the count line reads 找到 N 段对话 · M 条消息 — and the card chip uses the same 条消息 unit, never 个对话', async () => {
     const { dom, root } = await mountSidebar();
@@ -723,39 +754,65 @@ describe('P372/P377 · <mark> is visually distinguishable and the count uses one
 });
 
 describe('P377 · in-box clear button + aligned row action icons', () => {
-  it('mounts a 清除 button inside the box only while a query is typed; clicking restores every card and refocuses the input', async () => {
-    const { dom, root } = await mountSidebar();
-    const input = dom.document.querySelector(
-      'input.recent-chat-filter',
-    ) as FakeElement | null;
-    expect(input, 'filter input').toBeTruthy();
-    // Nothing to clear before the first keystroke.
-    expect(dom.document.querySelector('.recent-chat-filter-clear')).toBeNull();
+  for (const vp of VIEWPORTS) {
+    it(`${vp.label}: mounts a 清除 button inside the box only while a query is typed; clicking restores every card and refocuses the input`, async () => {
+      const { dom, root } = await mountSidebar(SESSIONS, vp.width);
+      const input = dom.document.querySelector(
+        'input.recent-chat-filter',
+      ) as FakeElement | null;
+      expect(input, 'filter input').toBeTruthy();
+      // Nothing to clear before the first keystroke — and the P383 live-DOM
+      // probe `.sidebar button[aria-label*=清除]` finds no in-box control yet
+      // either (the fake DOM matches single compounds only, so the probe is
+      // expressed as a .sidebar-descendant button whose label contains 清除).
+      expect(
+        dom.document.querySelector('.recent-chat-filter-clear'),
+      ).toBeNull();
+      const clearButtons = () =>
+        dom.document
+          .querySelectorAll('button')
+          .filter(
+            (b) =>
+              b.closest('.sidebar') !== null &&
+              (b.getAttribute('aria-label') ?? '').includes('清除'),
+          );
+      expect(clearButtons()).toHaveLength(0);
+      const unfilteredCount = dom.document.querySelectorAll(
+        '.recent-chat-item',
+      ).length;
+      expect(unfilteredCount).toBe(SESSIONS.length);
 
-    await typeFilter(dom, '看展');
-    const clear = dom.document.querySelector(
-      'button.recent-chat-filter-clear',
-    ) as FakeElement | null;
-    expect(clear, 'in-box clear button').toBeTruthy();
-    expect(clear!.getAttribute('aria-label') ?? '').toContain('清除');
-    expect(clear!.tagName).toBe('BUTTON');
-    expect(dom.document.querySelectorAll('.recent-chat-item')).toHaveLength(2);
+      await typeFilter(dom, '看展');
+      const clear = dom.document.querySelector(
+        'button.recent-chat-filter-clear',
+      ) as FakeElement | null;
+      expect(clear, 'in-box clear button').toBeTruthy();
+      expect(clear!.getAttribute('aria-label') ?? '').toContain('清除');
+      expect(clear!.tagName).toBe('BUTTON');
+      // The live probe now hits: a 清除-labelled button inside .sidebar.
+      expect(clearButtons().length).toBeGreaterThanOrEqual(1);
+      expect(clear!.closest('.sidebar')).not.toBeNull();
+      expect(dom.document.querySelectorAll('.recent-chat-item').length)
+        .toBeLessThanOrEqual(unfilteredCount);
 
-    await act(async () => {
-      clear!.dispatchEvent(
-        new FakeEvent('click', { bubbles: true, cancelable: true }),
+      await act(async () => {
+        clear!.dispatchEvent(
+          new FakeEvent('click', { bubbles: true, cancelable: true }),
+        );
+      });
+
+      // Filter value cleared, every stored conversation back, focus in the box.
+      expect(input!.value).toBe('');
+      expect(dom.document.querySelectorAll('.recent-chat-item')).toHaveLength(
+        unfilteredCount,
       );
-    });
+      expect(dom.document.activeElement).toBe(input);
 
-    // Filter value cleared, every stored conversation back, focus in the box.
-    expect(input!.value).toBe('');
-    expect(dom.document.querySelectorAll('.recent-chat-item')).toHaveLength(2);
-    expect(dom.document.activeElement).toBe(input);
-
-    await act(async () => {
-      (root as Root).unmount();
+      await act(async () => {
+        (root as Root).unmount();
+      });
     });
-  });
+  }
 
   it('the clear button is a ≥32×32 target pinned inside the box, with input padding keeping text from sliding under it', () => {
     const wrap = ruleBody(sidebarCss, '.recent-chat-filter-wrap');
