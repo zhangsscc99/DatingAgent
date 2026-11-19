@@ -280,7 +280,16 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const capsuleRows = visibleRows.filter((row) => {
     // P387: a fact text that still carries a question mark is the user's
     // question restated — it never renders as a pill.
-    if (/[?？]/.test(row.label)) return false;
+    // P392: same for deliberation/question markers on pre-gate shards —
+    // 「我明天直接当面质问她行不行」 stored before P387 carries no ？
+    // yet is still the user's own question.
+    if (
+      /[?？吗呢]|行不行|要不要|该不该|是不是|能不能|可不可以|怎么|哪儿|哪里|什么/.test(
+        row.label,
+      )
+    ) {
+      return false;
+    }
     const label = normalizeFactText(row.label);
     if (label.length === 0) return false;
     if (capsuleTitle.length > 0 && label === capsuleTitle) return false;

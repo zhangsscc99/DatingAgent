@@ -140,6 +140,22 @@ function clauseEndsAsQuestion(text: string, index: number): boolean {
   return boundary !== null && (boundary[0] === '？' || boundary[0] === '?');
 }
 
+/**
+ * P392 — a clause that cannot stand alone inside a question sentence is
+ * the question's own topic fragment, never a fact: 「明天第一次约会，
+ * 穿卫衣去会不会太随便？」 clips 「明天第一次约会」 as its topic and
+ * the clause-boundary check only sees the 「，」. A clause already
+ * leading with a subject (「她最近有点累，…？」) stands on its own.
+ * Twin of memory-extract.ts isInterrogativeCandidate.
+ */
+const CONVERSATION_FACT_LEADING_SUBJECT = /^(她|他|我|我们|对方|你|咱)/;
+
+function fragmentInsideQuestion(text: string, index: number, label: string): boolean {
+  if (CONVERSATION_FACT_LEADING_SUBJECT.test(label)) return false;
+  const terminal = /[。？！?!]/.exec(text.slice(index));
+  return terminal !== null && (terminal[0] === '？' || terminal[0] === '?');
+}
+
 /** Clause boundaries for the P323 fallback split. */
 const CONVERSATION_FACT_CLAUSE = /[^，。！？；、,.!?;\n]+/g;
 
@@ -230,6 +246,11 @@ export function conversationFactItems(
       // uttered as one, is dropped completely; prefer missing over wrong.
       if (CONVERSATION_FACT_QUESTION.test(candidate.label)) continue;
       if (clauseEndsAsQuestion(text, candidate.index)) continue;
+      // P392 — a fragment inside a question sentence is the question's
+      // topic, not a fact.
+      if (fragmentInsideQuestion(text, candidate.index, candidate.label)) {
+        continue;
+      }
       if (
         accepted.some(([s, e]) => candidate.index < e && s < candidate.end)
       ) {
@@ -259,6 +280,9 @@ export function conversationFactItems(
         // P376 — a question clause is never a durable fact.
         if (CONVERSATION_FACT_QUESTION.test(label)) continue;
         if (clauseEndsAsQuestion(text, index)) continue;
+        // P392 — a topic fragment inside a question sentence is not one
+        // either (「明天第一次约会，穿卫衣去会不会太随便？」).
+        if (fragmentInsideQuestion(text, index, label)) continue;
         if (!CONVERSATION_FACT_ANCHORS.test(label)) continue;
         if (
           candidates.some((c) => index < c.end && c.index < index + clause[0].length)

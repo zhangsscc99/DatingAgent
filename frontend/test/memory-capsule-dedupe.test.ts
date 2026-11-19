@@ -118,7 +118,8 @@ describe('P382 · the capsule dedupes on normalised text — punctuation variant
     { id: 'u1', role: 'user', content: TITLE_P382 },
     { id: 'a1', role: 'assistant', content: '干净利落就好，别太用力。' },
   ];
-  /** Title minus its ？, a duplicate pair, and two real facts. */
+  /** Title minus its ？, a stale deliberation label, a duplicate pair,
+   * and two real facts. */
   const LABELS_P382 = [
     '我明天穿什么去见面比较不尴尬',
     '我明天还没定穿什么',
@@ -188,7 +189,11 @@ describe('P382 · the capsule dedupes on normalised text — punctuation variant
       expect(pill.getAttribute('data-fact')).toBe('true');
     }
     const texts = pills.map((el) => el.textContent ?? '');
-    expect(texts).toEqual(['我明天还没定穿什么', '她三天没回我消息了', '我明天第一次约会']);
+    // P392 — 「我明天还没定穿什么」 is a pre-P387 paraphrase label that
+    // still carries the deliberation marker 什么; it never reaches a
+    // pill now (the backend read-path prunes it the same way).
+    expect(texts).not.toContain('我明天还没定穿什么');
+    expect(texts).toEqual(['她三天没回我消息了', '我明天第一次约会']);
     expect(new Set(texts).size).toBe(texts.length);
     const titleText = TITLE_P382.replace(/[?？!！。…]+$/, '');
     for (const text of texts) {

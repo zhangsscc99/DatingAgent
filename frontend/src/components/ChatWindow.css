@@ -28,14 +28,17 @@
 
 /* The pill itself: 13px secondary text on --surface (~8:1 contrast in
  * both themes) — legible without shouting. Facts wrap as individual
- * pills inside so a long fact list can never stretch the header row. */
+ * lines inside so a long fact list can never stretch the header row.
+ * P392 — the bordered pill read as an editable input box (「边框看起来
+ * 有点像输入框/可选项」); the capsule is now chromeless — a bookmark
+ * icon and plain-text entries, with only the fill keeping it a button. */
 .memory-capsule {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   max-width: 100%;
   padding: 5px 12px;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: 999px;
   background: var(--surface);
   color: var(--text-secondary);
@@ -43,12 +46,11 @@
   line-height: 18px;
   font-family: inherit;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .memory-capsule:hover {
   background: var(--accent-soft);
-  border-color: var(--accent);
 }
 
 .memory-capsule:focus-visible {
@@ -94,27 +96,30 @@
   height: 18px;
   display: inline-flex;
   align-items: center;
-  padding: 0 6px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;
 }
 
-/* P366 — a fact pill claims its whole row (basis 100%), so it always
- * reads as one line; the 「+N」 chip stays text-width on the last row. */
+/* P366 — a fact claims its whole row (basis 100%), so it always reads
+ * as one line; P392 — it renders as a plain-text entry: no pill border,
+ * no fill, nothing that reads as an input box or a selectable option. */
 .memory-capsule-fact {
   flex: 0 0 100%;
   justify-content: flex-start;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
 }
 
+/* The 「+N」 overflow chip stays a small accent chip on the last row. */
 .memory-capsule-more {
-  color: var(--accent);
-  border-color: var(--accent);
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
   background: var(--accent-soft);
+  color: var(--accent);
 }
 
 /* P317 — the capsule is the 管理记忆 entry, but a static-looking pill gave

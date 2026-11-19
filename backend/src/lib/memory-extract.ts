@@ -37,6 +37,18 @@ const FACT_MAX_CHARS = 20;
 const FACT_MIN_CHARS = 6;
 
 /**
+ * P392 — a stored fact needs a predicate, not just a noun phrase: the
+ * Round-106 capsule listed 「我明天第一次约会」, a headline clipped out
+ * of the question 「明天第一次约会，穿卫衣去会不会太随便？」 — subject
+ * present, no verb, unreadable as a statement. Below 8 chars a
+ * candidate must carry a verb/state word to be kept; longer texts
+ * already passed a recognisable-event pattern.
+ */
+const FACT_PREDICATE_MIN_CHARS = 8;
+const FACT_PREDICATE =
+  /[是有在没想回理接找约见聊问说讲去来吃喝看穿带送睡醒忙累烦困病等到走做干买给帮发打写读听唱跳跑游爬练学考分合爱怕哭笑忘记定住谈试懂加追催婚恋班差动心事上下]/;
+
+/**
  * P382 — a stored fact leads with its subject: the 「主语 + 状态/动作」
  * shape is what separates a remembered fact from a restated fragment.
  * 「对方」 covers clauses written about the match without a pronoun.
@@ -68,6 +80,9 @@ function isStandaloneFact(text: string): boolean {
   if (/[的地得]$/.test(t)) return false;
   // A question ending is the user's question restated, not a fact.
   if (FACT_QUESTION_END.test(t)) return false;
+  // P392 — a short candidate with no verb/state word is a headline
+  // fragment (「明天的安排」), not a fact. Subject + predicate required.
+  if (t.length < FACT_PREDICATE_MIN_CHARS && !FACT_PREDICATE.test(t)) return false;
   return FACT_LEADING_SUBJECT.test(t);
 }
 
@@ -160,6 +175,9 @@ const FACT_INTERROGATIVE =
 
 const FACT_CLAUSE_BOUNDARY = /[，。！？；、,.!?;\n]/;
 
+/** Sentence terminals — ?/？ marks the whole sentence a question. */
+const FACT_SENTENCE_END = /[。？！?!]/;
+
 function isInterrogativeCandidate(
   raw: string,
   source: string,
@@ -167,7 +185,20 @@ function isInterrogativeCandidate(
 ): boolean {
   if (FACT_INTERROGATIVE.test(raw)) return true;
   const boundary = FACT_CLAUSE_BOUNDARY.exec(source.slice(index));
-  return boundary !== null && (boundary[0] === '？' || boundary[0] === '?');
+  if (boundary !== null && (boundary[0] === '？' || boundary[0] === '?')) {
+    return true;
+  }
+  // P392 — a clause that cannot stand alone inside a question sentence
+  // is the question's own topic fragment, never a fact: 「明天第一次约
+  // 会，穿卫衣去会不会太随便？」 clips 「明天第一次约会」 as its topic
+  // and the P387 clause-boundary check only saw the 「，」. A candidate
+  // that already reads as a complete declarative (「她最近有点累」 in
+  // 「她最近有点累，我是不是不该约了？」) stands on its own and lives.
+  if (!isStandaloneFact(raw)) {
+    const terminal = FACT_SENTENCE_END.exec(source.slice(index));
+    return terminal !== null && (terminal[0] === '？' || terminal[0] === '?');
+  }
+  return false;
 }
 
 /**
@@ -532,7 +563,68 @@ export function forgetMemoryFact(context: AgentContext, key: string): boolean {
   return true;
 }
 
-/** The remembered facts in first-stated order. */
+/** History split into clauses, terminal punctuation kept. */
+const HISTORY_CLAUSE = /[^，。！？；、,.!?;\n]+[，。！？；、,.!?;\n]?/g;
+
+/**
+ * P392 — a stored fact whose only trace in the history is inside a
+ * question was clipped out of the user's own question (「我明天第一次
+ * 约会」 out of 「明天第一次约会，穿卫衣去会不会太随便？」): it was
+ * never stated, so it is pruned on read. An occurrence inside a
+ * declarative clause — the full text verbatim, or the de-subjected core
+ * inside a subject-led clause (「她说最近有点累」 keeps 「她最近有点
+ * 累」 even though the 说 was dropped) — means the user really stated
+ * it and the fact stays.
+ */
+function factOnlyEchoesQuestion(context: AgentContext, text: string): boolean {
+  const core = text.replace(FACT_LEADING_SUBJECT, '');
+  let echo = false;
+  for (const message of context.conversationHistory ?? []) {
+    if (message.role !== 'user') continue;
+    for (const clause of message.content.matchAll(HISTORY_CLAUSE)) {
+      const c = clause[0];
+      const index = clause.index ?? 0;
+      if (!(c.includes(text) || (core.length >= 4 && c.includes(core)))) {
+        continue;
+      }
+      // A clause ending in ? is a question; a non-standalone clause is
+      // the topic fragment of whatever sentence it opens — question or
+      // not — decided by that sentence's terminal punctuation.
+      let question = /[？?]$/.test(c);
+      if (!question && !FACT_LEADING_SUBJECT.test(c.trim())) {
+        const terminal = FACT_SENTENCE_END.exec(message.content.slice(index));
+        question =
+          terminal !== null && (terminal[0] === '？' || terminal[0] === '?');
+      }
+      if (!question) return false;
+      echo = true;
+    }
+  }
+  return echo;
+}
+
+/**
+ * The remembered facts in first-stated order. P392 — the list is
+ * re-validated on every read because a shard written before the
+ * interrogative / fragment / title gates still serves whatever it
+ * holds on refresh: a fact dies when it is itself interrogative or
+ * fragmentary, echoes the session title, or only ever appeared inside
+ * a question sentence. Prefer missing over wrong.
+ */
 export function sessionMemoryFacts(context: AgentContext): MemoryFact[] {
-  return context.memoryFacts ?? [];
+  const facts = context.memoryFacts ?? [];
+  if (facts.length === 0) return facts;
+  const tKey = titleKey(sessionTitleText(context, ''));
+  for (let i = facts.length - 1; i >= 0; i--) {
+    const { text } = facts[i];
+    if (
+      FACT_INTERROGATIVE.test(text) ||
+      !isStandaloneFact(text) ||
+      (tKey.length > 0 && titleKey(text) === tKey) ||
+      factOnlyEchoesQuestion(context, text)
+    ) {
+      facts.splice(i, 1);
+    }
+  }
+  return facts;
 }
