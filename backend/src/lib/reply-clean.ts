@@ -27,6 +27,14 @@ export function stripStageDirections(text: string): string {
 const LEADING_EMOJI = new RegExp('^[\\p{Extended_Pictographic}--[0-9#*]]+[ \\t]*', 'v');
 const MANUAL_LABEL = /^(?:解析|避坑指南)[：:][ \t]*/;
 
+// P373: a reply that opens with an interface/tool label (「排约会」「关系
+// 建议」…), optionally followed by a bare ✓ line, is chip feedback that
+// leaked into the reply body — the chip strip outside the bubble renders
+// that channel, so the body copy drops it. Anchored to position 0 only:
+// the same words mid-sentence are legitimate content.
+const INTERFACE_CHIP_LEAD =
+  /^[ \t]*(?:排约会|接话术|改资料|看匹配|关系建议|我们合不合适)[ \t]*\r?\n?[ \t]*✓?[ \t]*\r?\n/;
+
 /**
  * P279 — strips manual-style scaffolding the model sometimes wraps advice
  * in: a leading emoji on a line (「💡 避坑指南：…」) and the literal labels
@@ -36,6 +44,7 @@ const MANUAL_LABEL = /^(?:解析|避坑指南)[：:][ \t]*/;
  */
 export function stripManualLabels(text: string): string {
   return text
+    .replace(INTERFACE_CHIP_LEAD, '')
     .split('\n')
     .map((line) => line.replace(LEADING_EMOJI, '').replace(MANUAL_LABEL, ''))
     .join('\n')

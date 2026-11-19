@@ -62,6 +62,30 @@
   }
 }
 
+/* P373: inside the .tool-events strip the badge is action feedback, not a
+   pill inside the reply — at rest it is borderless/transparent dim caption
+   text. The state rules above still colour the label (running accent /
+   done success) but no longer fill a background; a faint hover wash is
+   allowed since it only appears on interaction. */
+.tool-events .tool-badge,
+.tool-events .tool-badge.running,
+.tool-events .tool-badge.done {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+.tool-events .tool-badge .tool-icon {
+  opacity: 0.7;
+}
+
+.tool-events .tool-badge:hover,
+.tool-events .tool-badge:focus-visible {
+  background: var(--accent-soft);
+}
+
 /* F15 — replaced by a static hollow ring; the adjacent status text stays. */
 @media (prefers-reduced-motion: reduce) {
   .spinner {

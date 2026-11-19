@@ -120,11 +120,20 @@
   align-items: flex-end;
 }
 
+/* P373: the strip is UI feedback pinned to the avatar column, not a first
+   line of the reply — it aligns to the column start, carries no background
+   or outline of its own, and reads as a dim caption above the bubble. */
 .tool-events {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 8px;
+  align-self: flex-start;
+  max-width: 100%;
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .bubble.error {
