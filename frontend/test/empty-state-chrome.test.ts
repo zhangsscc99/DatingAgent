@@ -153,8 +153,9 @@ describe('P312 · empty-state chrome', () => {
     }
   };
 
-  /** Shared empty-state contract — identical at both breakpoints. */
-  const expectPristineChrome = async (label: string) => {
+  /** Shared empty-state contract — identical at both breakpoints except
+   *  the welcome hint line, which P374 keeps on desktop only. */
+  const expectPristineChrome = async (label: string, narrow: boolean) => {
     const header = qs('.header');
     expect(header, label).not.toBeNull();
 
@@ -196,14 +197,23 @@ describe('P312 · empty-state chrome', () => {
     expect(primaries[0].closest('.input-bar')).not.toBeNull();
     expect(qs('#chat-input')).not.toBeNull();
 
-    // .welcome keeps passive guidance — no button that starts the chat.
+    // .welcome keeps passive guidance on desktop — P374: the compact
+    // screen's hint line is replaced by the hero's focus-only primary
+    // button (a data-testid, never the send key's data-primary-cta).
     const welcome = qs('.welcome');
     expect(welcome, label).not.toBeNull();
     expect(welcome!.querySelector('[data-primary-cta]')).toBeNull();
     expect(welcome!.querySelector('.welcome-primary-cta')).toBeNull();
     const hint = welcome!.querySelector('p.welcome-hint');
-    expect(hint).not.toBeNull();
-    expect(hint!.textContent).toContain('输入框');
+    if (narrow) {
+      expect(hint).toBeNull();
+      const hero = welcome!.querySelector('[data-testid="hero-primary-cta"]');
+      expect(hero).not.toBeNull();
+      expect(hero!.tagName).toBe('BUTTON');
+    } else {
+      expect(hint).not.toBeNull();
+      expect(hint!.textContent).toContain('输入框');
+    }
   };
 
   afterAll(() => {
@@ -213,14 +223,14 @@ describe('P312 · empty-state chrome', () => {
   it('390×844 empty: no export/copy/status in the header, no sidebar filter, one primary CTA', async () => {
     install(true, false);
     await mountApp();
-    await expectPristineChrome('390 empty');
+    await expectPristineChrome('390 empty', true);
     await unmountApp();
   });
 
   it('1440×900 empty: no export/copy/status in the header, no sidebar filter, one primary CTA', async () => {
     install(false, false);
     await mountApp();
-    await expectPristineChrome('1440 empty');
+    await expectPristineChrome('1440 empty', false);
     await unmountApp();
   });
 

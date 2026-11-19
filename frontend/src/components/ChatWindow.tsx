@@ -31,7 +31,7 @@ import {
 } from '../lib/profileNudge';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { COARSE_POINTER_QUERY, heroHint } from '../lib/heroHint';
-import { HERO_EXAMPLE_PROMPTS } from '../lib/heroCta';
+import { HERO_EXAMPLE_PROMPTS, HERO_PRIMARY_LABEL } from '../lib/heroCta';
 import {
   MEMORY_RECEIPT_MAX_ITEMS,
   memoryReceiptItems,
@@ -835,61 +835,86 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
             )}
             {/* P312: the composer owns the single start entry — the old
                 hero button only duplicated the textarea's job, so what
-                remains here is passive guidance, not a control. */}
-            <p className="welcome-hint">{startHint}</p>
-            {/* P367: ≤768px gets the one explicit primary action the
-                passive layout lacked — three one-tap example cards that
-                SEND immediately through handleSend (the composer's own
-                path): never a prefill, never a dead option. Desktop
-                keeps its starter chips; the send key stays the single
-                [data-primary-cta]. */}
+                remains here is passive guidance, not a control.
+                P374: that guidance line is desktop copy now — on the
+                compact screen the primary button below does the pointing
+                and the first screen's auxiliary-copy budget is two muted
+                lines (the subtitle + the starter pills). */}
+            {!compactFeatures && (
+              <p className="welcome-hint">{startHint}</p>
+            )}
+            {/* P374: the compact first screen gets ONE obvious action — a
+                real primary button that focuses #chat-input and sends
+                nothing. The three example prompts stay on as a secondary,
+                lighter group that still sends on tap through handleSend
+                (the composer's own path): never a prefill, never a dead
+                option. Desktop keeps its starter chips; the send key
+                stays the single [data-primary-cta]. */}
             {compactFeatures && (
-              <div
-                className="hero-cta"
-                data-testid="hero-primary-cta"
-                role="group"
-                aria-label="示例开场白：点一条直接发送"
-              >
-                <p className="hero-cta-lead">点一条，直接发送</p>
-                {HERO_EXAMPLE_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    className="hero-cta-card"
-                    aria-label={`直接发送：${prompt}`}
-                    disabled={loading}
-                    onClick={() => handleSend(prompt)}
-                  >
-                    <span className="hero-cta-card-text">{prompt}</span>
-                    <svg
-                      className="hero-cta-card-icon"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
+              <div className="hero-cta">
+                <button
+                  type="button"
+                  className="hero-cta-primary"
+                  data-testid="hero-primary-cta"
+                  aria-label={HERO_PRIMARY_LABEL}
+                  disabled={loading}
+                  onClick={() => inputRef.current?.focus()}
+                >
+                  {HERO_PRIMARY_LABEL}
+                </button>
+                <div
+                  className="hero-examples"
+                  role="group"
+                  aria-label="示例问题：点一条直接发送"
+                >
+                  {HERO_EXAMPLE_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="hero-cta-card"
+                      aria-label={`直接发送：${prompt}`}
+                      disabled={loading}
+                      onClick={() => handleSend(prompt)}
                     >
-                      <path d="m22 2-7 20-4-9-9-4Z" />
-                      <path d="M22 2 11 13" />
-                    </svg>
-                  </button>
-                ))}
+                      <span className="hero-cta-card-text">{prompt}</span>
+                      <svg
+                        className="hero-cta-card-icon"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="m22 2-7 20-4-9-9-4Z" />
+                        <path d="M22 2 11 13" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
-            {/* P343: ≤768px demotes the starter chips to one muted,
-                non-interactive hint line — text, not button-chrome — so
-                the composer's send key stays the first screen's only real
+            {/* P343: ≤768px demotes the starter chips to muted,
+                non-interactive copy — text, not button-chrome — so the
+                hero's primary button stays the first screen's obvious
                 action. The tappable chips keep working ≥769px.
                 P355: both forms enumerate the shared STARTER_ENTRIES — the
-                same four entries the sidebar「快捷入口」lists, joined here
-                in the same order, never a second hardcoded list. */}
+                same four entries the sidebar「快捷入口」lists, in the same
+                order, never a second hardcoded list.
+                P374: the ·-joined sentence broke mid-phrase at 390px, so
+                each label is now its own nowrap pill — the row wraps only
+                between pills, never inside one. */}
             {compactFeatures ? (
               <p className="starter-chips-line">
-                也可以直接问：{STARTER_ENTRIES.map((s) => s.label).join(' · ')}
+                <span className="starter-chips-lead">也可以直接问：</span>
+                {STARTER_ENTRIES.map((s) => (
+                  <span key={s.label} className="starter-pill">
+                    {s.label}
+                  </span>
+                ))}
               </p>
             ) : (
               <div className="starter-chips" role="group" aria-label="开始话题">
@@ -935,13 +960,11 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 onCancel={() => setActiveStarter(null)}
               />
             )}
-            {/* P336: ≤768px renders one muted non-interactive line instead
-                of the three cards — the card grid stays ≥769px. */}
-            {compactFeatures ? (
-              <p className="welcome-feature-line">
-                帮你把话说到点上 · 真诚沟通 · 约会前把安排想清楚
-              </p>
-            ) : (
+            {/* P336: the three feature cards stay ≥769px. P374 drops the
+                compact summary line entirely — the first screen's
+                auxiliary-copy budget is two muted lines, already spent on
+                the subtitle and the starter pills. */}
+            {!compactFeatures && (
               <div className="welcome-features">
                 <div className="feature">
                   <span aria-hidden="true">

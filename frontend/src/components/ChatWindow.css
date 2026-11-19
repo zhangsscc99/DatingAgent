@@ -315,27 +315,62 @@
   font-size: 13px;
 }
 
-/* P367 — the narrow first screen's one explicit primary action: three
-   one-tap example cards that send immediately (rendered only under
-   compactFeatures; desktop keeps the starter chips). The accent-soft /
-   accent-glow chip register is the same accent language .welcome-tag
-   speaks — clearly tappable, but softer than the send key's solid so
-   the single [data-primary-cta] hierarchy survives. */
+/* P374 — the compact first screen's ONE explicit primary action: a real
+   button that focuses the composer and sends nothing (rendered only
+   under compactFeatures; desktop keeps the starter chips). It is the
+   only element allowed the brand solid on the empty screen — the send
+   key keeps its fill but sits disabled while the composer is empty. */
 .hero-cta {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   margin: 4px 0;
   text-align: left;
 }
 
-.hero-cta-lead {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 18px;
+.hero-cta-primary {
+  display: block;
+  width: 100%;
+  /* P374: the one-tap action is a thumb target first — never below the
+     44px floor the rest of the touch chrome already keeps. */
+  min-height: 48px;
+  padding: 12px 18px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
   text-align: center;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.15s;
+}
+
+.hero-cta-primary:hover {
+  transform: translateY(-1px);
+}
+
+.hero-cta-primary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.hero-cta-primary:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+/* P374: the example prompts stay on as the secondary group — a visible
+   step below the primary: neutral border, surface fill, secondary ink.
+   No accent fill or accent border anywhere, so a card can never read as
+   a competing CTA next to the one brand-solid button. */
+.hero-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .hero-cta-card {
@@ -348,10 +383,10 @@
      44px floor the rest of the touch chrome already keeps. */
   min-height: 44px;
   padding: 10px 14px;
-  border: 1px solid var(--accent-glow);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--accent-soft);
-  color: var(--text);
+  background: var(--surface);
+  color: var(--text-secondary);
   font-size: 14px;
   line-height: 20px;
   font-family: inherit;
@@ -361,7 +396,7 @@
 }
 
 .hero-cta-card:hover {
-  border-color: var(--accent);
+  border-color: var(--text-muted);
   transform: translateY(-1px);
 }
 
@@ -382,10 +417,10 @@
 }
 
 /* The paper-plane glyph ties the card to the send affordance — same
-   stroke icon the composer's send key uses. */
+   stroke icon the composer's send key uses, in the muted register. */
 .hero-cta-card-icon {
   flex-shrink: 0;
-  color: var(--accent);
+  color: var(--text-muted);
 }
 
 /* P290: demoted to a quiet secondary action — plain outline and muted
@@ -474,22 +509,6 @@
   color: var(--text-muted);
 }
 
-/* P336 — ≤768px (390 target): the three feature cards collapse into ONE
-   quiet non-interactive summary line — even flattened rows still read as
-   three content blocks competing with the composer. ChatWindow renders
-   this <p> instead of the card grid under its (max-width: 768px)
-   matchMedia; the line truncates rather than wrapping so the first
-   screen keeps a single focus — the composer send key. */
-.welcome-feature-line {
-  margin: 4px 0 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 18px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 @media (max-width: 768px) {
   .messages {
     padding: 16px;
@@ -522,15 +541,41 @@
     margin: 10px 0 6px;
   }
 
-  /* P343: the three starter chips collapse into a single muted,
-     non-interactive hint line — text, not button-chrome — so the send key
-     is the first screen's only real action. The line truncates rather
-     than wrapping to a second row. */
+  /* P343: the three starter chips collapse into a muted, non-interactive
+     hint — text, not button-chrome — so the hero's primary button stays
+     the first screen's obvious action.
+     P374: the ·-joined sentence broke mid-phrase at 390px, so the line is
+     now a wrap-safe row of independent pills: the container wraps freely
+     while each pill is one atomic nowrap unit that can only ever move to
+     the next line whole. */
   .starter-chips-line {
     margin: 10px 0 6px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 4px 8px;
     color: var(--text-muted);
     font-size: 12px;
     line-height: 18px;
+  }
+
+  .starter-chips-lead {
+    white-space: nowrap;
+  }
+
+  /* The pill's own box is capped at the line width and ellipsises inside
+     itself, so a label can never overflow its container — and with
+     nowrap the text never splits mid-phrase. */
+  .starter-pill {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    max-width: 100%;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1039,11 +1084,13 @@
 @media (prefers-reduced-motion: reduce) {
   .scroll-to-bottom,
   .pending-reply-btn,
+  .hero-cta-primary,
   .hero-cta-card {
     transition: none;
   }
 
   .scroll-to-bottom:hover,
+  .hero-cta-primary:hover,
   .hero-cta-card:hover {
     transform: none;
   }

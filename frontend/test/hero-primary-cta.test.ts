@@ -12,35 +12,32 @@ import {
   type FakeElement,
 } from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
-import { HERO_EXAMPLE_PROMPTS } from '../src/lib/heroCta';
-import {
-  COARSE_POINTER_QUERY,
-  HERO_HINT_TOUCH,
-} from '../src/lib/heroHint';
+import { HERO_EXAMPLE_PROMPTS, HERO_PRIMARY_LABEL } from '../src/lib/heroCta';
+import { COARSE_POINTER_QUERY } from '../src/lib/heroHint';
 import type { ChatMessage } from '../src/types';
 
 /**
- * P367 — measured at 390×844 on 1795072237 (docs/runs/walk-1795072237-m1.png,
- * 6th same-domain report): the mobile first screen had NO explicit primary
- * action — the only start entry was one small hint line — and the oversized
- * top whitespace pushed the content below the fold.
+ * P374 — measured at 390×844 on 1795090365 (docs/runs/walk-1795090365-m1.png,
+ * 7th same-domain report): the P367 hero CTA was a 334×174 role="group" DIV
+ * holding three equal-weight example cards under a 「点一条，直接发送」 lead —
+ * tapping it fired a canned question and focus never reached the composer
+ * (`document.activeElement.id === ""`). Four near-equal clickables competed
+ * on the first screen.
  *
  * Contract asserted here:
- *  1. At 390×844 the hero mounts `data-testid="hero-primary-cta"` inside
- *     .welcome — a role="group" with an accessible label holding exactly
- *     three one-tap example cards; the group's top edge lands <600px and
- *     its hit area clears 44×44 (the fake DOM reports zero rects, so the
- *     rect expression is asserted the way hero-balance.test.ts does while
- *     the size contract is pinned on the resolved CSS constants).
- *  2. Every card is a real `<button type="button">`, keyboard-focusable,
- *     ≥44px tall and full-width by stylesheet.
- *  3. A tap SENDS through the composer's own path — onSend fires with the
- *     card's prompt and the composer is never prefilled (the dead-option
- *     pattern P345 removed).
- *  4. Top whitespace stays ≤120px on the constants, and the hero's third
- *     auto margin keeps the runtime free-space share bounded with it.
- *  5. The mobile hint still never says 回车 (P350 rules intact); desktop
- *     ≥769px keeps its own look — no CTA group, the four starter chips.
+ *  1. At 390×844 the hero mounts ONE real
+ *     `<button data-testid="hero-primary-cta">说说你的情况</button>` inside
+ *     .welcome/.hero — the single primary action.
+ *  2. Its click focuses `#chat-input` and sends NOTHING: onSend never
+ *     fires and the composer stays empty.
+ *  3. The three example prompts live on as a secondary group — still real
+ *     `<button>`s that send through the composer path — but with neutral
+ *     chrome: no 「点一条，直接发送」 lead, no accent fill, no accent border.
+ *  4. The primary resolves ≥44px tall and full-width by stylesheet; the
+ *     group's free-space auto margin and the ≤120px top-whitespace
+ *     constants stay.
+ *  5. The whole group drops out with the first message and never renders
+ *     on desktop ≥769px.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -51,9 +48,9 @@ const chatWindowCss = readFileSync(
 
 const VIEWPORT_W = 390;
 const VIEWPORT_H = 844;
-/** P367: the CTA's top edge must land inside the first viewport. */
+/** The CTA's top edge must land inside the first viewport. */
 const MAX_CTA_TOP = 600;
-/** P367: the hero's top-side whitespace budget (scrollport pad + card pad). */
+/** The hero's top-side whitespace budget (scrollport pad + card pad). */
 const MAX_TOP_WHITESPACE = 120;
 
 /* ---------- stylesheet helpers (same as hero-balance.test.ts) ---------- */
@@ -116,7 +113,7 @@ function mediaQueryFor(coarse: boolean, narrow: boolean) {
   });
 }
 
-describe('P367 · the hero carries one explicit primary CTA at 390×844', () => {
+describe('P374 · the compact hero has one real primary action at 390×844', () => {
   let dom: FakeDom;
   let root: Root | null = null;
 
@@ -162,71 +159,105 @@ describe('P367 · the hero carries one explicit primary CTA at 390×844', () => 
     vi.unstubAllGlobals();
   });
 
-  it('mounts data-testid="hero-primary-cta" — a labelled group of three example cards', async () => {
+  it('mounts data-testid="hero-primary-cta" — a real button, not a card group', async () => {
     await mount();
     const cta = qs('[data-testid="hero-primary-cta"]');
     expect(cta).not.toBeNull();
-    // Inside the hero, on the first screen: the acceptance expressions a
-    // real-layout run evaluates — the fake DOM reports zero rects, so the
-    // top/area checks hold trivially while the CSS constants below pin
-    // the real geometry.
+    expect(cta!.tagName).toBe('BUTTON');
+    expect(cta!.getAttribute('type')).toBe('button');
+    expect(cta!.textContent).toBe(HERO_PRIMARY_LABEL);
+    expect(cta!.textContent).toBe('说说你的情况');
+    // Inside the hero, on the first screen.
     expect(cta!.closest('.welcome')).not.toBeNull();
     expect(cta!.closest('.hero')).not.toBeNull();
     const rect = cta!.getBoundingClientRect();
     expect(rect.top).toBeLessThan(MAX_CTA_TOP);
     expect(rect.top).toBeLessThan(VIEWPORT_H);
-    // a11y: the group names what the cards do.
-    expect(cta!.getAttribute('role')).toBe('group');
-    expect(cta!.getAttribute('aria-label')).toBeTruthy();
+    // Keyboard-focusable: a real button, never tabbed out.
+    expect(cta!.getAttribute('tabindex')).not.toBe('-1');
+    expect(cta!.disabled).toBe(false);
     // …and it never pretends to be the send key's primary marker.
     expect(cta!.hasAttribute('data-primary-cta')).toBe(false);
+    await unmount();
+  });
+
+  it('clicking it focuses #chat-input and sends nothing', async () => {
+    const sent: string[] = [];
+    await mount([], (text) => sent.push(text));
+    const cta = qs('[data-testid="hero-primary-cta"]')!;
+    expect(dom.document.activeElement?.id ?? '').not.toBe('chat-input');
+    await act(async () => {
+      cta.dispatchEvent(
+        new FakeEvent('click', { bubbles: true, cancelable: true }),
+      );
+    });
+    expect(dom.document.activeElement?.id).toBe('chat-input');
+    // No chat send is dispatched and the composer stays untouched.
+    expect(sent).toEqual([]);
+    expect((qs('#chat-input') as FakeElement).value).toBe('');
+    await unmount();
+  });
+
+  it('the example prompts stay on as a secondary group that still sends', async () => {
+    const sent: string[] = [];
+    await mount([], (text) => sent.push(text));
+    // No 「点一条，直接发送」 lead — the group names itself only via aria.
+    expect(qs('.hero-cta-lead')).toBeNull();
+    const group = qs('.hero-examples');
+    expect(group).not.toBeNull();
+    expect(group!.getAttribute('role')).toBe('group');
+    expect(group!.getAttribute('aria-label')).toBeTruthy();
 
     const cards = qsa('.hero-cta-card');
     expect(cards).toHaveLength(HERO_EXAMPLE_PROMPTS.length);
     expect(cards).toHaveLength(3);
     for (const [i, card] of cards.entries()) {
       expect(card.tagName).toBe('BUTTON');
-      expect(card.getAttribute('type')).toBe('button');
-      // Keyboard-focusable: a real button, never tabbed out — and its
-      // accessible name says what the tap does.
-      expect(card.getAttribute('tabindex')).not.toBe('-1');
       expect(card.disabled).toBe(false);
       expect(card.getAttribute('aria-label')).toBe(
         `直接发送：${HERO_EXAMPLE_PROMPTS[i]}`,
       );
       expect(card.textContent).toBe(HERO_EXAMPLE_PROMPTS[i]);
-      expect(card.closest('[data-testid="hero-primary-cta"]')).toBe(cta);
     }
-    await unmount();
-  });
-
-  it('a tap sends the prompt through the composer path — never a prefill', async () => {
-    const sent: string[] = [];
-    await mount([], (text) => sent.push(text));
-    const card = qsa('.hero-cta-card')[1];
+    // …and a tap still sends through the composer's own path — real work,
+    // never a prefill (the dead-option pattern P345 removed).
     await act(async () => {
-      card.dispatchEvent(
+      cards[1].dispatchEvent(
         new FakeEvent('click', { bubbles: true, cancelable: true }),
       );
     });
     expect(sent).toEqual([HERO_EXAMPLE_PROMPTS[1]]);
-    // Send, not prefill: the composer stays untouched.
-    expect((qs('#chat-input') as FakeElement).value).toBe('');
     await unmount();
   });
 
-  it('every card resolves ≥44×44 by stylesheet — min-height + full width', () => {
-    const rule = ruleBody(chatWindowCss, '.hero-cta-card');
-    expect(rule).not.toBe('');
-    expect(rule).toContain('min-height: 44px');
-    expect(rule).toContain('width: 100%');
-    expect(rule).toContain('box-sizing: border-box');
-    // The 12px card radius token — same control language as the rest.
-    expect(rule).toContain('border-radius: var(--radius)');
-    // Keyboard focus stays visible.
-    expect(ruleBody(chatWindowCss, '.hero-cta-card:focus-visible')).toContain(
-      'outline: 2px solid var(--accent)',
+  it('the primary resolves ≥44px and full-width; the secondary cards carry no accent chrome', () => {
+    const primary = ruleBody(chatWindowCss, '.hero-cta-primary');
+    expect(primary).not.toBe('');
+    expect(primary).toContain('width: 100%');
+    expect(primary).toContain('background: var(--accent)');
+    expect(primary).toContain('color: var(--on-accent)');
+    expect(primary).not.toContain('border: 1px');
+    const minH = declPxValues(primary, 'min-height')[0];
+    expect(minH).toBeGreaterThanOrEqual(44);
+    expect(
+      ruleBody(chatWindowCss, '.hero-cta-primary:focus-visible'),
+    ).toContain('outline: 2px solid var(--accent)');
+
+    // The secondary group: neutral border + surface fill + secondary ink —
+    // no accent anywhere in the resting chrome (fill, border, or lead).
+    const card = ruleBody(chatWindowCss, '.hero-cta-card');
+    expect(card).not.toBe('');
+    expect(card).toContain('min-height: 44px');
+    expect(card).toContain('width: 100%');
+    expect(card).toContain('border: 1px solid var(--border)');
+    expect(card).not.toContain('var(--accent)');
+    const hover = ruleBody(chatWindowCss, '.hero-cta-card:hover');
+    expect(hover).not.toContain('var(--accent)');
+    expect(ruleBody(chatWindowCss, '.hero-cta-card-icon')).toContain(
+      'color: var(--text-muted)',
     );
+    // The retired lead's chrome is gone with it.
+    expect(ruleBody(chatWindowCss, '.hero-cta-lead')).toBe('');
   });
 
   it('the top-whitespace constants stay ≤120px and the free space splits three ways', () => {
@@ -245,22 +276,12 @@ describe('P367 · the hero carries one explicit primary CTA at 390×844', () => 
     );
     // The runtime share: a third auto margin ahead of the CTA group, so
     // the scrollport's free space can no longer pool into one dead band
-    // above the content (the P343 two-way split left ~200px up top).
+    // above the content.
     const rule = ruleBody(
       mobileChat,
       '.messages-hero > .welcome > .hero-cta',
     );
     expect(rule).toContain('margin-top: auto');
-  });
-
-  it('the mobile hint still never says 回车 (P350 rules intact)', async () => {
-    await mount();
-    const hint = qs('.welcome-hint');
-    expect(hint).not.toBeNull();
-    expect(hint!.textContent).toBe(HERO_HINT_TOUCH);
-    expect(hint!.textContent).not.toMatch(/回车/);
-    expect(hint!.textContent).toContain('发送');
-    await unmount();
   });
 
   it('the group drops out with the first message and never renders on desktop', async () => {
@@ -269,7 +290,7 @@ describe('P367 · the hero carries one explicit primary CTA at 390×844', () => 
     expect(qsa('.hero-cta-card')).toHaveLength(0);
     await unmount();
 
-    // 1440×900 keeps its own look: starter chips, no CTA group.
+    // 1440×900 keeps its own look: starter chips, no hero CTA.
     dom = installFakeDom();
     const mq = mediaQueryFor(false, false);
     (dom.window as Record<string, unknown>).matchMedia = mq;
@@ -291,11 +312,12 @@ describe('P367 · the hero carries one explicit primary CTA at 390×844', () => 
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(qs('[data-testid="hero-primary-cta"]')).toBeNull();
+    expect(qsa('.hero-cta-card')).toHaveLength(0);
     expect(qsa('.starter-chip')).toHaveLength(4);
     await unmount();
   });
 
-  it('a reply in flight disarms the cards — same busy gate as the composer', async () => {
+  it('a reply in flight disarms the hero controls — same busy gate as the composer', async () => {
     dom = installFakeDom();
     const mq = mediaQueryFor(true, true);
     (dom.window as Record<string, unknown>).matchMedia = mq;
@@ -315,6 +337,7 @@ describe('P367 · the hero carries one explicit primary CTA at 390×844', () => 
       await Promise.resolve();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
+    expect(qs('[data-testid="hero-primary-cta"]')!.disabled).toBe(true);
     for (const card of qsa('.hero-cta-card')) {
       expect(card.disabled).toBe(true);
     }

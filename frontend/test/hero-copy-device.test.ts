@@ -23,10 +23,15 @@ import {
  * path (both resolve to the keyboard copy), so a future regression that
  * pinned the keyboard string into the touch render would go unnoticed.
  *
- * This file mounts the real ChatWindow in the fake-DOM harness under both a
- * coarse-pointer 390×844 environment and a fine-pointer desktop environment
- * and asserts the rendered `.welcome-hint` text against the shared
- * `lib/heroHint.ts` constants — a hard-coded literal in the component fails.
+ * P374 — the compact screen's auxiliary-copy budget is two muted lines, so
+ * `.welcome-hint` no longer mounts at ≤768px at all (the hero's primary
+ * button does the pointing there). The device copy still decides the
+ * rendered string everywhere the line does mount — this file mounts the
+ * real ChatWindow in the fake-DOM harness under a coarse-pointer
+ * environment and a fine-pointer desktop environment and asserts the
+ * rendered `.welcome-hint` text against the shared `lib/heroHint.ts`
+ * constants — a hard-coded literal in the component fails — plus the
+ * narrow-viewport non-render.
  */
 
 const noop = () => {};
@@ -105,8 +110,11 @@ describe('P362 · mounted hero hint matches the device', () => {
     vi.unstubAllGlobals();
   });
 
-  it('390×844 coarse pointer renders the touch copy — no 回车, names 发送', async () => {
-    mounted = await mountChatWindow(true, true);
+  it('coarse pointer renders the touch copy — no 回车, names 发送', async () => {
+    // A coarse pointer on a ≥769px viewport (tablet/landscape) still shows
+    // the hint line — and it must be the touch copy, never the keyboard
+    // one pinned in by hand.
+    mounted = await mountChatWindow(true, false);
     const text = mounted.hintText();
     expect(text).not.toBeNull();
     expect(text).not.toMatch(/回车/);
@@ -114,6 +122,14 @@ describe('P362 · mounted hero hint matches the device', () => {
     // The rendered string must be the shared constant, so a literal like
     // 「…点右下角发送即可开始」 typed into the component fails here.
     expect(text).toBe(HERO_HINT_TOUCH);
+  });
+
+  it('the compact screen mounts no hint line at all (P374)', async () => {
+    // 390×844 coarse pointer: the auxiliary-copy budget is two muted
+    // lines, so the device hint is dropped there — the hero's primary
+    // button does the pointing instead.
+    mounted = await mountChatWindow(true, true);
+    expect(mounted.hintText()).toBeNull();
   });
 
   it('fine-pointer desktop renders the keyboard copy unchanged', async () => {

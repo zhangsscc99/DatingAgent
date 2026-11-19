@@ -5,10 +5,16 @@ import type { Root } from 'react-dom/client';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { installFakeDom, type FakeDom, type FakeElement } from './helpers/fakeDom';
+import {
+  installFakeDom,
+  FakeEvent,
+  type FakeDom,
+  type FakeElement,
+} from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
 import Sidebar from '../src/components/Sidebar';
 import { STARTER_ENTRIES } from '../src/lib/starterEntries';
+import { HERO_PRIMARY_LABEL } from '../src/lib/heroCta';
 import type { ChatMessage } from '../src/types';
 
 /**
@@ -316,7 +322,7 @@ describe('P336 · one real primary CTA on the empty first screen (390×844)', ()
     await unmount();
   });
 
-  it('the send key is the only brand-solid control — even while empty-disabled', () => {
+  it('the send key keeps its brand solid — even while empty-disabled; only the hero action shares it', () => {
     // Enabled and empty-disabled states share the one solid fill.
     for (const sel of ['.input-bar .input-send', '.input-bar .input-send:disabled']) {
       const rule = ruleBody(inputBarCss, sel);
@@ -325,12 +331,19 @@ describe('P336 · one real primary CTA on the empty first screen (390×844)', ()
       expect(rule, sel).not.toContain('background: var(--surface-hover)');
       expect(rule, sel).not.toContain('var(--text-muted)');
     }
+    // P374: the hero's one real primary button is the only OTHER element
+    // allowed the brand solid — and it is the only clickable one while
+    // the empty send key sits disabled.
+    const heroRule = ruleBody(chatWindowCss, '.hero-cta-primary');
+    expect(heroRule).toContain('background: var(--accent)');
+    expect(heroRule).toContain('color: var(--on-accent)');
     // Nothing else on the empty screen wears the accent fill.
     for (const sel of [
       ".welcome-cta[data-variant='link']",
       '.starter-chip',
       '.starter-chip.secondary',
-      '.welcome-feature-line',
+      '.starter-pill',
+      '.hero-cta-card',
     ]) {
       const rule = ruleBody(chatWindowCss, sel);
       expect(rule, sel).not.toBe('');
@@ -360,18 +373,16 @@ describe('P336 · one real primary CTA on the empty first screen (390×844)', ()
     expect(cta!.getAttribute('data-variant')).toBe('link');
     expect(cta!.hasAttribute('data-primary-cta')).toBe(false);
     expect(cta!.textContent).toContain('完善资料');
-    // Foot of the welcome block: it follows the chips and the feature
-    // summary — a footnote, not a control in the main flow.
+    // Foot of the welcome block: it follows the hero actions and the
+    // starter pills — a footnote, not a control in the main flow.
     const welcome = qs('.welcome')!;
     const order = welcome.children.map((el) => el.className);
     const ctaIndex = order.findIndex((c) => c.includes('welcome-cta'));
     const chipsIndex = order.findIndex((c) => c.includes('starter-chips'));
-    const lineIndex = order.findIndex((c) =>
-      c.includes('welcome-feature-line'),
-    );
-    expect(chipsIndex).toBeGreaterThanOrEqual(0);
-    expect(lineIndex).toBeGreaterThan(chipsIndex);
-    expect(ctaIndex).toBeGreaterThan(lineIndex);
+    const heroIndex = order.findIndex((c) => c.includes('hero-cta'));
+    expect(heroIndex).toBeGreaterThanOrEqual(0);
+    expect(chipsIndex).toBeGreaterThan(heroIndex);
+    expect(ctaIndex).toBeGreaterThan(chipsIndex);
     await unmount();
 
     // Rendered chrome: no border, no padding box, no fill — text only.
@@ -387,24 +398,15 @@ describe('P336 · one real primary CTA on the empty first screen (390×844)', ()
     expect(link).toContain('color: var(--text-muted)');
   });
 
-  it('390-wide render: cards collapse to one non-interactive line', async () => {
+  it('390-wide render: the feature cards and their summary line stay off', async () => {
     await mount(VIEWPORT_W);
     expect(qsa('.feature')).toHaveLength(0);
-    const line = qs('.welcome-feature-line');
-    expect(line).not.toBeNull();
-    expect(line!.tagName).toBe('P');
-    for (const title of ['帮你把话说到点上', '真诚沟通', '约会前把安排想清楚']) {
-      expect(line!.textContent).toContain(title);
-    }
-    // Passive copy — not itself a control, and it wraps no control.
-    expect(line!.tagName).not.toBe('BUTTON');
-    expect(line!.tagName).not.toBe('A');
-    expect(line!.querySelector('button, a[href], [role="button"]')).toBeNull();
+    // P374: the muted summary line is gone too — the first screen's
+    // auxiliary-copy budget is two muted lines, already spent on the
+    // subtitle and the starter pills.
+    expect(qs('.welcome-feature-line')).toBeNull();
+    expect(qsa('.feature')).toHaveLength(0);
     await unmount();
-
-    const rule = ruleBody(chatWindowCss, '.welcome-feature-line');
-    expect(rule).toContain('color: var(--text-muted)');
-    expect(rule).not.toContain('var(--accent)');
   });
 
   it('1440-wide render: the three feature cards keep their grid', async () => {
@@ -620,5 +622,227 @@ describe('P342 · one 「完善资料」 entry and a widened column at 1440×900
           /margin-right\s*:\s*auto/.test(body));
       expect(centred, `${sel} must keep symmetric auto margins`).toBe(true);
     }
+  });
+});
+
+/**
+ * P374 — measured at 390×844 on 1795090365 (docs/runs/walk-1795090365-m1.png,
+ * the P367 fix's 7th recurrence): the hero's data-testid="hero-primary-cta"
+ * was a 334×174 DIV of three equal-weight cards labelled 「点一条，直接发送」
+ * — clicking it sent a canned question while `document.activeElement.id`
+ * stayed "". Four near-equal clickables and four-plus lines of auxiliary
+ * gray copy competed on the first screen, and the ·-joined 「也可以直接问」
+ * hint broke mid-phrase at 390px.
+ *
+ * Contract asserted here (the backlog's verify clause):
+ *  1. At 390×844 at most ONE clickable first-screen candidate that is
+ *     ≥44×44 AND wears a brand-color background or border renders — and
+ *     it is `<button data-testid="hero-primary-cta">说说你的情况</button>`,
+ *     whose click focuses #chat-input and dispatches no chat send.
+ *  2. First-screen auxiliary gray copy is ≤2 muted text lines total.
+ *  3. No text node overflows its container (scrollWidth <= clientWidth)
+ *     at 390 width — the starter hint is a wrap-safe row of independent
+ *     nowrap pills, so nothing breaks mid-phrase.
+ *
+ * The fake DOM reports zero rects, so "in view" and "≥44×44" are evaluated
+ * the way the other hero tests do: the render-level expressions a
+ * real-layout run evaluates, plus the resolved CSS constants.
+ */
+describe('P374 · one obvious primary action on the mobile first screen', () => {
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qs = (sel: string) =>
+    dom.document.querySelector(sel) as FakeElement | null;
+  const qsa = (sel: string) => dom.document.querySelectorAll(sel);
+
+  const mount = async (widthPx: number, onSend: (t: string) => void = () => {}) => {
+    dom = installFakeDom();
+    const mq = mediaQueryForWidth(widthPx);
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    vi.stubGlobal('matchMedia', mq);
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(ChatWindow, {
+          messages: [] as ChatMessage[],
+          loading: false,
+          onSend,
+          onSetupProfile: () => {},
+        }),
+      );
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const unmount = async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    dom.document.body.textContent = '';
+  };
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** Every resting-state declaration body that could paint `el` — each
+   *  rule whose selector's trailing compound (pseudo-states stripped)
+   *  matches the element. Combinator prefixes are approximated away,
+   *  which is the same resolution style the other hero tests use. */
+  function chromeRules(el: FakeElement): string {
+    const bodies: string[] = [];
+    const css = `${chatWindowCss}\n${inputBarCss}`;
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selText = m[1];
+      if (selText.includes('@')) continue;
+      for (const part of selText.split(',')) {
+        const compound = part.trim().split(/[\s>+~]+/).pop() ?? '';
+        const resting = compound.replace(
+          /:{1,2}[a-zA-Z-]+(?:\([^)]*\))?/g,
+          '',
+        );
+        if (resting && el.matches(resting)) bodies.push(m[2]);
+      }
+    }
+    return bodies.join('\n');
+  }
+
+  function firstPx(rule: string, prop: string): number {
+    const m = new RegExp(`${prop}\\s*:\\s*([0-9.]+)px`).exec(rule);
+    return m ? Number(m[1]) : 0;
+  }
+
+  /** A "primary candidate" per the verify clause: a clickable element
+   *  whose resolved box reaches the 44px floor on both axes. */
+  function isLargeCandidate(el: FakeElement): boolean {
+    const rules = chromeRules(el);
+    const h = firstPx(rules, 'min-height') || firstPx(rules, 'height');
+    const w = /(?:^|;)\s*width\s*:\s*100%/.test(rules)
+      ? 44
+      : firstPx(rules, 'width') || firstPx(rules, 'min-width');
+    return h >= 44 && w >= 44;
+  }
+
+  /** Brand chrome = resting background or border painted var(--accent)
+   *  (accent-soft/-glow tints do not match `var(--accent)` exactly). */
+  function hasBrandChrome(el: FakeElement): boolean {
+    const rules = chromeRules(el);
+    return (
+      /background(?:-color)?\s*:[^;]*var\(--accent\)/.test(rules) ||
+      /border(?:-[a-z-]*)?\s*:[^;]*var\(--accent\)/.test(rules)
+    );
+  }
+
+  it('at most one clickable ≥44×44 first-screen candidate wears brand chrome — the hero button', async () => {
+    await mount(VIEWPORT_W);
+    const candidates = qsa('button, a[href], [role="button"], [role="link"]')
+      .filter((el) => isFocusable(el) && inFirstViewport(el))
+      .filter(isLargeCandidate);
+    const branded = candidates.filter(hasBrandChrome);
+    expect(
+      branded.length,
+      `brand-chrome candidates: ${branded
+        .map((el) => `${el.className}:${el.textContent.trim()}`)
+        .join(' | ')}`,
+    ).toBeLessThanOrEqual(1);
+    expect(branded).toHaveLength(1);
+    expect(branded[0].getAttribute('data-testid')).toBe('hero-primary-cta');
+    // Why the count holds: the empty send key keeps its accent fill but
+    // sits disabled — not clickable — while every secondary control
+    // resolves neutral chrome only.
+    const send = qs('.input-send')!;
+    expect(send.disabled).toBe(true);
+    for (const card of qsa('.hero-cta-card')) {
+      expect(hasBrandChrome(card)).toBe(false);
+      expect(isLargeCandidate(card)).toBe(true);
+    }
+    await unmount();
+  });
+
+  it('hero-primary-cta is a real button; its click focuses #chat-input and sends nothing', async () => {
+    const sent: string[] = [];
+    await mount(VIEWPORT_W, (t) => sent.push(t));
+    const cta = qs('[data-testid="hero-primary-cta"]');
+    expect(cta).not.toBeNull();
+    expect(cta!.tagName).toBe('BUTTON');
+    expect(cta!.textContent).toBe(HERO_PRIMARY_LABEL);
+    expect(cta!.disabled).toBe(false);
+    await act(async () => {
+      cta!.dispatchEvent(
+        new FakeEvent('click', { bubbles: true, cancelable: true }),
+      );
+    });
+    expect(dom.document.activeElement?.id).toBe('chat-input');
+    expect(sent).toEqual([]);
+    expect((qs('#chat-input') as FakeElement).value).toBe('');
+    await unmount();
+  });
+
+  it('the first screen carries ≤2 lines of auxiliary gray copy', async () => {
+    await mount(VIEWPORT_W);
+    const welcome = qs('.welcome')!;
+    // Muted <p> blocks are the auxiliary copy: the subtitle plus the
+    // starter-pill line — nothing else survives the budget.
+    const muted = welcome.querySelectorAll('p');
+    expect(muted.length).toBeLessThanOrEqual(2);
+    expect(muted.map((p) => p.className)).toEqual(['', 'starter-chips-line']);
+    expect(qs('.welcome-hint')).toBeNull();
+    expect(qs('.hero-cta-lead')).toBeNull();
+    expect(qs('.welcome-feature-line')).toBeNull();
+    // The「完善资料」footnote is a link, not copy — it stays.
+    expect(qs('.welcome-cta')).not.toBeNull();
+    await unmount();
+  });
+
+  it('no text node overflows its container at 390 width — the hint is atomic nowrap pills', async () => {
+    await mount(VIEWPORT_W);
+    // The render-level expression a real-layout run evaluates; the fake
+    // DOM reports 0/0 so the CSS contract below pins the real guarantee.
+    const hero = qs('.hero')!;
+    for (const el of hero._walk()) {
+      expect(
+        el.scrollWidth,
+        `.${el.className} scrollWidth>clientWidth`,
+      ).toBeLessThanOrEqual(el.clientWidth);
+    }
+    const line = qs('.starter-chips-line')!;
+    const pills = line.querySelectorAll('.starter-pill');
+    expect(pills).toHaveLength(STARTER_ENTRIES.length);
+    // Each pill is one complete label — never a ·-joined sentence — so a
+    // wrap can only move a whole label to the next line.
+    expect(pills.map((p) => p.textContent)).toEqual(
+      STARTER_ENTRIES.map((e) => e.label),
+    );
+    expect(line.textContent).not.toContain('·');
+    for (const pill of pills) {
+      expect(pill.scrollWidth).toBeLessThanOrEqual(pill.clientWidth);
+      expect(pill.tagName).not.toBe('BUTTON');
+    }
+    await unmount();
+
+    // The CSS contract: the row wraps freely while each pill is one
+    // nowrap unit capped at the line width and ellipsising inside itself.
+    const lineRule = ruleBody(chatWindowCss, '.starter-chips-line');
+    expect(lineRule).toContain('flex-wrap: wrap');
+    const pillRule = ruleBody(chatWindowCss, '.starter-pill');
+    expect(pillRule).toContain('white-space: nowrap');
+    expect(pillRule).toContain('max-width: 100%');
+    expect(pillRule).toContain('overflow: hidden');
+    expect(pillRule).toContain('text-overflow: ellipsis');
+  });
+
+  it('1440×900 keeps its own hero — chips, hint and cards, no CTA button', async () => {
+    await mount(1440);
+    expect(qs('[data-testid="hero-primary-cta"]')).toBeNull();
+    expect(qsa('.starter-chip')).toHaveLength(STARTER_ENTRIES.length);
+    expect(qs('.welcome-hint')).not.toBeNull();
+    expect(qsa('.feature')).toHaveLength(3);
+    await unmount();
   });
 });

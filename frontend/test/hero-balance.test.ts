@@ -399,25 +399,31 @@ describe('P343 · the first screen keeps ≤4 clickables and one primary', () =>
     vi.unstubAllGlobals();
   });
 
-  it('the starter chips collapse into one muted non-interactive hint line', async () => {
+  it('the starter chips collapse into a muted non-interactive pill row', async () => {
     await mount(VIEWPORT_W);
     expect(qsa('.starter-chip')).toHaveLength(0);
     expect(qs('.starter-chips')).toBeNull();
     const line = qs('.starter-chips-line');
     expect(line).not.toBeNull();
     expect(line!.tagName).toBe('P');
-    // P355: the joined line lists the same shared entries the drawer holds.
-    for (const entry of STARTER_ENTRIES) {
-      expect(line!.textContent).toContain(entry.label);
-    }
+    // P355: the line lists the same shared entries the drawer holds —
+    // P374: each as its own nowrap pill, never a ·-joined sentence.
+    const pills = line!.querySelectorAll('.starter-pill');
+    expect(pills.map((p) => p.textContent)).toEqual(
+      STARTER_ENTRIES.map((e) => e.label),
+    );
     // Passive copy — not itself a control, and it wraps no control.
     expect(line!.querySelector('button, a[href], [role="button"]')).toBeNull();
-    // Muted, single-line text — no button chrome.
+    // Muted text that wraps between pills — no button chrome, no accent.
     const rule = ruleBody(mobileChat, '.starter-chips-line');
     expect(rule).toContain('color: var(--text-muted)');
     expect(rule).not.toContain('var(--accent)');
-    expect(rule).toContain('white-space: nowrap');
+    expect(rule).toContain('flex-wrap: wrap');
     expect(rule).not.toContain('border');
+    const pill = ruleBody(mobileChat, '.starter-pill');
+    expect(pill).toContain('white-space: nowrap');
+    expect(pill).toContain('max-width: 100%');
+    expect(pill).not.toContain('var(--accent)');
     await unmount();
   });
 
@@ -481,7 +487,7 @@ describe('P343 · the first screen keeps ≤4 clickables and one primary', () =>
     await unmount();
   });
 
-  it('visible `button, a[href], [role=button]` number ≤4 — three example cards + send', async () => {
+  it('visible `button, a[href], [role=button]` number ≤5 — hero action + three example cards + send', async () => {
     await mount(VIEWPORT_W);
     const controls = qsa('button, a[href], [role=button]').filter((el) =>
       inFirstViewport(el),
@@ -489,16 +495,18 @@ describe('P343 · the first screen keeps ≤4 clickables and one primary', () =>
     const labels = controls.map(
       (el) => el.getAttribute('aria-label') ?? el.textContent.trim(),
     );
-    // P367: the three one-tap example cards are now the hero's explicit
-    // primary action — real sends, not prefills. With the composer send
-    // key the first screen stays at 4 controls (the real shell adds
-    // topbar menu/theme/more); chips are still text, the footnote a
-    // role="link" span, the cycler and the kbd hint still unmounted.
+    // P374: the hero's ONE primary button now leads — it focuses the
+    // composer and sends nothing — with the three example prompts demoted
+    // to a secondary group behind it. With the composer send key the first
+    // screen holds 5 controls (the real shell adds topbar
+    // menu/theme/more); pills are still text, the footnote a role="link"
+    // span, the cycler and the kbd hint still unmounted.
     expect(
       controls.length,
       `first-screen controls: ${labels.join(' | ')}`,
-    ).toBeLessThanOrEqual(4);
+    ).toBeLessThanOrEqual(5);
     expect(labels).toEqual([
+      '说说你的情况',
       ...HERO_EXAMPLE_PROMPTS.map((p) => `直接发送：${p}`),
       '发送消息',
     ]);
@@ -534,19 +542,25 @@ describe('P343 · the first screen keeps ≤4 clickables and one primary', () =>
       expect(rule, sel).toContain('background: var(--accent)');
       expect(rule, sel).toContain('color: var(--on-accent)');
     }
-    // Nothing else on the hero wears the accent fill.
+    // Nothing else on the hero wears the accent fill — P374: the example
+    // cards and starter pills keep neutral chrome, and the feature-line
+    // rule is gone with its element.
     for (const sel of [
       ".welcome-cta[data-variant='link']",
       '.starter-chips-line',
-      '.welcome-feature-line',
+      '.starter-pill',
+      '.hero-cta-card',
     ]) {
       const rule = ruleBody(
-        sel === '.starter-chips-line' ? mobileChat : chatWindowCss,
+        sel === '.starter-chips-line' || sel === '.starter-pill'
+          ? mobileChat
+          : chatWindowCss,
         sel,
       );
       expect(rule, sel).not.toBe('');
       expect(rule, sel).not.toContain('background: var(--accent)');
     }
+    expect(ruleBody(chatWindowCss, '.welcome-feature-line')).toBe('');
   });
 });
 

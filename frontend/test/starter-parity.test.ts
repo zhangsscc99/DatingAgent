@@ -37,7 +37,6 @@ const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const read = (file: string) => readFileSync(join(SRC, file), 'utf8');
 
 const LABELS = STARTER_ENTRIES.map((e) => e.label);
-const JOINED_LINE = `也可以直接问：${LABELS.join(' · ')}`;
 
 /** matchMedia stub resolving (min|max)-width queries against a width. */
 function mediaQueryForWidth(px: number) {
@@ -143,7 +142,7 @@ describe('P355 · welcome starters and 快捷入口 share one source', () => {
     }
   });
 
-  it('390×844: the joined hint line names all four entries; the drawer lists the same four', async () => {
+  it('390×844: the pill hint row names all four entries; the drawer lists the same four', async () => {
     await mountApp(390);
     // P343 contract kept: chips collapse into ONE non-interactive line…
     const line = qs('.starter-chips-line');
@@ -151,8 +150,12 @@ describe('P355 · welcome starters and 快捷入口 share one source', () => {
     expect(line!.tagName).toBe('P');
     expect(line!.querySelector('button, a[href], [role="button"]')).toBeNull();
     expect(qsa('.starter-chip')).toHaveLength(0);
-    // …whose text is the shared array joined in order — all four names.
-    expect(line!.textContent).toBe(JOINED_LINE);
+    // …which P374 renders as a wrap-safe row of independent pills — the
+    // shared array in order, all four names, never ·-joined.
+    expect(line!.textContent).toContain('也可以直接问：');
+    expect(line!.textContent).not.toContain('·');
+    const pills = line!.querySelectorAll('.starter-pill');
+    expect(pills.map((p) => p.textContent)).toEqual(LABELS);
 
     // The drawer「快捷入口」— same entries, same count, same order.
     const menuBtn = dom.document

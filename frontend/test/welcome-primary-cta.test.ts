@@ -94,31 +94,40 @@ describe('P290/P312 · one primary CTA on the first screen — the composer send
     expect(welcome).not.toContain('data-primary-cta');
   });
 
-  it('the welcome block carries passive guidance copy, not a start button', () => {
+  it('the welcome block keeps passive guidance on desktop — the compact screen gets the hero button', () => {
+    // SSR renders the ≥769px hero (no window → compactFeatures false), so
+    // the markup keeps the hint paragraph and never shows the compact CTA.
     const markup = renderWelcome();
     expect(markup).toContain('class="welcome-hint"');
     expect(markup).toContain('在下方输入框');
     expect(markup).not.toContain('welcome-primary-cta');
     expect(markup).not.toContain('说说你的情况');
-    // The hint is a paragraph, and nothing in .welcome submits/focuses the
-    // composer — the source block carries no inputRef hand-off.
+    expect(markup).not.toContain('hero-primary-cta');
+    // The hint is a paragraph; P374's compact-only hero button is the one
+    // welcome element allowed to reach the composer — and only to focus
+    // it, never to send.
     const welcomeBlock = chatWindowTsx.slice(
       chatWindowTsx.indexOf('className="welcome'),
-      chatWindowTsx.indexOf('starter-chips'),
+      chatWindowTsx.indexOf('renderedMessages.map'),
     );
     expect(welcomeBlock).toContain('<p className="welcome-hint">');
-    expect(welcomeBlock).not.toContain('inputRef');
-    expect(welcomeBlock).not.toContain('onSend');
+    expect(welcomeBlock).toContain('data-testid="hero-primary-cta"');
+    expect(welcomeBlock).toContain('inputRef.current?.focus()');
   });
 
-  it('the send key is the only brand-solid action; no welcome button keeps the fill', () => {
+  it('the send key keeps its brand solid; only the compact hero button shares it', () => {
     const rule = ruleBody(inputBarCss, '.input-bar .input-send');
     expect(rule).toContain('background: var(--accent)');
     expect(rule).toContain('color: var(--on-accent)');
-    // The retired welcome button's rules are gone and no other welcome
-    // control picked the accent fill up.
+    // The retired welcome button's rules are gone; P374's compact-only
+    // hero action is the one welcome element allowed the fill — it is the
+    // phone first screen's obvious next action — while every other
+    // welcome control stays secondary.
     expect(ruleBody(chatWindowCss, '.welcome-primary-cta')).toBe('');
-    for (const secondary of ['.welcome-cta', '.starter-chip', '.profile-nudge-btn']) {
+    expect(ruleBody(chatWindowCss, '.hero-cta-primary')).toContain(
+      'background: var(--accent)',
+    );
+    for (const secondary of ['.welcome-cta', '.starter-chip', '.profile-nudge-btn', '.hero-cta-card']) {
       expect(ruleBody(chatWindowCss, secondary)).not.toContain(
         'background: var(--accent)',
       );
