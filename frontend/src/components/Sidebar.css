@@ -910,6 +910,11 @@
     /* P324: a fling on the drawer list must not rubber-band the chat
        behind the sheet. */
     overscroll-behavior: contain;
+    /* P386: stop growing into the drawer's free space — with the 进阶工具
+       group folded, the base flex-grow pushed ~267px of dead blank between
+       the heading and 设置. Content-height when short, shrink + internal
+       scroll unchanged when the list overflows. */
+    flex-grow: 0;
   }
 
   .sidebar.sidebar-drawer.open {
@@ -975,6 +980,11 @@
     z-index: 1;
     background: var(--surface);
     padding-top: 10px;
+    /* P386: the base margin-top:auto pinned 设置 to the drawer bottom even
+       when the list ended early. In the drawer it hugs the content; when
+       the list overflows the body scroll region still lands it on the
+       bottom edge (the sticky rule stays as the no-op fallback). */
+    margin-top: 0;
   }
 
   .recent-chat-list {
