@@ -28,12 +28,15 @@ export function resetSearchOnSessionChange(
 
 /**
  * Only the true last message may be retried (App's handleRetry drops any other
- * id). Returns its id when it is a failed assistant turn, else null — so an
- * older error bubble surfaced by a search filter never gets a dead button.
+ * id). Returns its id when it is a failed or still-incomplete (P398 truncated)
+ * assistant turn, else null — so an older bubble surfaced by a search filter
+ * never gets a dead button.
  */
 export function retryableMessageId(messages: ChatMessage[]): string | null {
   const last = messages[messages.length - 1];
-  if (!last || last.role !== 'assistant' || !last.error) return null;
+  if (!last || last.role !== 'assistant' || (!last.error && !last.truncated)) {
+    return null;
+  }
   return last.id;
 }
 

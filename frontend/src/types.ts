@@ -43,6 +43,12 @@ export interface ChatMessage {
   regenerating?: boolean;
   /** Generation was stopped by the user — keep the partial text (P12) */
   stopped?: boolean;
+  /**
+   * P398: the reply still reads as unfinished after the single automatic
+   * continuation — the bubble footer offers 「回答中断 · 重试」 instead of
+   * silently keeping the half answer.
+   */
+  truncated?: boolean;
   /** Per-reply metadata badge (F21); hidden when tokens are unknown */
   meta?: ReplyMeta;
   /**

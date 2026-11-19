@@ -394,6 +394,7 @@ export function serializeMessages(messages: ChatMessage[]): ChatMessage[] {
         error,
         retryPrompt,
         stopped,
+        truncated,
         meta,
       }) => {
         const cleanMeta = normalizeReplyMeta(meta);
@@ -412,6 +413,8 @@ export function serializeMessages(messages: ChatMessage[]): ChatMessage[] {
           ...(cleanMeta ? { meta: cleanMeta } : {}),
           ...(error ? { error: true as const, retryPrompt } : {}),
           ...(stopped ? { stopped: true as const } : {}),
+          // P398: an incomplete reply keeps its footer retry across reloads.
+          ...(truncated ? { truncated: true as const, retryPrompt } : {}),
         };
       },
     );

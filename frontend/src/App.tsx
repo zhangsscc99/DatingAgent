@@ -111,6 +111,11 @@ import { isServiceDown } from './lib/serviceStatus';
 import { headerStatusCopy } from './lib/headerStatus';
 import { parseSseDataLine } from './lib/sse';
 import { foldReplyDraft } from './lib/streamDraft';
+import {
+  isReplyIncomplete,
+  mergeReplyContinuation,
+  REPLY_CONTINUATION_PROMPT,
+} from './lib/replyComplete';
 import { canRunQuickPrompt } from './lib/quickPromptGate';
 import {
   readReplyLengthPreference,
@@ -549,6 +554,14 @@ export default function App() {
       // P11: the response status feeds the outage classifier when the turn
       // fails — stays undefined when the request never got a response.
       let httpStatus: number | undefined;
+      // P398: a reply that settles mid-thought (dangling ：/、/， or a list
+      // that announced more items than it delivered) gets ONE automatic
+      // continuation — the partial text stays on screen and the follow-up
+      // stream appends to it — never a loop. `continuationSeed` pins the
+      // text already shown so the authoritative `message` frame can be
+      // merged onto it instead of replacing it.
+      let continuing = false;
+      let continuationSeed = '';
 
       abortRef.current?.abort();
       abortRef.current = new AbortController();
@@ -558,149 +571,114 @@ export default function App() {
       };
 
       try {
-        const res = await fetch('/api/chat/stream', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          // P196: replyLength is omitted entirely at 默认 so an untouched
-          // install sends byte-identical bodies.
-          body: buildChatRequestBody({
-            sessionId: requestSessionId,
-            message: prompt,
-            profile: profile ?? undefined,
-            language,
-            replyLength: replyLengthRequestField(replyLength),
-            previousReplies,
-            intent,
-          }),
-          signal: abortRef.current.signal,
-        });
-        httpStatus = res.status;
+        // P398: attempt 2 fires only when attempt 1 settled incomplete.
+        for (;;) {
+          const res = await fetch('/api/chat/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // P196: replyLength is omitted entirely at 默认 so an untouched
+            // install sends byte-identical bodies.
+            body: buildChatRequestBody({
+              sessionId: requestSessionId,
+              // P398: the second pass asks the model to pick the cut reply
+              // back up — regen/intent fields belong to the first ask only.
+              message: continuing ? REPLY_CONTINUATION_PROMPT : prompt,
+              profile: profile ?? undefined,
+              language,
+              replyLength: replyLengthRequestField(replyLength),
+              previousReplies: continuing ? undefined : previousReplies,
+              intent: continuing ? undefined : intent,
+            }),
+            signal: abortRef.current.signal,
+          });
+          httpStatus = res.status;
 
-        // P07: headers arrive before the stream body, and error replies (e.g.
-        // 429) carry the same budget — update whenever they are present.
-        const budget = parseRateLimit(res.headers);
-        if (budget) setRateLimit(budget);
+          // P07: headers arrive before the stream body, and error replies (e.g.
+          // 429) carry the same budget — update whenever they are present.
+          const budget = parseRateLimit(res.headers);
+          if (budget) setRateLimit(budget);
 
-        if (!res.ok) throw new Error(await describeChatError(res));
-        const reader = res.body!.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let streamPhase: StreamPhase = 'thinking';
-        // P231: which stage of the tool lifecycle the wait copy describes.
-        let toolPhase: ToolPhaseKind | undefined;
-        let streamError: string | null = null;
+          if (!res.ok) throw new Error(await describeChatError(res));
+          const reader = res.body!.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let streamPhase: StreamPhase = 'thinking';
+          // P231: which stage of the tool lifecycle the wait copy describes.
+          let toolPhase: ToolPhaseKind | undefined;
+          let streamError: string | null = null;
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() ?? '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
 
-          for (const line of lines) {
-            // P171: a malformed/injected line is skipped, not fatal — tokens
-            // already accumulated survive and the stream keeps being read.
-            const event = parseSseDataLine(line);
-            if (event === null) continue;
+            for (const line of lines) {
+              // P171: a malformed/injected line is skipped, not fatal — tokens
+              // already accumulated survive and the stream keeps being read.
+              const event = parseSseDataLine(line);
+              if (event === null) continue;
 
-            if (event.type === 'thinking') {
-              streamPhase = 'thinking';
-              // P284: a mid-stream thinking beat means the backend rejected
-              // an echoed regen and is writing a replacement — drop the
-              // duplicate draft so its deltas never stick to the new text.
-              if (finalContent) {
-                finalContent = '';
-                patchAssistant({
-                  content: '',
-                  streamPhase,
-                  streaming: true,
-                  toolPhase: undefined,
-                });
-              } else {
-                patchAssistant({ streamPhase, streaming: true });
+              if (event.type === 'thinking') {
+                streamPhase = 'thinking';
+                // P284: a mid-stream thinking beat means the backend rejected
+                // an echoed regen and is writing a replacement — drop the
+                // duplicate draft so its deltas never stick to the new text.
+                // P398: except during the continuation pass — the partial is
+                // the seed the new text appends to, never a duplicate.
+                if (finalContent && !continuing) {
+                  finalContent = '';
+                  patchAssistant({
+                    content: '',
+                    streamPhase,
+                    streaming: true,
+                    toolPhase: undefined,
+                  });
+                } else {
+                  patchAssistant({ streamPhase, streaming: true });
+                }
               }
-            }
 
-            // P231: the backend announces the tool name the moment the
-            // upstream tool_calls stream reveals it — before tool_start —
-            // and again while its result is being written up. Either way
-            // the bubble keeps a tool-named phase instead of going silent.
-            if (event.type === 'tool_progress') {
-              const d = event.data as { name?: string; phase?: string };
-              toolPhase = d.phase === 'summarizing' ? 'summarizing' : 'calling';
-              if (d.name && !toolEvents.some((t) => t.name === d.name)) {
-                toolEvents.push({
-                  name: d.name,
-                  label: TOOL_LABELS[d.name] ?? d.name,
-                  status: toolPhase === 'summarizing' ? 'done' : 'running',
-                });
-              }
-              streamPhase = 'tool';
-              patchAssistant({
-                streamPhase,
-                streaming: true,
-                toolEvents: toolEvents.length ? [...toolEvents] : undefined,
-                toolPhase,
-              });
-            }
-
-            if (event.type === 'tool_start') {
-              const d = event.data as { name: string };
-              // A tool_progress 'calling' event may already have added the
-              // badge — keep it running rather than pushing a duplicate.
-              const existing = toolEvents.find((t) => t.name === d.name);
-              if (existing) {
-                existing.status = 'running';
-              } else {
-                toolEvents.push({
-                  name: d.name,
-                  label: TOOL_LABELS[d.name] ?? d.name,
-                  status: 'running',
-                });
-              }
-              toolPhase = 'calling';
-              streamPhase = 'tool';
-              patchAssistant({
-                streamPhase,
-                streaming: true,
-                toolEvents: [...toolEvents],
-                toolPhase,
-              });
-            }
-
-            if (event.type === 'tool_end') {
-              const d = event.data as { name: string; result?: unknown; status?: string };
-              if (d.status === 'failed') {
-                // P397: a failed call settles its record entry — a running
-                // badge flips to failed; a call that was never announced
-                // (unregistered name) still gets a failed row so the record
-                // can report 「N 个工具调用失败」. An unmapped name renders
-                // the generic label, never the raw id.
-                const failIdx = toolEvents.findIndex(
-                  (t) => t.name === d.name && t.status === 'running',
-                );
-                if (failIdx >= 0) {
-                  toolEvents[failIdx] = { ...toolEvents[failIdx], status: 'failed' };
-                } else if (!toolEvents.some((t) => t.name === d.name)) {
+              // P231: the backend announces the tool name the moment the
+              // upstream tool_calls stream reveals it — before tool_start —
+              // and again while its result is being written up. Either way
+              // the bubble keeps a tool-named phase instead of going silent.
+              if (event.type === 'tool_progress') {
+                const d = event.data as { name?: string; phase?: string };
+                toolPhase = d.phase === 'summarizing' ? 'summarizing' : 'calling';
+                if (d.name && !toolEvents.some((t) => t.name === d.name)) {
                   toolEvents.push({
                     name: d.name,
-                    label: TOOL_LABELS[d.name] ?? '工具调用',
-                    status: 'failed',
+                    label: TOOL_LABELS[d.name] ?? d.name,
+                    status: toolPhase === 'summarizing' ? 'done' : 'running',
                   });
                 }
-                patchAssistant({ toolEvents: [...toolEvents] });
-              } else {
-                const idx = toolEvents.findIndex((t) => t.name === d.name && t.status === 'running');
-                if (idx >= 0) {
-                  toolEvents[idx] = { ...toolEvents[idx], status: 'done', result: d.result };
+                streamPhase = 'tool';
+                patchAssistant({
+                  streamPhase,
+                  streaming: true,
+                  toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+                  toolPhase,
+                });
+              }
+
+              if (event.type === 'tool_start') {
+                const d = event.data as { name: string };
+                // A tool_progress 'calling' event may already have added the
+                // badge — keep it running rather than pushing a duplicate.
+                const existing = toolEvents.find((t) => t.name === d.name);
+                if (existing) {
+                  existing.status = 'running';
+                } else {
+                  toolEvents.push({
+                    name: d.name,
+                    label: TOOL_LABELS[d.name] ?? d.name,
+                    status: 'running',
+                  });
                 }
-                // P231/P397: failed is settled too — only still-running
-                // calls keep the wait copy on 'calling'; all settled means
-                // the result is being written up, so keep the tool name in
-                // the wait copy for that window too.
-                const allSettled = toolEvents.every((t) => t.status !== 'running');
-                toolPhase = allSettled ? 'summarizing' : 'calling';
-                streamPhase = allSettled ? 'generating' : 'tool';
+                toolPhase = 'calling';
+                streamPhase = 'tool';
                 patchAssistant({
                   streamPhase,
                   streaming: true,
@@ -708,123 +686,209 @@ export default function App() {
                   toolPhase,
                 });
               }
-            }
 
-            // P189: token increments grow the bubble while the model writes;
-            // a later `message` still overwrites with the authoritative text.
-            if (event.type === 'delta') {
-              const folded = foldReplyDraft(finalContent, event);
-              if (folded !== null) {
-                finalContent = folded;
-                streamPhase = 'generating';
-                // P240: body text is arriving — drop the tool-named phase so
-                // the wait copy returns to the generic generating label.
-                toolPhase = undefined;
-                patchAssistant({ content: finalContent, streamPhase, streaming: true, toolPhase });
-              }
-            }
-
-            if (event.type === 'message') {
-              // P397: an authoritative reply after a mid-turn tool error
-              // means the turn recovered — the failure stays in the tool
-              // record only and never rewrites the bubble as an error.
-              streamError = null;
-              const folded = foldReplyDraft(finalContent, event);
-              if (folded !== null) {
-                finalContent = folded;
-                streamPhase = 'generating';
-                toolPhase = undefined;
-                patchAssistant({
-                  content: finalContent,
-                  streamPhase,
-                  streaming: true,
-                  toolPhase,
-                  toolEvents: toolEvents.length ? [...toolEvents] : undefined,
-                });
-              }
-            }
-
-            if (event.type === 'done') {
-              const d = event.data as {
-                sessionId: string;
-                tool?: string;
-                tokens?: number;
-                latencyMs?: number;
-                memory?: { count?: number; facts?: MemoryFact[] };
-                /** P390: the strategy a 「换一个」 reply reported; absent otherwise. */
-                strategy?: string;
-              };
-              if (d.sessionId) {
-                // P253: the turn was persisted under requestSessionId at
-                // send time — if the backend ever reports a different id,
-                // move the stored entry so the conversation keeps one id.
-                if (requestSessionId && d.sessionId !== requestSessionId) {
-                  remapChatSessionId(requestSessionId, d.sessionId);
+              if (event.type === 'tool_end') {
+                const d = event.data as { name: string; result?: unknown; status?: string };
+                if (d.status === 'failed') {
+                  // P397: a failed call settles its record entry — a running
+                  // badge flips to failed; a call that was never announced
+                  // (unregistered name) still gets a failed row so the record
+                  // can report 「N 个工具调用失败」. An unmapped name renders
+                  // the generic label, never the raw id.
+                  const failIdx = toolEvents.findIndex(
+                    (t) => t.name === d.name && t.status === 'running',
+                  );
+                  if (failIdx >= 0) {
+                    toolEvents[failIdx] = { ...toolEvents[failIdx], status: 'failed' };
+                  } else if (!toolEvents.some((t) => t.name === d.name)) {
+                    toolEvents.push({
+                      name: d.name,
+                      label: TOOL_LABELS[d.name] ?? '工具调用',
+                      status: 'failed',
+                    });
+                  }
+                  patchAssistant({ toolEvents: [...toolEvents] });
+                } else {
+                  const idx = toolEvents.findIndex((t) => t.name === d.name && t.status === 'running');
+                  if (idx >= 0) {
+                    toolEvents[idx] = { ...toolEvents[idx], status: 'done', result: d.result };
+                  }
+                  // P231/P397: failed is settled too — only still-running
+                  // calls keep the wait copy on 'calling'; all settled means
+                  // the result is being written up, so keep the tool name in
+                  // the wait copy for that window too.
+                  const allSettled = toolEvents.every((t) => t.status !== 'running');
+                  toolPhase = allSettled ? 'summarizing' : 'calling';
+                  streamPhase = allSettled ? 'generating' : 'tool';
+                  patchAssistant({
+                    streamPhase,
+                    streaming: true,
+                    toolEvents: [...toolEvents],
+                    toolPhase,
+                  });
                 }
-                setSessionId(d.sessionId);
               }
-              // P339: the turn's reply carries the session's accumulated
-              // keyed facts — the capsule's source of truth for what the
-              // agent remembers now.
-              if (Array.isArray(d.memory?.facts)) {
-                setMemory({
-                  count: d.memory!.count ?? d.memory!.facts!.length,
-                  items: d.memory!.facts!,
-                });
-              }
-              // F21: only attach a badge when the provider reported token usage.
-              if (typeof d.tokens === 'number') {
-                patchAssistant({
-                  meta: { tool: d.tool, tokens: d.tokens, latencyMs: d.latencyMs },
-                });
-              }
-            }
 
-            if (event.type === 'error') {
-              streamError = (event.data as { message: string }).message;
+              // P189: token increments grow the bubble while the model writes;
+              // a later `message` still overwrites with the authoritative text.
+              if (event.type === 'delta') {
+                const folded = foldReplyDraft(finalContent, event);
+                if (folded !== null) {
+                  finalContent = folded;
+                  streamPhase = 'generating';
+                  // P240: body text is arriving — drop the tool-named phase so
+                  // the wait copy returns to the generic generating label.
+                  toolPhase = undefined;
+                  patchAssistant({ content: finalContent, streamPhase, streaming: true, toolPhase });
+                }
+              }
+
+              if (event.type === 'message') {
+                // P397: an authoritative reply after a mid-turn tool error
+                // means the turn recovered — the failure stays in the tool
+                // record only and never rewrites the bubble as an error.
+                streamError = null;
+                const folded = foldReplyDraft(finalContent, event);
+                if (folded !== null) {
+                  // P398: the continuation's authoritative frame holds only
+                  // the new tail — merge it onto the partial still on screen.
+                  finalContent = continuing
+                    ? mergeReplyContinuation(continuationSeed, folded)
+                    : folded;
+                  streamPhase = 'generating';
+                  toolPhase = undefined;
+                  patchAssistant({
+                    content: finalContent,
+                    streamPhase,
+                    streaming: true,
+                    toolPhase,
+                    toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+                  });
+                }
+              }
+
+              if (event.type === 'done') {
+                const d = event.data as {
+                  sessionId: string;
+                  tool?: string;
+                  tokens?: number;
+                  latencyMs?: number;
+                  memory?: { count?: number; facts?: MemoryFact[] };
+                  /** P390: the strategy a 「换一个」 reply reported; absent otherwise. */
+                  strategy?: string;
+                };
+                if (d.sessionId) {
+                  // P253: the turn was persisted under requestSessionId at
+                  // send time — if the backend ever reports a different id,
+                  // move the stored entry so the conversation keeps one id.
+                  if (requestSessionId && d.sessionId !== requestSessionId) {
+                    remapChatSessionId(requestSessionId, d.sessionId);
+                  }
+                  setSessionId(d.sessionId);
+                }
+                // P339: the turn's reply carries the session's accumulated
+                // keyed facts — the capsule's source of truth for what the
+                // agent remembers now.
+                if (Array.isArray(d.memory?.facts)) {
+                  setMemory({
+                    count: d.memory!.count ?? d.memory!.facts!.length,
+                    items: d.memory!.facts!,
+                  });
+                }
+                // F21: only attach a badge when the provider reported token usage.
+                if (typeof d.tokens === 'number') {
+                  patchAssistant({
+                    meta: { tool: d.tool, tokens: d.tokens, latencyMs: d.latencyMs },
+                  });
+                }
+              }
+
+              if (event.type === 'error') {
+                streamError = (event.data as { message: string }).message;
+              }
             }
           }
-        }
 
-        if (streamError) {
-          // P397: the failure text lives on the bubble's error detail, never
-          // in content — an error line must not be persisted as the
-          // assistant's reply (and an empty content keeps it out of storage).
-          const errorText = `出错了：${streamError}`;
+          if (streamError) {
+            // P398: a continuation that errored keeps the partial text — the
+            // 回答中断 · 重试 footer owns recovery, not a second error surface.
+            if (continuing && finalContent) {
+              patchAssistant({
+                content: finalContent,
+                streaming: false,
+                streamPhase: undefined,
+                toolPhase: undefined,
+                truncated: true,
+                retryPrompt: prompt,
+                toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+              });
+              return { status: 'ok', content: finalContent };
+            }
+            // P397: the failure text lives on the bubble's error detail, never
+            // in content — an error line must not be persisted as the
+            // assistant's reply (and an empty content keeps it out of storage).
+            const errorText = `出错了：${streamError}`;
+            patchAssistant({
+              content: '',
+              streaming: false,
+              streamPhase: undefined,
+              toolPhase: undefined,
+              error: true,
+              errorDetail: errorText,
+              retryPrompt: prompt,
+              toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+            });
+            return { status: 'error', errorText, surfacedInBubble: true };
+          }
+          if (!finalContent) {
+            const errorText = '暂无回复，请重试。';
+            patchAssistant({
+              content: '',
+              streaming: false,
+              streamPhase: undefined,
+              toolPhase: undefined,
+              error: true,
+              errorDetail: errorText,
+              retryPrompt: prompt,
+              toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+            });
+            return { status: 'error', errorText, surfacedInBubble: true };
+          }
+          // P398: terminal completeness check — a settled reply still reading
+          // as unfinished (dangling ：/、/， or an under-counted list) gets
+          // exactly one continuation inside this same turn: queued sends keep
+          // waiting, and the flag guarantees the loop can never run twice.
+          if (isReplyIncomplete(finalContent)) {
+            if (continuing) {
+              // Still incomplete after the single retry — the bubble footer
+              // surfaces 回答中断 · 重试 instead of silently keeping it.
+              patchAssistant({
+                content: finalContent,
+                streaming: false,
+                streamPhase: undefined,
+                toolPhase: undefined,
+                truncated: true,
+                retryPrompt: prompt,
+                toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+              });
+              return { status: 'ok', content: finalContent };
+            }
+            continuing = true;
+            continuationSeed = finalContent;
+            patchAssistant({ streaming: true, streamPhase: 'generating' });
+            continue;
+          }
           patchAssistant({
-            content: '',
+            content: finalContent,
             streaming: false,
             streamPhase: undefined,
             toolPhase: undefined,
-            error: true,
-            errorDetail: errorText,
-            retryPrompt: prompt,
+            truncated: undefined,
+            retryPrompt: undefined,
             toolEvents: toolEvents.length ? [...toolEvents] : undefined,
           });
-          return { status: 'error', errorText, surfacedInBubble: true };
+          return { status: 'ok', content: finalContent };
         }
-        if (!finalContent) {
-          const errorText = '暂无回复，请重试。';
-          patchAssistant({
-            content: '',
-            streaming: false,
-            streamPhase: undefined,
-            toolPhase: undefined,
-            error: true,
-            errorDetail: errorText,
-            retryPrompt: prompt,
-            toolEvents: toolEvents.length ? [...toolEvents] : undefined,
-          });
-          return { status: 'error', errorText, surfacedInBubble: true };
-        }
-        patchAssistant({
-          content: finalContent,
-          streaming: false,
-          streamPhase: undefined,
-          toolPhase: undefined,
-          toolEvents: toolEvents.length ? [...toolEvents] : undefined,
-        });
-        return { status: 'ok', content: finalContent };
       } catch (err) {
         if ((err as Error).name === 'AbortError') {
           // P12: user-initiated stop — keep whatever partial text arrived and
@@ -848,6 +912,20 @@ export default function App() {
             });
           });
           return { status: 'aborted' };
+        }
+        // P398: a transport failure on the continuation pass keeps the
+        // partial reply — the truncated footer is the recovery affordance.
+        if (continuing && finalContent.trim()) {
+          patchAssistant({
+            content: finalContent,
+            streaming: false,
+            streamPhase: undefined,
+            toolPhase: undefined,
+            truncated: true,
+            retryPrompt: prompt,
+            toolEvents: toolEvents.length ? [...toolEvents] : undefined,
+          });
+          return { status: 'ok', content: finalContent };
         }
         const errorText = `请求失败：${(err as Error).message}`;
         // P11: fetch rejects with TypeError on a transport failure; the thrown

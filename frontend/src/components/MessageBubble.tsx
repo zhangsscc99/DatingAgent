@@ -394,6 +394,26 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             已停止生成
           </div>
         )}
+        {/* P398: still incomplete after the single auto-continuation — one
+            honest footer control instead of silently keeping half an answer.
+            Hidden while streaming, on an error surface (it has its own 重试),
+            and never on a complete reply. */}
+        {!isUser && !message.streaming && !message.error && message.truncated && (
+          <div className="truncated-note">
+            <button
+              type="button"
+              className="truncated-retry-btn"
+              onClick={() =>
+                message.retryPrompt && onRetry?.(message.id, message.retryPrompt)
+              }
+              disabled={busy || !onRetry || !message.retryPrompt}
+              aria-label="回答中断，重试"
+              title="回答中断，点此重新生成"
+            >
+              回答中断 · 重试
+            </button>
+          </div>
+        )}
         {/* P371: 「换一个」 used to leave the bubble visually inert for up to
             6.4 s — only the button greyed out, so the highest-frequency micro
             loop in the product had no feedback. The status is now a visible
