@@ -207,17 +207,59 @@
   cursor: not-allowed;
 }
 
+/* P377 — the input and its in-box × button share one positioned wrapper so
+   the button can pin to the right edge; the wrapper carries the margin the
+   input used to, so the button's vertical centre is the input's. */
+.recent-chat-filter-wrap {
+  position: relative;
+  margin-bottom: 8px;
+}
+
 .recent-chat-filter {
   width: 100%;
   box-sizing: border-box;
-  padding: 6px 10px;
-  margin-bottom: 8px;
+  /* Right padding reserves the × button's slot — typed text never slides
+     underneath it. */
+  padding: 6px 36px 6px 10px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
   font-size: 12px;
   font-family: inherit;
+}
+
+/* P377 — in-box one-tap clear: ≥32×32 touch target parked at the input's
+   right edge, shown only while the box holds a query. */
+.recent-chat-filter-clear {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.recent-chat-filter-clear:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.recent-chat-filter-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .recent-chat-filter::placeholder {
@@ -390,12 +432,17 @@
    P372: the chip used to set only a soft fill at body weight — on the
    accent-soft result card it read as "no highlight at all". Now the hit
    is bolded (600) and painted in --accent-strong so it separates from
-   both the card and the surrounding text. */
+   both the card and the surrounding text.
+   P377: accent-strong text on accent-soft was still a tone-on-tone chip —
+   vision could not pick the keyword out. The mark is now a solid brand
+   chip: --accent fill with white, 700-weight underlined text, which sits
+   ≥0.15 luminance away from every card background in both themes. */
 .recent-chat-item mark {
-  padding: 0 1px;
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  font-weight: 600;
+  padding: 0 2px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  text-decoration: underline;
   border-radius: 3px;
 }
 
@@ -431,9 +478,14 @@
   text-overflow: ellipsis;
 }
 
+/* P377: align-self: center pins the icon buttons to the row's vertical
+   axis instead of stretching edge-to-edge, so edit/delete sit on the same
+   centre line as the title/excerpt text block (≤6px tolerance). */
 .recent-chat-delete {
   flex-shrink: 0;
+  align-self: center;
   width: 28px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -469,7 +521,9 @@
 
 .recent-chat-rename {
   flex-shrink: 0;
+  align-self: center;
   width: 28px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;

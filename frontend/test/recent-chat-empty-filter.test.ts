@@ -103,7 +103,7 @@ describe('P187 · sidebar filter empty-state hint', () => {
 
     it('renders the hint inside the list with the current query in the copy', () => {
       expect(listBlock).toContain('filter-empty-hint');
-      expect(listBlock).toContain('没有匹配「{filterQuery.trim()}」的对话');
+      expect(listBlock).toContain('没有一段对话匹配「{filterQuery.trim()}」');
       expect(listBlock).toContain('aria-live="polite"');
     });
 

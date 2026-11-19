@@ -156,7 +156,7 @@ describe('P369 · sidebar filter + clear-all machine assertions', () => {
       );
       const li = sidebar.slice(anchor, sidebar.indexOf('</li>', anchor));
       expect(li).toContain('data-testid="recent-chat-empty"');
-      expect(li).toContain('没有匹配「{filterQuery.trim()}」的对话');
+      expect(li).toContain('没有一段对话匹配「{filterQuery.trim()}」');
     });
 
     it('the 清空全部对话 button only requests the clear — never clears inline', () => {

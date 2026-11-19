@@ -250,7 +250,7 @@ describe('P319 · filter hits render as <mark>', () => {
     });
   });
 
-  it('the match count is a plain-text status line reading 找到 2 个对话 · 1 条消息', async () => {
+  it('the match count is a plain-text status line reading 找到 2 段对话 · 1 条消息', async () => {
     const { dom, root } = await mountSidebar();
     await typeFilter(dom, '看展');
 
@@ -259,7 +259,7 @@ describe('P319 · filter hits render as <mark>', () => {
     expect(count!.tagName).toBe('SPAN');
     expect(count!.tagName).not.toBe('BUTTON');
     expect(count!.getAttribute('role')).toBe('status');
-    expect(count!.textContent).toBe('找到 2 个对话 · 1 条消息');
+    expect(count!.textContent).toBe('找到 2 段对话 · 1 条消息');
 
     await act(async () => {
       (root as Root).unmount();
@@ -275,7 +275,7 @@ describe('P333 · 找到 N 段对话 count sits above the result list', () => {
     const counts = dom.document.querySelectorAll('.recent-chat-filter-count');
     expect(counts, 'exactly one count element').toHaveLength(1);
     const count = counts[0];
-    expect(count.textContent).toMatch(/^找到 \d+ 个对话 · \d+ 条消息$/);
+    expect(count.textContent).toMatch(/^找到 \d+ 段对话 · \d+ 条消息$/);
     expect(
       count.getAttribute('role') === 'status' ||
         count.getAttribute('aria-live'),
@@ -365,7 +365,7 @@ describe('P354 · real filter path centres the hit in a marked window', () => {
     ).toBe(true);
 
     const count = dom.document.querySelector('.recent-chat-filter-count');
-    expect(count!.textContent).toBe('找到 1 个对话 · 1 条消息');
+    expect(count!.textContent).toBe('找到 1 段对话 · 1 条消息');
 
     await act(async () => {
       (root as Root).unmount();
@@ -621,8 +621,41 @@ function installRealGetComputedStyle(dom: FakeDom) {
   return fn as unknown as (el: FakeElement) => CSSStyleDeclaration;
 }
 
-describe('P372 · <mark> is visually distinguishable and the count uses one measure-word scheme', () => {
-  it('computed styles: mark background differs from its parent and font-weight >= 600', async () => {
+/* ---------- P377 helpers ---------- */
+
+/** Parse a computed colour (#rgb / #rrggbb / rgb() / rgba()) into 0-255
+ *  channels; null for unparseable values like 'transparent'. */
+function rgbChannels(color: string): [number, number, number] | null {
+  const c = color.trim();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c);
+  if (hex) {
+    let h = hex[1];
+    if (h.length === 3)
+      h = h
+        .split('')
+        .map((x) => x + x)
+        .join('');
+    const n = parseInt(h, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  const fn = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/.exec(c);
+  if (fn) return [Number(fn[1]), Number(fn[2]), Number(fn[3])];
+  return null;
+}
+
+/** WCAG relative luminance of a computed colour, or null if unparseable. */
+function luminanceOf(color: string): number | null {
+  const ch = rgbChannels(color);
+  if (!ch) return null;
+  return (
+    0.2126 * channel(ch[0] / 255) +
+    0.7152 * channel(ch[1] / 255) +
+    0.0722 * channel(ch[2] / 255)
+  );
+}
+
+describe('P372/P377 · <mark> is visually distinguishable and the count uses one measure-word scheme', () => {
+  it('computed styles: 700-weight underlined hit whose white text or solid chip separates from the card', async () => {
     const { dom, root } = await mountSidebar(BODY_HIT_SESSIONS);
     installRealGetComputedStyle(dom);
     await typeFilter(dom, '约会');
@@ -637,22 +670,135 @@ describe('P372 · <mark> is visually distinguishable and the count uses one meas
     );
     expect(markStyle.backgroundColor).not.toBe('');
     expect(markStyle.backgroundColor).not.toBe(parentStyle.backgroundColor);
-    expect(parseInt(markStyle.fontWeight, 10)).toBeGreaterThanOrEqual(600);
+    expect(parseInt(markStyle.fontWeight, 10)).toBeGreaterThanOrEqual(700);
+    expect(markStyle.textDecoration).toContain('underline');
+
+    // The verify contract: white-ish text, or a chip luminance ≥0.15 away
+    // from the card it sits on — the old soft-tint mark satisfied neither.
+    const fg = rgbChannels(markStyle.color);
+    const whiteText = fg !== null && fg.every((v) => v >= 240);
+    const markLum = luminanceOf(markStyle.backgroundColor);
+    const parentLum = luminanceOf(parentStyle.backgroundColor);
+    const separated =
+      markLum !== null &&
+      parentLum !== null &&
+      Math.abs(markLum - parentLum) >= 0.15;
+    expect(
+      whiteText || separated,
+      `mark color ${markStyle.color} on ${markStyle.backgroundColor} vs parent ${parentStyle.backgroundColor}`,
+    ).toBe(true);
 
     await act(async () => {
       (root as Root).unmount();
     });
   });
 
-  it('the count line reads 找到 N 个对话 · M 条消息 — never 段对话', async () => {
+  it('the count line reads 找到 N 段对话 · M 条消息 — and the card chip uses the same 条消息 unit, never 个对话', async () => {
     const { dom, root } = await mountSidebar();
     await typeFilter(dom, '看展');
 
     const count = dom.document.querySelector('.recent-chat-filter-count');
     expect(count, 'count element').toBeTruthy();
-    expect(count!.textContent).toMatch(/找到 \d+ 个对话/);
+    expect(count!.textContent).toMatch(/找到 \d+ 段对话/);
     expect(count!.textContent).toMatch(/\d+ 条消息/);
-    expect(count!.textContent).not.toContain('段对话');
+    expect(count!.textContent).not.toContain('个对话');
+
+    // The same unit inside the result card — no bare 条 chip left.
+    const cardCount = dom.document.querySelector('.recent-chat-count');
+    expect(cardCount, 'in-card count chip').toBeTruthy();
+    expect(cardCount!.textContent).toMatch(/\d+ 条消息/);
+    expect(cardCount!.textContent).not.toContain('个对话');
+
+    // The zero-match copy uses the 段对话 measure word too.
+    await typeFilter(dom, '不存在');
+    const hint = dom.document.querySelector('.filter-empty-hint-text');
+    expect(hint, 'empty hint').toBeTruthy();
+    expect(hint!.textContent).toContain('段对话');
+    expect(hint!.textContent).not.toContain('个对话');
+
+    await act(async () => {
+      (root as Root).unmount();
+    });
+  });
+});
+
+describe('P377 · in-box clear button + aligned row action icons', () => {
+  it('mounts a 清除 button inside the box only while a query is typed; clicking restores every card and refocuses the input', async () => {
+    const { dom, root } = await mountSidebar();
+    const input = dom.document.querySelector(
+      'input.recent-chat-filter',
+    ) as FakeElement | null;
+    expect(input, 'filter input').toBeTruthy();
+    // Nothing to clear before the first keystroke.
+    expect(dom.document.querySelector('.recent-chat-filter-clear')).toBeNull();
+
+    await typeFilter(dom, '看展');
+    const clear = dom.document.querySelector(
+      'button.recent-chat-filter-clear',
+    ) as FakeElement | null;
+    expect(clear, 'in-box clear button').toBeTruthy();
+    expect(clear!.getAttribute('aria-label') ?? '').toContain('清除');
+    expect(clear!.tagName).toBe('BUTTON');
+    expect(dom.document.querySelectorAll('.recent-chat-item')).toHaveLength(2);
+
+    await act(async () => {
+      clear!.dispatchEvent(
+        new FakeEvent('click', { bubbles: true, cancelable: true }),
+      );
+    });
+
+    // Filter value cleared, every stored conversation back, focus in the box.
+    expect(input!.value).toBe('');
+    expect(dom.document.querySelectorAll('.recent-chat-item')).toHaveLength(2);
+    expect(dom.document.activeElement).toBe(input);
+
+    await act(async () => {
+      (root as Root).unmount();
+    });
+  });
+
+  it('the clear button is a ≥32×32 target pinned inside the box, with input padding keeping text from sliding under it', () => {
+    const wrap = ruleBody(sidebarCss, '.recent-chat-filter-wrap');
+    expect(wrap).toMatch(/position:\s*relative/);
+
+    const body = ruleBody(sidebarCss, '.recent-chat-filter-clear');
+    expect(body).not.toBe('');
+    expect(body).toMatch(/position:\s*absolute/);
+    const w = /width:\s*([\d.]+)px/.exec(body);
+    const h = /height:\s*([\d.]+)px/.exec(body);
+    expect(Number(w?.[1]), 'clear button width').toBeGreaterThanOrEqual(32);
+    expect(Number(h?.[1]), 'clear button height').toBeGreaterThanOrEqual(32);
+
+    // The input's right padding reserves the button slot, so typed text
+    // can never run underneath the ×.
+    const inputBody = ruleBody(sidebarCss, '.recent-chat-filter');
+    const pad = /padding:\s*([^;]+);/.exec(inputBody);
+    expect(pad, 'input padding').toBeTruthy();
+    const toks = pad![1].trim().split(/\s+/);
+    const rightPad = parseFloat(toks.length >= 2 ? toks[1] : toks[0]);
+    expect(rightPad).toBeGreaterThanOrEqual(32);
+  });
+
+  it('row action icons share the text block vertical axis — centre-Y within 6px — via align-self:center', async () => {
+    const { dom, root } = await mountSidebar();
+    await typeFilter(dom, '看展');
+
+    const item = dom.document.querySelector('.recent-chat-item')!;
+    const centre = (r: { top: number; height: number }) => r.top + r.height / 2;
+    const itemCentre = centre(item.getBoundingClientRect());
+
+    for (const sel of ['.recent-chat-rename', '.recent-chat-delete']) {
+      const btn = dom.document.querySelector(sel);
+      expect(btn, sel).toBeTruthy();
+      const diff = Math.abs(centre(btn!.getBoundingClientRect()) - itemCentre);
+      expect(diff, `${sel} centre-Y drift`).toBeLessThanOrEqual(6);
+    }
+
+    // CSS-level contract: the buttons centre themselves in the row rather
+    // than stretching edge-to-edge.
+    for (const sel of ['.recent-chat-rename', '.recent-chat-delete']) {
+      expect(ruleBody(sidebarCss, sel)).toMatch(/align-self:\s*center/);
+    }
 
     await act(async () => {
       (root as Root).unmount();

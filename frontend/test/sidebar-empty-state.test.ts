@@ -37,10 +37,10 @@ describe('P245 · sidebar collapses duplicate filter empty state', () => {
   ];
 
   describe('a query with zero matches shows exactly one empty state', () => {
-    it('the query-aware hint is the sole 没有匹配 copy in the component', () => {
+    it('the query-aware hint is the sole no-match copy in the component', () => {
       const sidebar = read('components/Sidebar.tsx');
-      expect(sidebar.match(/没有匹配/g)).toHaveLength(1);
-      expect(sidebar).toContain('没有匹配「{filterQuery.trim()}」的对话');
+      expect(sidebar.match(/一段对话匹配/g)).toHaveLength(1);
+      expect(sidebar).toContain('没有一段对话匹配「{filterQuery.trim()}」');
     });
 
     it('a non-matching query empties the list and surfaces the single hint', () => {

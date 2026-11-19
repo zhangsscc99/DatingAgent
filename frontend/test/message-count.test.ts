@@ -59,23 +59,23 @@ describe('P152 · session row message count', () => {
 
   describe('formatMessageCount behaviour', () => {
     it('labels a normal count', () => {
-      expect(formatMessageCount(msgs(3))).toBe('3 条');
+      expect(formatMessageCount(msgs(3))).toBe('3 条消息');
     });
 
-    it('labels an empty array as 0 条', () => {
-      expect(formatMessageCount([])).toBe('0 条');
+    it('labels an empty array as 0 条消息', () => {
+      expect(formatMessageCount([])).toBe('0 条消息');
     });
 
     it('labels a large count without truncation', () => {
-      expect(formatMessageCount(msgs(1234))).toBe('1234 条');
+      expect(formatMessageCount(msgs(1234))).toBe('1234 条消息');
     });
 
-    it('treats undefined, null and non-array input as 0 条 without throwing', () => {
-      expect(formatMessageCount(undefined)).toBe('0 条');
-      expect(formatMessageCount(null)).toBe('0 条');
-      expect(formatMessageCount('abc')).toBe('0 条');
-      expect(formatMessageCount(42)).toBe('0 条');
-      expect(formatMessageCount({ length: 9 })).toBe('0 条');
+    it('treats undefined, null and non-array input as 0 条消息 without throwing', () => {
+      expect(formatMessageCount(undefined)).toBe('0 条消息');
+      expect(formatMessageCount(null)).toBe('0 条消息');
+      expect(formatMessageCount('abc')).toBe('0 条消息');
+      expect(formatMessageCount(42)).toBe('0 条消息');
+      expect(formatMessageCount({ length: 9 })).toBe('0 条消息');
       expect(() => formatMessageCount(NaN)).not.toThrow();
     });
 

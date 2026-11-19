@@ -77,10 +77,12 @@ interface Props {
 }
 
 /** Label the persisted message count on a session row. Pure: treats
- * undefined/null/non-array input as 0, never throws, never mutates. */
+ * undefined/null/non-array input as 0, never throws, never mutates.
+ * P377: the in-card chip carries the same 条消息 unit the filter count
+ * line announces — no bare 条 next to a 段对话 heading. */
 export function formatMessageCount(messages: unknown): string {
   const n = Array.isArray(messages) ? messages.length : 0;
-  return `${n} 条`;
+  return `${n} 条消息`;
 }
 
 export type SessionDayGroupLabel = '今天' | '昨天' | '更早';
@@ -267,6 +269,7 @@ export default function Sidebar({
   const sidebarRef = useRef<HTMLElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const filterInputRef = useRef<HTMLInputElement>(null);
   const sessionListRef = useRef<HTMLUListElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
@@ -456,7 +459,9 @@ export default function Sidebar({
           {/* P312: an empty list has nothing to filter — the box mounts
               again with the first conversation. */}
           {recentSessions.length > 0 && (
+          <div className="recent-chat-filter-wrap">
           <input
+            ref={filterInputRef}
             type="text"
             className="recent-chat-filter"
             value={filterQuery}
@@ -483,6 +488,27 @@ export default function Sidebar({
               }
             }}
           />
+          {/* P377: one-tap clear while the box holds a query — the old UI
+              only offered 清除筛选 inside the zero-match empty state, so a
+              query with hits could never be cleared without backspacing.
+              Clicking restores the full list and hands focus back to the
+              input; the ≥32px target sits inside the right edge, padded
+              clear of the typed text. */}
+          {filterQuery !== '' && (
+            <button
+              type="button"
+              className="recent-chat-filter-clear"
+              aria-label="清除筛选"
+              title="清除筛选"
+              onClick={() => {
+                setFilterQuery('');
+                filterInputRef.current?.focus();
+              }}
+            >
+              <span aria-hidden="true">×</span>
+            </button>
+          )}
+          </div>
           )}
           {/* P230: announce how many conversations the filter matched, at
               most once per query change; blank while the box is empty so
@@ -495,7 +521,7 @@ export default function Sidebar({
               result list so the count is read before the hits, not after. */}
           <span className="recent-chat-filter-count" role="status" aria-live="polite">
             {filterQuery.trim() && visibleSessions.length > 0
-              ? `找到 ${visibleSessions.length} 个对话 · ${visibleSessions.reduce((n, s) => n + (Array.isArray(s.messages) ? s.messages.length : 0), 0)} 条消息`
+              ? `找到 ${visibleSessions.length} 段对话 · ${visibleSessions.reduce((n, s) => n + (Array.isArray(s.messages) ? s.messages.length : 0), 0)} 条消息`
               : ''}
           </span>
           {/* P247: a cleared/fresh history used to vanish the whole section —
@@ -520,7 +546,7 @@ export default function Sidebar({
                   aria-label="无匹配对话"
                 >
                   <span className="filter-empty-hint-text">
-                    没有匹配「{filterQuery.trim()}」的对话
+                    没有一段对话匹配「{filterQuery.trim()}」
                   </span>
                   {/* P271/P275: the filter only matches recent titles — fold the
                       scope note into the empty state's first sentence so it is
