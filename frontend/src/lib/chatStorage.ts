@@ -6,6 +6,11 @@ import {
   purgeInputHistories,
   purgeInputHistory,
 } from './inputHistory';
+import {
+  moveScrollAnchor,
+  purgeScrollAnchor,
+  purgeScrollAnchors,
+} from './scrollAnchor';
 
 const STORAGE_KEY = 'datingAgent.chatHistory';
 const MAX_SESSIONS = 20;
@@ -495,6 +500,8 @@ export function saveChatSession(sessionId: string, messages: ChatMessage[]): voi
   purgeDrafts(evictedIds);
   // P168: same for their ArrowUp input history.
   purgeInputHistories(evictedIds);
+  // P352: and their reload scroll anchor.
+  purgeScrollAnchors(evictedIds);
   // P185: surface the silent eviction — the ids the cap just dropped feed a
   // dismissible sidebar notice. No eviction means no notice; a previous one
   // stays until the user dismisses it.
@@ -546,6 +553,8 @@ export function remapChatSessionId(oldId: string, newId: string): void {
     .filter((s) => s.id !== newId)
     .map((s) => (s.id === oldId ? remapped : s));
   if (state.activeSessionId === oldId) state.activeSessionId = newId;
+  // P352: the reload scroll anchor follows the renamed id.
+  moveScrollAnchor(oldId, newId);
   persistState(state);
 }
 
@@ -591,6 +600,8 @@ export function deleteChatSession(sessionId: string): void {
   purgeDraft(sessionId);
   // P168: so does its ArrowUp input history.
   purgeInputHistory(sessionId);
+  // P352: so does its reload scroll anchor.
+  purgeScrollAnchor(sessionId);
 }
 
 /** P157: fire-and-forget backend DELETEs for sessions being wiped locally.
@@ -634,6 +645,8 @@ export function clearAllChatSessions(): void {
   purgeDrafts(ids);
   purgeInputHistories(ids);
   purgeAllInputHistories();
+  // P352: every session's reload scroll anchor goes with the wipe.
+  purgeScrollAnchors(ids);
   clearLastEvictionNotice();
   // P250: stamp the tombstone BEFORE the empty-state write so any stale
   // saveChatSession landing between the two already sees it. Every message

@@ -221,6 +221,14 @@
   margin-right: auto;
 }
 
+/* P352: a restored scroll anchor lands a bubble at the scrollport's top
+   edge — keep 8px of air under the memory-receipt strip so the row is
+   never clipped there, at every viewport width (the ≤768px .messages > *
+   rule below already grants it on phones). */
+.messages > .bubble-row {
+  scroll-margin-top: 8px;
+}
+
 /* P305: zero-height bookends that grow into whatever free space the scroll
    area has — the welcome card or a single exchange lands vertically
    centred instead of leaving half a screen of blank below. Once the

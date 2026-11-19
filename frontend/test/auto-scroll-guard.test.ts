@@ -233,11 +233,15 @@ describe('P328 · new content never yanks a scrolled-up reader', () => {
     await flush();
 
     const list = qs('.messages')!;
-    // Restore lands on the newest reply — 6 bubbles overflow the viewport.
     expect(list.querySelectorAll('[data-message-id]')).toHaveLength(6);
+    // P352: a reload restore no longer lands on the tail — with no recorded
+    // anchor the list reopens pinned at the head. (The sentinel never fires
+    // on this path, so size the scrollport the way the mock would have.)
+    list.scrollHeight = 6 * BUBBLE_PX;
+    list.clientHeight = VIEWPORT_PX;
     let maxScroll = list.scrollHeight - list.clientHeight;
     expect(maxScroll).toBeGreaterThan(0);
-    expect(Math.abs(list.scrollTop - maxScroll)).toBeLessThanOrEqual(4);
+    expect(list.scrollTop).toBe(0);
 
     // Sending is an own turn — the view follows to the bottom even though
     // the send commits new bubbles.

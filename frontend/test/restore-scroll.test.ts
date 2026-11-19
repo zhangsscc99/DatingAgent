@@ -17,9 +17,15 @@ import type { ChatMessage } from '../src/types';
  * rendered the session skeleton in place of the bubbles, and the commit
  * that swapped the real messages in never re-ran it (its deps were only
  * [messages, loading]). Measured live: `.messages.scrollTop = 0` with
- * maxScroll = 817 and the last reply ~800 px below the fold. The effect now
- * waits out the restore and jumps to the tail on the commit that renders
- * the bubbles — for a boot restore and for a sidebar session switch alike.
+ * maxScroll = 817 and the last reply ~800 px below the fold. The effect
+ * waits out the restore and repositions on the commit that renders the
+ * bubbles — for a boot restore and for a sidebar session switch alike.
+ *
+ * P352 supersedes the destination: landing on the tail dropped the reader
+ * mid-reply with the first visible bubble half-cut, so a restore now
+ * reopens at the persisted first-fully-visible anchor, or pinned at the
+ * head (scrollTop 0) when no anchor exists — never the tail. New messages
+ * in the live session still chase the bottom via the P328 guard.
  *
  * Mounted against the repo fake DOM (same harness as
  * header-brand-fit.test.ts). FakeElement.scrollIntoView is emulated
@@ -56,7 +62,7 @@ function emulateScrollIntoView() {
     });
 }
 
-describe('P299 · a restored/switched session lands on the newest reply', () => {
+describe('P299/P352 · a restored/switched session reopens at the head, not the tail', () => {
   let dom: FakeDom;
   let root: Root | null = null;
 
@@ -141,7 +147,7 @@ describe('P299 · a restored/switched session lands on the newest reply', () => 
     vi.unstubAllGlobals();
   });
 
-  it('lands on the newest reply after a persisted session is restored', async () => {
+  it('reopens pinned at the head after a persisted session is restored', async () => {
     install();
     const scroll = emulateScrollIntoView();
     await mountApp();
@@ -150,16 +156,18 @@ describe('P299 · a restored/switched session lands on the newest reply', () => 
     expect(list).not.toBeNull();
     // The skeleton is gone and the restored bubbles are committed …
     expect(list!.querySelectorAll('[data-message-id]')).toHaveLength(6);
-    // …and the list ends at the bottom: scrollTop === scrollHeight − clientHeight.
-    const maxScroll = list!.scrollHeight - list!.clientHeight;
-    expect(maxScroll).toBeGreaterThan(0);
-    expect(scroll).toHaveBeenCalled();
-    expect(Math.abs(list!.scrollTop - maxScroll)).toBeLessThanOrEqual(4);
+    // …and P352 keeps the list at the head: the overflow is real, but no
+    // anchor was recorded yet so nothing chased the tail.
+    list!.scrollHeight = 6 * BUBBLE_PX;
+    list!.clientHeight = VIEWPORT_PX;
+    expect(list!.scrollHeight - list!.clientHeight).toBeGreaterThan(0);
+    expect(scroll).not.toHaveBeenCalled();
+    expect(list!.scrollTop).toBe(0);
 
     await unmountApp();
   });
 
-  it('scrolls to the tail when a history session is switched in the sidebar', async () => {
+  it('reopens at the head too when a history session is switched in the sidebar', async () => {
     install();
     emulateScrollIntoView();
     await mountApp();
@@ -179,9 +187,13 @@ describe('P299 · a restored/switched session lands on the newest reply', () => 
     await flush();
 
     expect(list.querySelectorAll('[data-message-id]')).toHaveLength(4);
-    const maxScroll = list.scrollHeight - list.clientHeight;
-    expect(maxScroll).toBeGreaterThan(0);
-    expect(Math.abs(list.scrollTop - maxScroll)).toBeLessThanOrEqual(4);
+    // P352: the switched-in session had no recorded anchor either, so the
+    // restore reopens at its head — the tail-chase is gone even though the
+    // conversation overflows.
+    list.scrollHeight = 4 * BUBBLE_PX;
+    list.clientHeight = VIEWPORT_PX;
+    expect(list.scrollHeight - list.clientHeight).toBeGreaterThan(0);
+    expect(list.scrollTop).toBe(0);
 
     await unmountApp();
   });

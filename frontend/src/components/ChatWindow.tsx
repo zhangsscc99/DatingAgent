@@ -43,6 +43,11 @@ import {
 } from '../lib/memoryReceiptDismissals';
 import { hasInteracted } from '../lib/interactionState';
 import { shouldAutoScroll } from '../lib/autoScroll';
+import {
+  firstFullyVisibleAnchor,
+  loadScrollAnchor,
+  saveScrollAnchor,
+} from '../lib/scrollAnchor';
 import { STARTERS } from '../lib/starterIntents';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
@@ -371,6 +376,41 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     }
   }, [sessionId, searchOpen, query, activeIndex]);
 
+  // P352: shared by the scroll handler and the restore path — refresh the
+  // tail-distance guard + jump button from the real scrollport numbers,
+  // and persist the first fully visible message id as this session's
+  // reload anchor so a later restore reopens where the reader left off.
+  const syncScrollState = (el: HTMLDivElement) => {
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    distanceFromBottomRef.current = distance;
+    const away = distance > SCROLL_BOTTOM_THRESHOLD;
+    setShowScrollToBottom(away);
+    // P328: back at the bottom — end the burst so the next excursion can
+    // announce again.
+    if (!away) {
+      setHasNewBelow(false);
+      newBelowAnnouncedRef.current = false;
+      setScrollLiveText('');
+    }
+    if (!sessionId) return;
+    const rect = el.getBoundingClientRect();
+    const anchor = firstFullyVisibleAnchor(
+      Array.from(el.querySelectorAll('[data-message-id]'))
+        .map((row) => {
+          const r = row.getBoundingClientRect();
+          return {
+            id: row.getAttribute('data-message-id') ?? '',
+            top: r.top,
+            bottom: r.bottom,
+          };
+        })
+        .filter((c) => c.id !== ''),
+      rect.top,
+      rect.bottom,
+    );
+    if (anchor !== null) saveScrollAnchor(sessionId, anchor);
+  };
+
   // P299: while `restoring` is up the bubbles are not in the DOM — the
   // session skeleton stands in, so chasing the tail then lands on the
   // placeholder and the commit that swaps in the real messages never
@@ -399,11 +439,34 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     if (lastUserId !== null) lastUserMessageIdRef.current = lastUserId;
     const jump = restoredJump.current;
     restoredJump.current = false;
+    // P352: a reload/session-switch restore re-opens where the reader left
+    // off — the persisted first-fully-visible bubble aligned under the
+    // scrollport's top edge (scroll-margin-top keeps it clear of the
+    // memory-receipt strip), or the head of the conversation when no
+    // anchor exists. Never the tail: landing mid-reply cut the first
+    // visible bubble in half.
+    if (jump) {
+      const el = listRef.current;
+      const anchorId = sessionId ? loadScrollAnchor(sessionId) : null;
+      const anchorRow =
+        anchorId !== null && el !== null
+          ? el.querySelector(`[data-message-id="${CSS.escape(anchorId)}"]`)
+          : null;
+      if (anchorRow) {
+        anchorRow.scrollIntoView({ block: 'start', behavior: 'auto' });
+      } else if (el) {
+        el.scrollTop = 0;
+      }
+      // The jump above only fired programmatic scrolls — resync the guard
+      // and re-record the anchor so a new message can't drag the reader
+      // back down and the button state is honest.
+      if (el) syncScrollState(el);
+      return;
+    }
     // P328: scrolled-up reading beats tail-chasing — a streaming delta or a
     // new turn must not drag the view back down. Show the jump button with
     // a once-per-burst 「有新内容」 hint instead.
     if (
-      !jump &&
       !shouldAutoScroll({
         distanceFromBottom: distanceFromBottomRef.current,
         isOwnTurn,
@@ -422,9 +485,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     // hint mid-scroll.
     distanceFromBottomRef.current = 0;
     bottomRef.current?.scrollIntoView({
-      // A reload lands straight on the latest reply — jumping, not
-      // smooth-scrolling, past what may be a long history.
-      behavior: jump || prefersReducedMotion() ? 'auto' : 'smooth',
+      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
     });
   }, [messages, loading, restoring]);
 
@@ -433,17 +494,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const handleMessagesScroll = () => {
     const el = listRef.current;
     if (!el) return;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    distanceFromBottomRef.current = distance;
-    const away = distance > SCROLL_BOTTOM_THRESHOLD;
-    setShowScrollToBottom(away);
-    // P328: back at the bottom — end the burst so the next excursion can
-    // announce again.
-    if (!away) {
-      setHasNewBelow(false);
-      newBelowAnnouncedRef.current = false;
-      setScrollLiveText('');
-    }
+    syncScrollState(el);
   };
 
   const scrollToLatest = () => {

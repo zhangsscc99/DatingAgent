@@ -53,6 +53,7 @@ import {
 import type { TrashEntry } from './lib/chatTrash';
 import { FIND_IN_CONVERSATION_LABEL } from './lib/searchLabels';
 import { DEFAULT_DRAFT_ID, sweepOrphanDrafts } from './lib/chatDrafts';
+import { sweepOrphanScrollAnchors } from './lib/scrollAnchor';
 import {
   hasMinimalProfile,
   loadProfile,
@@ -332,9 +333,11 @@ export default function App() {
   // P159: drop draft keys orphaned by sessions deleted before draft purging
   // existed (or evicted by the session cap). DEFAULT_DRAFT_ID stays valid —
   // it holds the never-sent draft of a chat that has no session yet.
+  // P352: same sweep for the reload scroll anchors.
   useEffect(() => {
     const ids = loadChatState().sessions.map((s) => s.id);
     sweepOrphanDrafts([...ids, DEFAULT_DRAFT_ID]);
+    sweepOrphanScrollAnchors(ids);
   }, []);
 
   useEffect(() => {
