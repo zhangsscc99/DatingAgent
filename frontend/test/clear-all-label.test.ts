@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { CLEAR_ALL_LABEL } from '../src/lib/copy';
+import { CLEAR_ALL_LABEL, CLEAR_ALL_TRASH_TITLE } from '../src/lib/copy';
 
 /**
  * P267 — one action carried three different labels: the sidebar said
@@ -23,7 +23,9 @@ describe('P267 · one clear-all label everywhere', () => {
   it('Sidebar and SettingsSheet both render the shared constant, not literals', () => {
     for (const file of ['components/Sidebar.tsx', 'components/SettingsSheet.tsx']) {
       const src = read(file);
-      expect(src).toContain("import { CLEAR_ALL_LABEL } from '../lib/copy'");
+      // P378: Sidebar also imports the derived tooltip constant — both
+      // names still come from the one copy module.
+      expect(src).toMatch(/import \{[^}]*CLEAR_ALL_LABEL[^}]*\} from '\.\.\/lib\/copy'/);
       // No hard-coded clear-all label strings left for that button.
       expect(src).not.toMatch(/aria-label="清空/);
       expect(src).not.toMatch(/title="清空/);
@@ -32,7 +34,10 @@ describe('P267 · one clear-all label everywhere', () => {
     }
     const sidebar = read('components/Sidebar.tsx');
     expect(sidebar).toContain('aria-label={CLEAR_ALL_LABEL}');
-    expect(sidebar).toContain('title={CLEAR_ALL_LABEL}');
+    // P378: the tooltip names the 回收站 destination, derived from the same
+    // constant — still no second hard-coded wording for the action itself.
+    expect(sidebar).toContain('title={CLEAR_ALL_TRASH_TITLE}');
+    expect(CLEAR_ALL_TRASH_TITLE).toBe(`${CLEAR_ALL_LABEL}（移到回收站）`);
     // P353: the sheet's zero-session hint is still built from the one
     // constant — a suffix on CLEAR_ALL_LABEL, not a second wording.
     const sheet = read('components/SettingsSheet.tsx');

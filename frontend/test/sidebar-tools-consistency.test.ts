@@ -191,7 +191,9 @@ describe('P358 · one token set across both groups (≤2 style variants)', () =>
       expect(decl(shared!.body, prop), prop).not.toBeNull();
     }
     expect(decl(shared!.body, 'min-height')).toBe('44px');
-    expect(shared!.body).toContain('border: 1px solid var(--border)');
+    // P378: the per-item描边卡片 is gone — the shared row is a borderless
+    // list line; only :hover/:focus paints a fill underneath.
+    expect(shared!.body).toContain('border: none');
     expect(shared!.body).toContain('background');
   });
 
@@ -237,9 +239,13 @@ describe('P358 · no dashed borders, no orphan divider inside .sidebar', () => {
   it('Sidebar.css declares no dashed border anywhere in the sidebar scope', () => {
     expect(sidebarCssDecl).not.toContain('dashed');
     expect(sidebarCssDecl).not.toContain('dotted');
-    // The 回收站 row and the 完善资料 entry now sit on surface fills.
+    // P378: the 回收站 row dropped its fill (it read as a twin of the old
+    // filter bar); the 完善资料 entry keeps its single accent-soft layer.
     expect(ruleBody(sidebarCssDecl, '.recent-chat-trash')).toContain(
-      'background: var(--surface-hover)',
+      'background: transparent',
+    );
+    expect(ruleBody(sidebarCssDecl, '.recent-chat-trash')).toContain(
+      'border: none',
     );
     expect(ruleBody(sidebarCssDecl, '.profile-setup-btn')).toContain(
       'background: var(--accent-soft)',

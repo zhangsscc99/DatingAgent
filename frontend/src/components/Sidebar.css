@@ -181,19 +181,29 @@
   margin-bottom: 0;
 }
 
+/* P378 — 清空全部对话 graduates from bare text to a real secondary action:
+   a soft-fill pill carrying the trash glyph (its tooltip names the 回收站
+   destination); hover warms it toward the danger tone so the destructive
+   weight is discoverable without competing with the brand CTA. */
 .recent-chat-clear-all {
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--surface-hover);
   border: none;
-  color: var(--text-muted);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
   font-size: 11px;
+  line-height: 1.4;
   cursor: pointer;
   font-family: inherit;
-  padding: 2px 6px;
+  transition: background 0.15s, color 0.15s;
 }
 
 .recent-chat-clear-all:hover:not(:disabled) {
+  background: var(--danger-soft);
   color: var(--danger);
-  text-decoration: underline;
 }
 
 .recent-chat-clear-all:focus-visible {
@@ -215,18 +225,43 @@
   margin-bottom: 8px;
 }
 
+/* P378 — the field is now inset, not a浅灰圆角条: no border, no radius, no
+   box-shadow; a left magnifier (absolute inside the positioned wrap) and a
+   1px hairline painted as a background gradient carry the "search field"
+   affordance. The hairline is a background-image, deliberately not a
+   border — the density budget counts real borders. */
 .recent-chat-filter {
   width: 100%;
   box-sizing: border-box;
-  /* Right padding reserves the × button's slot — typed text never slides
-     underneath it. */
-  padding: 6px 36px 6px 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  /* Right padding reserves the × button's slot, left padding the
+     magnifier's — typed text never slides underneath either. */
+  padding: 8px 36px 8px 26px;
+  background-color: transparent;
+  background-image: linear-gradient(var(--border), var(--border));
+  background-size: 100% 1px;
+  background-position: left bottom;
+  background-repeat: no-repeat;
+  border: none;
+  border-radius: 0;
   color: var(--text);
   font-size: 12px;
   font-family: inherit;
+}
+
+.recent-chat-filter:focus {
+  /* The hairline warms to the accent under focus — still no border. */
+  background-image: linear-gradient(var(--accent), var(--accent));
+}
+
+/* P378 — the inset magnifier: parked inside the input's left padding,
+   decorative only (the input's own aria-label names the field). */
+.recent-chat-filter-icon {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
 }
 
 /* P377 — in-box one-tap clear: ≥32×32 touch target parked at the input's
@@ -323,19 +358,20 @@
   min-width: 88px;
   margin-top: 8px;
   padding: 6px 12px;
-  background: transparent;
-  border: 1px solid var(--border);
+  background: var(--surface-hover);
+  /* P378: quiet soft-fill action — the one borderless button keeps the
+     whole [class*=filter] family at border-style:none. */
+  border: none;
   border-radius: var(--radius);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 11px;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .filter-empty-clear:hover {
-  background: var(--surface-hover);
-  border-color: var(--accent);
+  background: var(--border);
   color: var(--text);
 }
 
@@ -580,30 +616,33 @@
   opacity: 0.45;
 }
 
-/* P265 — the 回收站 row under 最近对话: a quiet muted-fill entry, same
-   visual language as the no-profile 完善资料 card.
+/* P265 — the 回收站 row under 最近对话: a quiet muted entry.
    P358: the dashed outline read as an unfinished panel edge next to the
-   solid row cards — it is now a --surface-hover fill; hover adds a single
-   accent edge on top of the fill. */
+   solid row cards — it became a --surface-hover fill.
+   P378: the filled bar read as a twin of the filter box — it drops to a
+   borderless icon + label + chevron list row (same anatomy as the entry
+   rows), which the inset filter field above it can never be confused with. */
 .recent-chat-trash {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   margin-top: 6px;
   min-height: 44px;
   padding: 10px 12px;
-  background: var(--surface-hover);
-  border: 1px solid transparent;
+  background: transparent;
+  border: none;
   border-radius: var(--radius);
   color: var(--text-muted);
   font-size: 12px;
   font-family: inherit;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .recent-chat-trash:hover {
-  border-color: var(--accent);
+  background: var(--surface-hover);
   color: var(--text);
 }
 
@@ -665,8 +704,10 @@
 /* P358 — one row language for both entry groups: the 快捷入口 cards and the
    进阶工具 rows share this exact anatomy (leading icon, primary label,
    right-edge chevron) and the exact same box — same radius, same padding,
-   same 44px min-height, same hover ring — so the two sections can never
-   drift back into two control languages. */
+   same 44px min-height, same hover fill — so the two sections can never
+   drift back into two control languages.
+   P378 — the per-item浅灰描边卡片 is gone: the rows are borderless list
+   lines and only :hover/:focus paints a fill underneath. */
 .quick-btn,
 .tool-entry {
   display: flex;
@@ -676,20 +717,19 @@
   min-height: 44px;
   padding: 10px 12px;
   background: transparent;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius);
   color: var(--text);
   font-size: 13px;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s;
   font-family: inherit;
 }
 
 .quick-btn:hover:not(:disabled),
 .tool-entry:hover:not(:disabled) {
   background: var(--surface-hover);
-  border-color: var(--accent);
 }
 
 .quick-btn:disabled,
@@ -732,6 +772,45 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* P378 — the 进阶工具 block folds into a native disclosure group (collapsed
+   by default): the <summary> header carries the h3 and a chevron that opens
+   90°; the marker glyph is suppressed so the chevron is the only
+   disclosure affordance. The list keeps no max-height — the last row can
+   never be clipped once the group is opened. */
+.tools-details .tool-list {
+  margin-top: 10px;
+}
+
+.tools-toggle {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.tools-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.tools-toggle h3 {
+  margin-bottom: 0;
+}
+
+.tools-toggle .sidebar-chevron {
+  transition: transform 0.15s;
+}
+
+.tools-details[open] > .tools-toggle .sidebar-chevron {
+  transform: rotate(90deg);
+}
+
+.tools-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* P322 — while /api/tools is in flight the 进阶工具 list paints the same

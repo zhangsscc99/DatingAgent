@@ -5,7 +5,7 @@ import {
   getLastEvictionNotice,
 } from '../lib/chatStorage';
 import type { StoredChatSession } from '../lib/chatStorage';
-import { CLEAR_ALL_LABEL } from '../lib/copy';
+import { CLEAR_ALL_LABEL, CLEAR_ALL_TRASH_TITLE } from '../lib/copy';
 import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
 import { formatRelativeTime, isRenderableTimestamp } from '../lib/relativeTime';
 import { highlightSegments } from '../lib/messageSearch';
@@ -147,7 +147,9 @@ export function groupSessionsByDay(
 // P358: the key space widens past the four starter keys — the 进阶工具 rows
 // mount the same icon + label + chevron anatomy as the 快捷入口 cards, so
 // tool ids resolve onto this one icon set through TOOL_ICON_KEYS below.
-type SidebarIconKey = StarterIconKey | 'advice';
+// P378: 'trash' marks the two destructive/restore destinations (清空全部
+// button + 回收站 row); 'search' is the inset filter field's left glyph.
+type SidebarIconKey = StarterIconKey | 'advice' | 'trash' | 'search';
 
 const QUICK_ICON_PATHS: Record<SidebarIconKey, string[]> = {
   profile: ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'],
@@ -165,14 +167,30 @@ const QUICK_ICON_PATHS: Record<SidebarIconKey, string[]> = {
     'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',
     'M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z',
   ],
+  trash: [
+    'M3 6h18',
+    'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6',
+    'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
+    'M10 11v6',
+    'M14 11v6',
+  ],
+  search: ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z', 'M21 21l-4.35-4.35'],
 };
 
-function SidebarIcon({ iconKey }: { iconKey: SidebarIconKey }) {
+function SidebarIcon({
+  iconKey,
+  size = 15,
+  className = '',
+}: {
+  iconKey: SidebarIconKey;
+  size?: number;
+  className?: string;
+}) {
   return (
     <svg
-      className="sidebar-icon"
-      width="15"
-      height="15"
+      className={`sidebar-icon${className ? ` ${className}` : ''}`}
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -450,8 +468,11 @@ export default function Sidebar({
                 onClick={() => onClearAllChats?.()}
                 disabled={busy}
                 aria-label={CLEAR_ALL_LABEL}
-                title={CLEAR_ALL_LABEL}
+                // P378: the tooltip names the destination — cleared
+                // conversations land in the 回收站 like a single delete.
+                title={CLEAR_ALL_TRASH_TITLE}
               >
+                <SidebarIcon iconKey="trash" size={12} />
                 {CLEAR_ALL_LABEL}
               </button>
             )}
@@ -460,6 +481,13 @@ export default function Sidebar({
               again with the first conversation. */}
           {recentSessions.length > 0 && (
           <div className="recent-chat-filter-wrap">
+          {/* P378: inset search field — the magnifier sits inside the row so
+              the control reads as a search without a浅灰圆角条 frame. */}
+          <SidebarIcon
+            iconKey="search"
+            size={14}
+            className="recent-chat-filter-icon"
+          />
           <input
             ref={filterInputRef}
             type="text"
@@ -696,7 +724,11 @@ export default function Sidebar({
               aria-label={`回收站，${trashEntries.length} 段已删除对话`}
               title="回收站"
             >
-              回收站（{trashEntries.length}）
+              <SidebarIcon iconKey="trash" />
+              <span className="sidebar-row-label">
+                回收站（{trashEntries.length}）
+              </span>
+              <SidebarChevron />
             </button>
           )}
           {/* P188: an empty history can never legitimately show the notice,
@@ -752,9 +784,11 @@ export default function Sidebar({
            * block's same-copy link on the first screen, so it only renders
            * below 769px — where the aside is a closed drawer and never
            * competes with the welcome entry. Not rendering it (vs
-           * display:none) keeps the sidebar column reflowed with no hole. */
+           * display:none) keeps the sidebar column reflowed with no hole.
+           * P378: the entry collapses to ONE layer — the accent-soft button
+           * alone; the bordered .profile-card shell around it is gone. */
           onEditProfile && !wideViewport && (
-            <section className="sidebar-section profile-card" aria-label="我的资料">
+            <section className="sidebar-section profile-setup" aria-label="我的资料">
               <button
                 type="button"
                 className="profile-setup-btn"
@@ -790,7 +824,16 @@ export default function Sidebar({
         </section>
 
         <section className="sidebar-section" aria-label="进阶工具">
-          <h3>进阶工具</h3>
+          {/* P378: the whole block folds into a disclosure group, collapsed
+              by default — the five low-frequency rows no longer compete with
+              最近对话 for the drawer's first screen, and opening the group
+              renders every row in full (the list keeps no max-height, so the
+              last entry can never be clipped). */}
+          <details className="tools-details">
+            <summary className="tools-toggle">
+              <h3>进阶工具</h3>
+              <SidebarChevron />
+            </summary>
           {/* P322: while /api/tools is in flight, paint the same five rows
               as inert skeletons — real labels in the real slots, disabled +
               aria-busy — so the drawer never looks like it only has two
@@ -848,6 +891,7 @@ export default function Sidebar({
               );
             })}
           </ul>
+          </details>
         </section>
       </div>
 

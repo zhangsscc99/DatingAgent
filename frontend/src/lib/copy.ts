@@ -9,3 +9,11 @@
  * so every consumer (including aria-label/title) stays in sync.
  */
 export const CLEAR_ALL_LABEL = '清空全部对话';
+
+/**
+ * P378 — the sidebar clear-all button's tooltip names where the cleared
+ * conversations actually go (the 回收站, same as a single delete), instead
+ * of repeating the label. Still derived from the one constant, so the
+ * wording can never fork into a second phrasing.
+ */
+export const CLEAR_ALL_TRASH_TITLE = `${CLEAR_ALL_LABEL}（移到回收站）`;
