@@ -251,13 +251,12 @@
 
 .filter-empty-hint {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .filter-empty-hint-text {
-  flex: 1 1 100%;
   min-width: 0;
 }
 
@@ -268,7 +267,9 @@
 
 .filter-empty-clear {
   flex-shrink: 0;
-  padding: 2px 10px;
+  min-width: 88px;
+  margin-top: 8px;
+  padding: 6px 12px;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius);

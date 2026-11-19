@@ -477,7 +477,7 @@ export default function Sidebar({
                       scope note into the empty state's first sentence so it is
                       read before the 清除筛选 action, not after it. */}
                   <span className="filter-empty-hint-scope">
-                    ——{FILTER_SESSIONS_HINT}
+                    {FILTER_SESSIONS_HINT}
                   </span>
                   <button
                     type="button"

@@ -28,4 +28,4 @@ export const FILTER_SESSIONS_LABEL = '筛选对话';
 
 /** Muted scope line under the filter empty state: the filter matches both
  * session titles and message bodies (filterRecentSessions → matchSessionMessage). */
-export const FILTER_SESSIONS_HINT = '标题和对话内容都搜';
+export const FILTER_SESSIONS_HINT = '搜索只匹配会话标题和对话内容';
