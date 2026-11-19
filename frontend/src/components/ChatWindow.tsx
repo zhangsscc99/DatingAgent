@@ -30,6 +30,7 @@ import {
   shouldShowProfileNudge,
 } from '../lib/profileNudge';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { COARSE_POINTER_QUERY, heroHint } from '../lib/heroHint';
 import {
   MEMORY_RECEIPT_PREFIX,
   memoryReceiptItems,
@@ -209,6 +210,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // quiet non-interactive summary line so the phone first screen keeps a
   // single focus — the composer send key.
   const compactFeatures = useMediaQuery('(max-width: 768px)');
+  // P350: the hero hint must describe the affordance the device actually has —
+  // a touch phone has no Enter key, only the composer's send button.
+  const coarsePointer = useMediaQuery(COARSE_POINTER_QUERY);
+  const startHint = heroHint({ coarsePointer, narrowViewport: compactFeatures });
 
   // P345: which starter intake is open under the chips (null = the three
   // capsules sit idle), and the intent armed by the last intake fill —
@@ -703,9 +708,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
             {/* P312: the composer owns the single start entry — the old
                 hero button only duplicated the textarea's job, so what
                 remains here is passive guidance, not a control. */}
-            <p className="welcome-hint">
-              在下方输入框写下你的情况，回车发送即可开始。
-            </p>
+            <p className="welcome-hint">{startHint}</p>
             {/* P343: ≤768px demotes the three starter chips to one muted,
                 non-interactive hint line — text, not button-chrome — so
                 the composer's send key stays the first screen's only real

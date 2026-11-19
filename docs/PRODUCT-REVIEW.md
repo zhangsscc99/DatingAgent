@@ -3142,6 +3142,7 @@ step10 | 桌面搜索空态 d3 | 清晰度 4/5 | 层级 4/5   | 排版问题: �
 | 时间 (UTC) | FID | 原因 | 执行者 | 结果 |
 | --- | --- | --- | --- | --- |
 | 2026-11-19 04:35 | P349 | devin swe-2-high 报 `Reached free model rate limit`（05:01 UTC 复位，本小时额度已被 04:03 中断的尝试用尽） | Hermes 调度器（opencode-go / deepseek-v4.1-flash） | 完成并验收：1559 例全绿、ci-deploy 退出 0、390×844 与 1440×900 实测胶囊 32px |
+| 2026-11-19 04:55 | P350 | devin swe-2-high 报 `Reached free model rate limit`（reset in 4 minutes / 05:01 UTC） | Hermes 调度器（opencode-go / deepseek-v4.1-flash） | 完成并验收：1565 例全绿、ci-deploy 退出 0、实测 390×844 coarse 指针下首屏「点发送即可开始。」、1440×900 仍「回车发送即可开始。」 |
 
 ## Round 96 — 2026-11-19 04:29–05:02 UTC（真实用户走查，dating，干净 context，390×844 + 1440×900，HEAD 5a84813，dist 04:06）
 
