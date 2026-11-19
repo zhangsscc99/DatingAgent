@@ -15,10 +15,13 @@ import type { ChatMessage } from '../src/types';
  * inside the bubble as if it were the reply's first line (the tool badge
  * used to be a child of `.bubble`, ahead of `.bubble-content`).
  *
- * The chip strip now lives outside `.bubble` in a `.bubble-col` wrapper and
- * carries `data-role="intent-chip"`: still visible as action feedback, but
- * the bubble's first non-empty line is always reply text. Same fake-DOM
- * mount as bubble-tool-meta-label.test.ts.
+ * P381 — the strip then sat atop `.bubble-col`, so `.bubble-row`'s leading
+ * innerText lines were still 「排约会」「✓」. The chips now live outside
+ * `.bubble-col` in a collapsed `<details class="tool-record">` on the row's
+ * own first line: the feedback channel is labelled (「已使用 N 个工具 ·
+ * 完成」), the badges stay one expand away, and the bubble's first
+ * non-empty line is always reply text. Same fake-DOM mount as
+ * bubble-tool-meta-label.test.ts.
  */
 
 const CHIP_LINE = /(排约会|接话术|改资料|看匹配|关系建议|我们合不合适)\s*\n?\s*✓/;
@@ -91,20 +94,27 @@ describe('P370 · intent chips live outside the reply bubble', () => {
     // fake DOM is process-global; nothing persistent to tear down
   });
 
-  it('the chip strip renders above the bubble, marked data-role="intent-chip"', () => {
+  it('the chip strip lives in a collapsed record outside .bubble-col', () => {
     for (const row of rows()) {
       const chip = row.querySelector('[data-role="intent-chip"]');
       const bubble = row.querySelector('.bubble');
       const col = row.querySelector('.bubble-col');
+      const record = row.querySelector('.tool-record');
       expect(chip, 'intent-chip strip').toBeTruthy();
       expect(bubble, 'bubble').toBeTruthy();
       expect(col, 'bubble-col wrapper').toBeTruthy();
+      expect(record, 'collapsed tool record').toBeTruthy();
 
-      // Outside the bubble, but stacked directly above it in the same column.
+      // P381: outside the bubble AND outside .bubble-col — the strip sits
+      // in a <details> record on the row's own first line, closed by
+      // default so the badge text can never lead the row's reply text.
+      expect(chip!.closest('.bubble-col')).toBeNull();
+      expect(chip!.parentElement).toBe(record);
+      expect(record!.tagName).toBe('DETAILS');
+      expect(record!.hasAttribute('open')).toBe(false);
+      expect(record!.parentElement).toBe(row);
+      expect(row.childNodes.indexOf(record!)).toBeLessThan(row.childNodes.indexOf(col!));
       expect(bubble!.contains(chip as unknown as FakeNode)).toBe(false);
-      expect(chip!.parentElement).toBe(col);
-      expect(bubble!.parentElement).toBe(col);
-      expect(col!.childNodes.indexOf(chip!)).toBeLessThan(col!.childNodes.indexOf(bubble!));
       expect(bubble!.querySelector('.tool-badge')).toBeNull();
       expect(bubble!.querySelector('[data-role="intent-chip"]')).toBeNull();
     }

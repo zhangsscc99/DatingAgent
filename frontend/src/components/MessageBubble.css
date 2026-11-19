@@ -105,9 +105,10 @@
   content: '」';
 }
 
-/* P370: the bubble and its intent chips share one column — the chips are
-   action feedback stacked above the bubble (data-role="intent-chip"), not
-   a first line inside the reply text. */
+/* P370: the bubble column holds reply content only. P381: the intent
+   chips left this column entirely — stacked here they still owned the
+   row's leading innerText lines (「排约会」「✓」), so they moved into a
+   collapsed <details> record on the row's first line (.tool-record). */
 .bubble-col {
   display: flex;
   flex-direction: column;
@@ -120,15 +121,41 @@
   align-items: flex-end;
 }
 
-/* P373: the strip is UI feedback pinned to the avatar column, not a first
-   line of the reply — it aligns to the column start, carries no background
-   or outline of its own, and reads as a dim caption above the bubble. */
+/* P381: the assistant row wraps so the tool record can take its own first
+   line — a row-head meta area outside .bubble-col. With no record the
+   avatar + column still share one line exactly as before. */
+.bubble-row.assistant {
+  flex-wrap: wrap;
+}
+
+/* The record is a collapsed <details>: its summary names the feedback
+   channel (「已使用 N 个工具 · 完成」) as a dim caption, and the badge
+   strip stays one expand away — never part of the reply's leading text. */
+.tool-record {
+  flex: 0 0 100%;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tool-record > summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 2px 0;
+}
+
+.tool-record[open] > summary {
+  margin-bottom: 2px;
+}
+
+/* P373/P381: the strip is UI feedback inside the expandable record, not a
+   first line of the reply — it carries no background or outline of its
+   own and reads as a dim caption under the summary. */
 .tool-events {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 8px;
-  align-self: flex-start;
   max-width: 100%;
   background: transparent;
   border: none;

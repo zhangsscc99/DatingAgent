@@ -233,6 +233,19 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
     !message.duplicateRegen &&
     typeof message.meta?.tokens === 'number';
 
+  /* P381: the tool chips were still leading the reply — pinned atop the
+     bubble column they owned the row's first two innerText lines
+     (「排约会」「✓」) and read as a reply header. They now leave that
+     column entirely: a collapsed <details> record on the row's own
+     first line keeps the action-feedback channel labelled (「已使用 N 个
+     工具 · 完成」) without letting badge text lead the reply. The summary
+     stays label-free on purpose — each tool name renders exactly once,
+     inside the expandable record. */
+  const toolEvents = !isUser ? (message.toolEvents ?? []) : [];
+  const toolRecordSummary = `已使用 ${toolEvents.length} 个工具 · ${
+    toolEvents.every((t) => t.status === 'done') ? '完成' : '执行中'
+  }`;
+
   /* P331: the age label used to sit under the action pills as a third bottom
      line (body → buttons → time). It now rides inside .bubble-actions as the
      row's first item — one 「刚刚 · 复制 · 换一个」 line. When no action row
@@ -267,6 +280,16 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
       role="group"
       aria-label={isUser ? '你的消息' : 'DatingAgent 的回复'}
     >
+      {toolEvents.length > 0 && (
+        <details className="tool-record">
+          <summary className="tool-record-summary">{toolRecordSummary}</summary>
+          <div className="tool-events" data-role="intent-chip">
+            {toolEvents.map((t, i) => (
+              <ToolBadge key={`${t.name}-${i}`} event={t} />
+            ))}
+          </div>
+        </details>
+      )}
       {!isUser && (
         <div className="avatar" aria-hidden="true">
           <svg
@@ -285,18 +308,6 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
         </div>
       )}
       <div className={`bubble-col ${isUser ? 'user' : 'assistant'}`}>
-        {/* P370: the tool/intent chips are action feedback, not reply text —
-            rendered inside the bubble they made the bubble's innerText begin
-            with a UI label (「排约会\n✓」) on every tool-using reply; as a
-            strip above the bubble they stay visible without polluting the
-            reply's first line. */}
-        {!isUser && message.toolEvents && message.toolEvents.length > 0 && (
-          <div className="tool-events" data-role="intent-chip">
-            {message.toolEvents.map((t, i) => (
-              <ToolBadge key={`${t.name}-${i}`} event={t} />
-            ))}
-          </div>
-        )}
         <div
           className={`bubble ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}${searchHit ? ' search-match' : ''}`}
           data-search-match={searchHit ? 'true' : undefined}
