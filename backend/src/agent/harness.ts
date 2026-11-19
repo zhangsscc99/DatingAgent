@@ -1,5 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { AgentContext, AgentEvent, ChatIntent, ChatResult, Message, ReplyLanguage, ReplyLength } from './types.js';
+import type { ReplyStrategy } from '../lib/reply-strategy.js';
+import {
+  REPLY_STRATEGIES,
+  REPLY_STRATEGY_HINTS,
+  REPLY_STRATEGY_LABELS,
+  ReplyStrategyLedger,
+  extractReplyStrategy,
+} from '../lib/reply-strategy.js';
 import { LLMClient } from '../llm/client.js';
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
 import { resolveFocusEntity } from '../lib/focusEntity.js';
@@ -364,17 +372,47 @@ const STANCE_RETRY_DIRECTIVE =
  * fixed 40-char sentence). The regenerate request carries the last versions
  * it already showed; this directive pins them into the system prompt so the
  * new reply must not reuse their sentences and stays at least two sentences.
+ *
+ * P390 — sentence-level dedupe still let three versions repeat one idea in
+ * new words (「晾着 + 找事做 + 别老看手机」 ×3): dead options, since a
+ * choice with no difference is no choice. The directive now also forces a
+ * strategy switch — the model must pick one of the five advice routes the
+ * chain has not used yet and report its pick on a trailing
+ * `strategy: <id>` marker line (stripped server-side before display).
  */
-export function buildAvoidRepeatDirective(previousReplies: readonly string[]): string {
+export function buildAvoidRepeatDirective(
+  previousReplies: readonly string[],
+  usedStrategies: readonly ReplyStrategy[] = [],
+): string {
   if (previousReplies.length === 0) return '';
   const list = previousReplies.map((r, i) => `版本${i + 1}：${r}`).join('\n');
+  const used = new Set(usedStrategies);
+  const strategyList = REPLY_STRATEGIES.map(
+    (s) => `- ${REPLY_STRATEGY_LABELS[s]}（${s}）：${REPLY_STRATEGY_HINTS[s]}`,
+  ).join('\n');
+  const usedLine = usedStrategies.length
+    ? `已经用过的策略：${usedStrategies.map((s) => `${REPLY_STRATEGY_LABELS[s]}（${s}）`).join('、')}。\n`
+    : '';
+  const remaining = REPLY_STRATEGIES.filter((s) => !used.has(s));
+  const pickLine = remaining.length
+    ? `本次必须从尚未用过的策略里选一条（可选：${remaining
+        .map((s) => `${REPLY_STRATEGY_LABELS[s]}（${s}）`)
+        .join('、')}），不得使用已经用过的策略。`
+    : '五条策略都已用过，本次任选一条，但必须与已展示版本的写法差异最大。';
   return (
     '\n\n本轮是「换一个」重新生成：以下是已经展示给用户看过的回复版本——\n' +
     list +
     '\n新回复不得与以上任何一版有相同句子，必须换一种说法，且不少于两句话。' +
+    '更重要的是必须换一条策略维度，可选策略共五条：\n' +
+    strategyList +
+    '\n' +
+    usedLine +
+    pickLine +
     '旧版本只用于比对，不要在回复中提及、复述或列出它们。' +
     '回复正文里不要出现界面按钮名或工具标签（如「排约会」「接话术」「改资料」「看匹配」），' +
     '也不要断言用户没提过的偏好。' +
+    '写完正文后另起一行，单独写「strategy: 策略id」标明你本次选的策略' +
+    '（id 用上方括号里的英文小写代号）；该行不算正文，正文其余位置不要出现 strategy 或策略代号。' +
     '直接照做，不要在回复中提及或复述这些要求。'
   );
 }
@@ -387,9 +425,21 @@ const REGEN_DUPLICATE_RETRY_DIRECTIVE =
   '你刚才生成的回复与已展示过的版本完全相同，这是不允许的。' +
   '请给出一版全新的回复：换一个表达角度和措辞，不得复用旧回复里的任何句子，且不少于两句话。';
 
+/**
+ * P390 — sharpened directive pushed ahead of the single server-side retry
+ * when a regenerate reports a strategy the chain already spent.
+ */
+const STRATEGY_REPEAT_RETRY_DIRECTIVE =
+  '你刚才选择的策略在这条「换一个」序列里已经用过，这是不允许的。' +
+  '必须从未用过的策略里重新选一条写出全新回复，并在最后一行用「strategy: 策略id」标明。';
+
 export class AgentHarness {
   private llm = new LLMClient();
   private maxTurns = 8;
+  // P390: strategies each regenerate chain (session + re-issued prompt)
+  // already spent — shared by /api/chat and /api/chat/stream via the
+  // single app-level harness instance, bounded by STRATEGY_CHAIN_LIMIT.
+  private strategyLedger = new ReplyStrategyLedger();
 
   async *run(
     userMessage: string,
@@ -399,6 +449,15 @@ export class AgentHarness {
     previousReplies?: string[],
     intent?: ChatIntent,
   ): AsyncGenerator<AgentEvent> {
+    // P390: the regenerate chain this turn belongs to — same session, same
+    // re-issued prompt. The ledger carries the strategies earlier versions
+    // already spent so the directive can exclude them; a normal turn sends
+    // no strategy machinery at all.
+    const regenChainKey = previousReplies?.length
+      ? ReplyStrategyLedger.key(context.sessionId, userMessage)
+      : undefined;
+    const usedStrategies = regenChainKey ? this.strategyLedger.used(regenChainKey) : [];
+
     const messages: Message[] = [
       {
         role: 'system',
@@ -408,7 +467,7 @@ export class AgentHarness {
           buildProfileIntentDirective(userMessage) +
           buildStanceDirective(userMessage) +
           buildStarterIntentDirective(intent, context.conversationHistory.length) +
-          buildAvoidRepeatDirective(previousReplies ?? []),
+          buildAvoidRepeatDirective(previousReplies ?? [], usedStrategies),
       },
       // P177: bound the prompt — keep the newest turns within the
       // HISTORY_MAX_MESSAGES / HISTORY_MAX_CHARS budget.
@@ -430,6 +489,8 @@ export class AgentHarness {
     let dedupeRetried = false;
     // P365: one stance retry when an abusive turn still caves in.
     let stanceRetried = false;
+    // P390: one retry when a regen reports a strategy the chain already used.
+    let strategyRetried = false;
 
     yield { type: 'thinking', data: { message: '正在思考…' } };
 
@@ -621,9 +682,18 @@ export class AgentHarness {
           ),
         ),
       );
-      const finalContent = cleanedContent.trim()
-        ? cleanedContent
+      // P390: split the model's `strategy:` marker line off a regen reply —
+      // it names the route the model picked and never reaches the bubble.
+      // Non-regen turns skip extraction entirely so a legit 「策略：…」 line
+      // in normal advice text survives untouched.
+      const extracted = regenChainKey
+        ? extractReplyStrategy(cleanedContent)
+        : { text: cleanedContent, strategy: undefined };
+      const finalContent = extracted.text.trim()
+        ? extracted.text
         : fallbackFromToolResults(messages);
+      // A marker-only reply (empty body) carries no usable strategy.
+      const replyStrategy = extracted.text.trim() ? extracted.strategy : undefined;
 
       // P284: the model ignored the avoid-repeat directive and handed back a
       // version the user already saw — re-ask once with a sharpened rule. The
@@ -651,16 +721,50 @@ export class AgentHarness {
         continue;
       }
 
+      // P390: the marker line is the machine-readable proof of the route the
+      // model picked — a regen that reports an already-spent strategy ignored
+      // the exclusion list, so re-ask once while unused routes remain. A
+      // missing marker degrades gracefully: nothing is recorded and the next
+      // regen simply re-lists every used strategy it knows.
+      if (
+        !strategyRetried &&
+        regenChainKey &&
+        replyStrategy !== undefined &&
+        usedStrategies.includes(replyStrategy) &&
+        usedStrategies.length < REPLY_STRATEGIES.length
+      ) {
+        strategyRetried = true;
+        messages.push({ role: 'system', content: STRATEGY_REPEAT_RETRY_DIRECTIVE });
+        yield { type: 'thinking', data: { message: '正在换一个思路…' } };
+        continue;
+      }
+
+      if (regenChainKey && replyStrategy !== undefined) {
+        this.strategyLedger.record(regenChainKey, replyStrategy);
+      }
+
       messages.push({ role: 'assistant', content: finalContent });
       context.conversationHistory.push(
         { role: 'user', content: userMessage },
         { role: 'assistant', content: finalContent },
       );
 
-      yield { type: 'message', data: { content: finalContent, role: 'assistant' } };
+      yield {
+        type: 'message',
+        data: {
+          content: finalContent,
+          role: 'assistant',
+          ...(replyStrategy !== undefined ? { strategy: replyStrategy } : {}),
+        },
+      };
       yield {
         type: 'done',
-        data: { sessionId: context.sessionId, tool: toolsUsed[0], tokens },
+        data: {
+          sessionId: context.sessionId,
+          tool: toolsUsed[0],
+          tokens,
+          ...(replyStrategy !== undefined ? { strategy: replyStrategy } : {}),
+        },
       };
       return;
     }
@@ -702,18 +806,22 @@ export class AgentHarness {
     let content = '';
     let tool: string | undefined;
     let tokens: number | undefined;
+    let strategy: ReplyStrategy | undefined;
     for await (const event of this.run(userMessage, context, undefined, replyLength, previousReplies, intent)) {
       onEvent?.(event);
       if (event.type === 'message') {
-        content = (event.data as { content: string }).content;
+        const d = event.data as { content: string; strategy?: ReplyStrategy };
+        content = d.content;
+        strategy = d.strategy;
       }
       if (event.type === 'done') {
-        const d = event.data as { tool?: string; tokens?: number };
+        const d = event.data as { tool?: string; tokens?: number; strategy?: ReplyStrategy };
         tool = d.tool;
         tokens = d.tokens;
+        strategy ??= d.strategy;
       }
     }
-    return { content, meta: { tool, tokens } };
+    return { content, meta: { tool, tokens, strategy } };
   }
 }
 

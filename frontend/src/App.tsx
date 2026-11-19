@@ -714,6 +714,8 @@ export default function App() {
                 tokens?: number;
                 latencyMs?: number;
                 memory?: { count?: number; facts?: MemoryFact[] };
+                /** P390: the strategy a 「换一个」 reply reported; absent otherwise. */
+                strategy?: string;
               };
               if (d.sessionId) {
                 // P253: the turn was persisted under requestSessionId at

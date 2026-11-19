@@ -1,3 +1,5 @@
+import type { ReplyStrategy } from '../lib/reply-strategy.js';
+
 export type Role = 'system' | 'user' | 'assistant' | 'tool';
 
 export interface Message {
@@ -98,6 +100,8 @@ export interface ChatReplyMeta {
   tool?: string;
   /** Total tokens (prompt + completion) across all LLM calls; absent when unknown. */
   tokens?: number;
+  /** P390: the strategy a 「换一个」 reply reported via its `strategy:` marker line. */
+  strategy?: ReplyStrategy;
 }
 
 /** Non-streaming chat result: reply text plus its metadata. */

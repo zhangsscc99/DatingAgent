@@ -516,7 +516,9 @@ export function createApp(options: AppOptions = {}) {
           ? { ...meta, latencyMs: Date.now() - startedAt }
           : undefined;
       persistContext(session);
-      res.json({ sessionId: session.sessionId, reply: content, language: session.language ?? 'auto', meta: replyMeta, memory: sessionMemory(session) });
+      // P390: `strategy` surfaces the regen route the reply picked — absent
+      // on normal turns and when the model omitted its marker line.
+      res.json({ sessionId: session.sessionId, reply: content, language: session.language ?? 'auto', meta: replyMeta, memory: sessionMemory(session), strategy: meta.strategy });
     } catch (err) {
       usageMetrics.recordChat(Date.now() - startedAt, false);
       // The user's turn already mutated the session memory — persist that
