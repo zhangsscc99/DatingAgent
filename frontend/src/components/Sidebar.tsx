@@ -10,6 +10,10 @@ import { shouldHandleEscape, shouldSubmitOnEnter } from '../lib/ime';
 import { formatRelativeTime, isRenderableTimestamp } from '../lib/relativeTime';
 import { highlightSegments } from '../lib/messageSearch';
 import { filterRecentSessions, matchSessionMessage } from '../lib/sessionFilter';
+import {
+  filterRecentChats,
+  recentChatEmptyState,
+} from '../lib/recentChatFilter';
 import { searchSnippet } from '../lib/searchSnippet';
 import { FILTER_SESSIONS_HINT, FILTER_SESSIONS_LABEL } from '../lib/searchLabels';
 import { nextSessionIndex, sessionNavDirection } from '../lib/sessionListNav';
@@ -279,7 +283,7 @@ export default function Sidebar({
   // the P281 collapse) — the no-profile 「完善资料」 card stays out of the
   // persistent aside so the welcome footnote link is the one entry.
   const wideViewport = useMediaQuery('(min-width: 769px)');
-  const visibleSessions = filterRecentSessions(recentSessions, filterQuery);
+  const visibleSessions = filterRecentChats(recentSessions, filterQuery);
   const sessionGroups = groupSessionsByDay(visibleSessions);
   const trimmedQuery = filterQuery.trim().toLowerCase();
 
@@ -507,9 +511,11 @@ export default function Sidebar({
               {shouldShowFilterEmptyHint(
                 recentSessions.length,
                 visibleSessions.length,
-              ) && (
+              ) &&
+              recentChatEmptyState(filterQuery, visibleSessions.length) && (
                 <li
                   className="recent-chat-empty filter-empty-hint"
+                  data-testid="recent-chat-empty"
                   aria-live="polite"
                   aria-label="无匹配对话"
                 >

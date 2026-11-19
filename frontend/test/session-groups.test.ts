@@ -39,7 +39,7 @@ describe('P151 · group 最近对话 by day', () => {
     it('exports groupSessionsByDay and feeds it the already-filtered list', () => {
       const sidebar = read('components/Sidebar.tsx');
       expect(sidebar).toContain('export function groupSessionsByDay(');
-      expect(sidebar).toContain('filterRecentSessions(recentSessions, filterQuery)');
+      expect(sidebar).toContain('filterRecentChats(recentSessions, filterQuery)');
       expect(sidebar).toContain('groupSessionsByDay(visibleSessions)');
     });
 

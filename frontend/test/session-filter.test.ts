@@ -77,7 +77,9 @@ describe('P150 · sidebar session filter', () => {
       // P151 groups the filtered list; rows now map per group over it.
       expect(sidebar).toContain('group.sessions.map((s) =>');
       expect(sidebar).toContain('groupSessionsByDay(visibleSessions)');
-      expect(sidebar).toContain('filterRecentSessions(recentSessions, filterQuery)');
+      // P369: the filter now goes through the recentChatFilter seam, which
+      // delegates to filterRecentSessions — assert the seam, not the import.
+      expect(sidebar).toContain('filterRecentChats(recentSessions, filterQuery)');
       // Rename/edit state is keyed to the session id, so a changed filter can
       // never attach an edit box to a different row.
       expect(sidebar).toContain('editingId === s.id');
