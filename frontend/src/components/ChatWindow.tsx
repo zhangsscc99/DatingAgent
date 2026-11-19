@@ -165,6 +165,14 @@ interface Props {
   /** P339: 忘记这条 — delete one fact by key; the row stays until the
    * backend confirms, so a failed delete is never faked away. */
   onForgetMemory?: (key: string, label: string) => void;
+  /**
+   * P366: the title the sidebar shows for this conversation. A memory
+   * fact identical to it repeats what the title already says, so it is
+   * filtered out of the capsule's pill rows and the 记得 N 件事 lead —
+   * the 管理记忆 panel still lists (and can forget) it. When the prop is
+   * absent the capsule keeps every row.
+   */
+  sessionTitle?: string | null;
 }
 
 /** P206/P226: lets the header search toggle drive the in-conversation search
@@ -201,6 +209,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   onCancelQueue,
   memory,
   onForgetMemory,
+  sessionTitle = null,
 }: Props, ref) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -288,8 +297,15 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // 记得 N 件事 count (first in the flow, so it can never be clipped) and
   // renders each fact as its own pill — the first three, then a 「+N」
   // chip for the rest, which the existing 管理记忆 panel lists in full.
-  const capsuleFacts = visibleRows.slice(0, MEMORY_RECEIPT_MAX_ITEMS);
-  const hiddenFactCount = visibleRows.length - capsuleFacts.length;
+  // P366: a fact identical to the session title duplicates what the
+  // title already shows, so it drops out of the pill rows and the lead
+  // count — but stays in visibleRows so the panel can still manage it.
+  const capsuleTitle = (sessionTitle ?? '').trim();
+  const capsuleRows = visibleRows.filter(
+    (row) => row.label.trim() !== capsuleTitle,
+  );
+  const capsuleFacts = capsuleRows.slice(0, MEMORY_RECEIPT_MAX_ITEMS);
+  const hiddenFactCount = capsuleRows.length - capsuleFacts.length;
   const handleDismissFact = (item: string) => {
     setDismissedFacts(dismissReceiptItem(item));
     setMemoryUndoItem(item);
@@ -660,7 +676,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
 
   return (
     <div className="chat-window">
-      {visibleRows.length > 0 && (
+      {capsuleRows.length > 0 && (
         <div className="memory-receipt" role="status">
           <div className="memory-capsule-wrap">
             <button
@@ -687,7 +703,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
               </svg>
               <span className="memory-capsule-text">
                 <span className="memory-capsule-lead">
-                  {`记得 ${visibleRows.length} 件事`}
+                  {`记得 ${capsuleRows.length} 件事`}
                 </span>
                 {capsuleFacts.map((row) => (
                   <span

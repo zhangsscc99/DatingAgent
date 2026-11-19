@@ -33,7 +33,8 @@ import type { ChatMessage, ConversationMemory, MemoryFact } from '../src/types';
  *   .memory-capsule-lead      = 「记得 4 件事」 (right 116 px)
  *   .memory-capsule rect      = 296×40 px, right 344 px
  *   span[data-fact] count     = 3,  .memory-capsule-more = 「+1」
- *   computed text-overflow    = clip,  flex-wrap = wrap,  max-height = 40px
+ *   computed text-overflow    = clip,  flex-wrap = wrap
+ *   (P366 later raised the row cap to lead + 3 fact lines + a 「+N」 line)
  *   scrollWidth / clientWidth = 296 / 296  (no truncation in effect)
  *
  * So the count is visible, no ellipsis is active and the panel lists every
@@ -205,11 +206,12 @@ describe('P363 · memory capsule count is visible on a 390-wide touch device', (
       expect(cssRule(selector), selector).not.toContain('text-overflow: ellipsis');
     }
 
-    // Two 18px pill rows plus the 4px row gap — nothing taller than the cap.
+    // P366: lead + three 18px fact lines + one 「+N」 line, plus the row
+    // gaps — the clip can only ever land on a row boundary.
     const maxHeight = Number(/max-height\s*:\s*([0-9.]+)px/.exec(textRule)?.[1]);
     const rowGap = Number(/row-gap\s*:\s*([0-9.]+)px/.exec(textRule)?.[1] ?? 0);
     expect(maxHeight).toBeGreaterThan(0);
-    expect(maxHeight).toBeLessThanOrEqual(18 * 2 + rowGap);
+    expect(maxHeight).toBeLessThanOrEqual(18 * 5 + rowGap * 4);
   });
 
   it('clicking the capsule lists all four facts in the 管理记忆 panel', async () => {

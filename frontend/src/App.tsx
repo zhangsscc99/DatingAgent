@@ -2103,6 +2103,7 @@ export default function App() {
           onCancelQueue={cancelPendingQueue}
           memory={memory ?? undefined}
           onForgetMemory={handleForgetMemory}
+          sessionTitle={exportTitle()}
         />
         <SystemStatusFooter />
       </main>

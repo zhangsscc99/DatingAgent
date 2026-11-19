@@ -33,6 +33,36 @@ export const SESSION_MEMORY_MAX = 50;
 /** One fact stays short enough for a single quiet capsule line. */
 const FACT_MAX_CHARS = 20;
 
+/** A fact shorter than this cannot carry a subject + action/state. */
+const FACT_MIN_CHARS = 6;
+
+/** P366 — a pronoun anywhere in the clause makes its subject explicit. */
+const FACT_SUBJECT = /我|你|她|他|它|ta/i;
+
+/**
+ * P366 — a leading time/plan anchor lets a subject-free clause still
+ * read as a standalone headline fact (「明天第一次约会」); a clause
+ * without either is a dangling fragment.
+ */
+const FACT_HEADLINE_LEAD =
+  /^(?:今天|明天|后天|昨天|昨晚|周末|下周|这周|今晚|明晚|第[一二两三四五六七八九十0-9]+次)/;
+
+/**
+ * P366 — every stored fact must read as a standalone sentence: an
+ * explicit subject plus an action/state. The Round-97 walkthrough
+ * caught 「她先不回我的」 — a clause clipped on a dangling 的 — and
+ * 「就是烦」 — no subject, three chars — sitting in the sidebar and
+ * capsule where a reader could not tell what was remembered. A
+ * candidate that fails here is dropped, never stored.
+ */
+function isStandaloneFact(text: string): boolean {
+  const t = text.trim();
+  if (t.length < FACT_MIN_CHARS) return false;
+  // A clause ending in 的/地/得 is a clipped fragment, not a fact.
+  if (/[的地得]$/.test(t)) return false;
+  return FACT_SUBJECT.test(t) || FACT_HEADLINE_LEAD.test(t);
+}
+
 /** Clause boundaries: CJK and ASCII punctuation plus newlines. */
 const CLAUSE_SPLIT = /[^，。！？；、,.!?;\n]+/g;
 
@@ -151,24 +181,26 @@ export function extractMemoryFacts(message: string): ExtractedFact[] {
       if (match.index === undefined) continue;
       if (rule.accept && !rule.accept(match)) continue;
       const label = clip(rule.text(match));
-      if (factKey(label).length < 2) continue;
+      if (!isStandaloneFact(label)) continue;
       candidates.push({ index: match.index, end: match.index + match[0].length, text: label });
     }
   }
   for (const pattern of CONVERSATION_FACT_PATTERNS) {
     for (const match of text.matchAll(pattern)) {
       if (match.index === undefined) continue;
+      const label = clip(match[0]);
+      if (!isStandaloneFact(label)) continue;
       candidates.push({
         index: match.index,
         end: match.index + match[0].length,
-        text: clip(match[0]),
+        text: label,
       });
     }
   }
   const lower = text.toLowerCase();
   for (const keyword of CONVERSATION_FACT_LEXICON) {
     const index = lower.indexOf(keyword.toLowerCase());
-    if (index !== -1) {
+    if (index !== -1 && isStandaloneFact(keyword)) {
       candidates.push({ index, end: index + keyword.length, text: keyword });
     }
   }
@@ -198,6 +230,7 @@ export function extractMemoryFacts(message: string): ExtractedFact[] {
       const clipped = clip(label);
       const key = factKey(clipped);
       if (key.length < 2 || clipped.length > FACT_MAX_CHARS) continue;
+      if (!isStandaloneFact(clipped)) continue;
       if (FACT_FILLER.includes(label.toLowerCase())) continue;
       if (OPEN_DELIBERATION.test(label)) continue;
       if (!CLAUSE_ANCHORS.test(label)) continue;

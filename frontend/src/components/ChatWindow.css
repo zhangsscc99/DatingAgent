@@ -64,8 +64,11 @@
 /* P351 — the joined single-line receipt ellipsised its tail, eating the
  * 「共 N 条」 count with it. The text now wraps: a leading 记得 N 件事
  * count that sits first in the flow (so it can never be clipped), then
- * each fact as its own pill — at most two pill rows, the third clipped
- * clean at the row boundary. No text-overflow: ellipsis anywhere. */
+ * each fact as its own pill.
+ * P366 — every fact gets its own line: the pills take flex-basis 100% so
+ * a line never splits a fact across a wrap boundary, at most three fact
+ * lines plus one 「+N」 line, clipped clean at a row boundary. No
+ * text-overflow: ellipsis anywhere. */
 .memory-capsule-text {
   min-width: 0;
   display: flex;
@@ -73,12 +76,13 @@
   align-items: center;
   column-gap: 4px;
   row-gap: 4px;
-  max-height: 40px; /* two 18px pill rows + the 4px row gap */
+  max-height: 106px; /* lead + 3 fact lines + 1 「+N」 line (18px rows, 4px gaps) */
   overflow: hidden;
 }
 
 /* The count lead — unclippable by construction: it is the first item in
- * the wrap flow, so the two-row clip can only ever remove fact pills. */
+ * the wrap flow and shares its line with nothing (the fact pills each
+ * claim a whole row), so the clip can only ever remove fact lines. */
 .memory-capsule-lead {
   flex-shrink: 0;
   white-space: nowrap;
@@ -98,6 +102,13 @@
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;
+}
+
+/* P366 — a fact pill claims its whole row (basis 100%), so it always
+ * reads as one line; the 「+N」 chip stays text-width on the last row. */
+.memory-capsule-fact {
+  flex: 0 0 100%;
+  justify-content: flex-start;
 }
 
 .memory-capsule-more {

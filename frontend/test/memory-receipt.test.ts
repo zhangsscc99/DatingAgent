@@ -449,13 +449,13 @@ describe('P323 · the Round-88 reagent — four turns, three remembered facts', 
     ]);
   });
 
-  it('390-wide: still a single capsule whose content is capped at two pill rows', () => {
+  it('390-wide: still a single capsule whose content is capped at a row boundary', () => {
     stubStorage();
     const markup = renderChat({ messages: p323Turns, profile: null });
     expect(markup.match(/class="memory-capsule"/g)).toHaveLength(1);
     // P351: the joined line that ellipsised its tail is gone — each fact
-    // is its own pill, the pills wrap, and the container clips at a row
-    // boundary. No nowrap/ellipsis may come back: the count lead must
+    // is its own pill, one per line (P366), and the container clips at a
+    // row boundary. No nowrap/ellipsis may come back: the count lead must
     // stay visible at every width.
     const css = readFileSync(
       join(

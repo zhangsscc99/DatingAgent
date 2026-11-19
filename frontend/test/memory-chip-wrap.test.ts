@@ -19,9 +19,9 @@ import type { ChatMessage, ConversationMemory, MemoryFact } from '../src/types';
  * line: at 390×844 the tail (「共 N 条」 included) was eaten by
  * text-overflow: ellipsis, so「我记得什么」 was only ever true for the
  * first fact. The capsule now leads with an always-visible 记得 N 件事
- * count and renders each fact as its own pill (`span[data-fact]`), the
- * pills wrap to at most two rows with no ellipsis, and the existing
- * 管理记忆 panel still lists every fact.
+ * count and renders each fact as its own pill (`span[data-fact]`) — one
+ * fact per line (P366), at most three fact lines plus a 「+N」 chip with
+ * no ellipsis — and the existing 管理记忆 panel still lists every fact.
  *
  * Layout-honesty note (same as memory-chip-overlap.test.ts): this fake
  * DOM computes no layout — scrollWidth/clientWidth and the rects are all
@@ -163,13 +163,14 @@ describe('P351 · capsule wraps facts as pills, count always visible', () => {
     expect(cssRule('.memory-capsule')).not.toContain('text-overflow');
   });
 
-  it('the capsule content is capped at two lines', () => {
+  it('the capsule content is capped at a row boundary', () => {
     const text = qs('.memory-capsule-text')!;
-    // DOM check (0 in fake DOM) + CSS check: max-height <= two 18px pill
-    // rows plus the declared row gap.
+    // DOM check (0 in fake DOM) + CSS check: max-height <= lead + three
+    // 18px fact lines + one 「+N」 line, plus the declared row gaps (P366:
+    // one fact per line).
     const lineHeight = 18;
     expect(text.getBoundingClientRect().height).toBeLessThanOrEqual(
-      lineHeight * 2,
+      lineHeight * 5,
     );
     const textRule = cssRule('.memory-capsule-text');
     const maxHeight = Number(
@@ -177,7 +178,7 @@ describe('P351 · capsule wraps facts as pills, count always visible', () => {
     );
     const rowGap = Number(/row-gap\s*:\s*([0-9.]+)px/.exec(textRule)?.[1] ?? 0);
     expect(maxHeight).toBeGreaterThan(0);
-    expect(maxHeight).toBeLessThanOrEqual(lineHeight * 2 + rowGap);
+    expect(maxHeight).toBeLessThanOrEqual(lineHeight * 5 + rowGap * 4);
   });
 
   it('clicking the capsule lists every fact in the 管理记忆 panel', async () => {
