@@ -44,8 +44,8 @@ import {
 import { hasInteracted } from '../lib/interactionState';
 import { shouldAutoScroll } from '../lib/autoScroll';
 import {
-  firstFullyVisibleAnchor,
-  loadScrollAnchor,
+  firstVisibleAnchor,
+  restoreAnchorFor,
   saveScrollAnchor,
 } from '../lib/scrollAnchor';
 import { STARTER_ENTRIES } from '../lib/starterEntries';
@@ -64,6 +64,11 @@ function prefersReducedMotion(): boolean {
 
 /** P24: how far from the latest message before the jump button appears. */
 const SCROLL_BOTTOM_THRESHOLD = 150;
+
+/** P352: the scroll-margin-top on .bubble-row (ChatWindow.css) — a restored
+ * anchor lands this far under the scrollport's top edge; a clamped anchor
+ * sits measurably lower and needs the P360 edge snap. */
+const SCROLL_ANCHOR_MARGIN = 8;
 
 /** P330: how long the 已忘记 undo toast stays armed. */
 const MEMORY_UNDO_MS = 6000;
@@ -399,7 +404,11 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     }
     if (!sessionId) return;
     const rect = el.getBoundingClientRect();
-    const anchor = firstFullyVisibleAnchor(
+    // P360: the anchor is the first VISIBLE row — including one crossing
+    // the top edge. Its content offset always precedes the scroll offset
+    // it was seen at, so the restore can always land it at the top edge
+    // and the reopened viewport never starts on a half-cut bubble.
+    const anchor = firstVisibleAnchor(
       Array.from(el.querySelectorAll('[data-message-id]'))
         .map((row) => {
           const r = row.getBoundingClientRect();
@@ -452,13 +461,39 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     // visible bubble in half.
     if (jump) {
       const el = listRef.current;
-      const anchorId = sessionId ? loadScrollAnchor(sessionId) : null;
+      // P360: the anchor must still name a rendered message — a stale,
+      // corrupted or foreign id restores to the head like no anchor at
+      // all (restoreAnchorFor returns null for every dead-end case).
+      const anchorId =
+        sessionId && el !== null
+          ? restoreAnchorFor(
+              sessionId,
+              Array.from(el.querySelectorAll('[data-message-id]'))
+                .map((row) => row.getAttribute('data-message-id') ?? '')
+                .filter((id) => id !== ''),
+            )
+          : null;
       const anchorRow =
         anchorId !== null && el !== null
           ? el.querySelector(`[data-message-id="${CSS.escape(anchorId)}"]`)
           : null;
       if (anchorRow) {
         anchorRow.scrollIntoView({ block: 'start', behavior: 'auto' });
+        // P360: a first-visible anchor can always reach the top edge, but
+        // an anchor recorded before the viewport grew (taller port, less
+        // room below the row) may still clamp short of it — snap the row
+        // crossing the top edge fully into view instead of leaving its
+        // tail half-read.
+        const port = el!.getBoundingClientRect();
+        const anchored = anchorRow.getBoundingClientRect();
+        if (anchored.top > port.top + SCROLL_ANCHOR_MARGIN + 1) {
+          const crossing = Array.from(el!.querySelectorAll('[data-message-id]'))
+            .map((row) => ({ row, rect: row.getBoundingClientRect() }))
+            .find(
+              ({ rect }) => rect.top < port.top && rect.bottom > port.top,
+            );
+          crossing?.row.scrollIntoView({ block: 'start', behavior: 'auto' });
+        }
       } else if (el) {
         el.scrollTop = 0;
       }

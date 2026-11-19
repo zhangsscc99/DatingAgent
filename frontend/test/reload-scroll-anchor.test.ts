@@ -11,7 +11,10 @@ import {
 } from './helpers/fakeDom';
 import {
   firstFullyVisibleAnchor,
+  firstVisibleAnchor,
   loadScrollAnchor,
+  restoreAnchorFor,
+  saveScrollAnchor,
   scrollAnchorKey,
 } from '../src/lib/scrollAnchor';
 import type { ChatMessage } from '../src/types';
@@ -148,6 +151,113 @@ function emulateLayout(listTop: number, viewportPx: number): Layout {
 
   return { sizeBox };
 }
+
+describe('P360 · firstVisibleAnchor selection', () => {
+  const rows = (offsets: Array<[number, number]>) =>
+    offsets.map(([top, bottom], i) => ({ id: `m${i}`, top, bottom }));
+
+  it('returns the row crossing the top edge, not the first fully inside', () => {
+    // m0 half-cut above the fold — it is still the first message the
+    // reader sees, so it is the restore anchor.
+    expect(
+      firstVisibleAnchor(
+        rows([
+          [-40, 200],
+          [210, 440],
+          [450, 610],
+        ]),
+        0,
+        616,
+      ),
+    ).toBe('m0');
+  });
+
+  it('returns the first row inside when the top edge is clean', () => {
+    expect(
+      firstVisibleAnchor(
+        rows([
+          [210, 440],
+          [450, 610],
+        ]),
+        0,
+        616,
+      ),
+    ).toBe('m0');
+  });
+
+  it('skips rows fully above the viewport', () => {
+    expect(
+      firstVisibleAnchor(
+        rows([
+          [-600, -400],
+          [-300, -10],
+          [20, 200],
+        ]),
+        0,
+        616,
+      ),
+    ).toBe('m2');
+  });
+
+  it('returns null when no row is on screen', () => {
+    expect(
+      firstVisibleAnchor(rows([[-600, -400], [-300, -100]]), 0, 616),
+    ).toBeNull();
+    expect(firstVisibleAnchor(rows([[900, 1100]]), 0, 616)).toBeNull();
+  });
+});
+
+describe('P360 · restoreAnchorFor decision', () => {
+  const memStore = () => {
+    const map = new Map<string, string>();
+    return {
+      getItem: (k: string) => (map.has(k) ? map.get(k)! : null),
+      setItem: (k: string, v: string) => void map.set(k, v),
+      removeItem: (k: string) => void map.delete(k),
+      map,
+    };
+  };
+
+  it('round-trips a saved anchor while the message still exists', () => {
+    const s = memStore();
+    saveScrollAnchor('s1', 'a-m2', s);
+    expect(loadScrollAnchor('s1', s)).toBe('a-m2');
+    expect(restoreAnchorFor('s1', ['a-m0', 'a-m1', 'a-m2'], s)).toBe('a-m2');
+  });
+
+  it('decides scroll-to-top when no anchor was saved', () => {
+    expect(restoreAnchorFor('s-none', ['a-m0'], memStore())).toBeNull();
+  });
+
+  it('decides scroll-to-top on corrupted storage content', () => {
+    const s = memStore();
+    s.map.set(scrollAnchorKey('s1'), '{not-a-message-id garbage');
+    expect(restoreAnchorFor('s1', ['a-m0', 'a-m1'], s)).toBeNull();
+  });
+
+  it('decides scroll-to-top when storage throws, and writes never do', () => {
+    const broken = {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+      removeItem: () => {
+        throw new Error('blocked');
+      },
+    };
+    expect(loadScrollAnchor('s1', broken)).toBeNull();
+    expect(restoreAnchorFor('s1', ['a-m0'], broken)).toBeNull();
+    expect(() => saveScrollAnchor('s1', 'a-m0', broken)).not.toThrow();
+  });
+
+  it('decides scroll-to-top when the anchored message was deleted', () => {
+    const s = memStore();
+    saveScrollAnchor('s1', 'a-m7', s);
+    expect(restoreAnchorFor('s1', ['a-m0', 'a-m1'], s)).toBeNull();
+  });
+});
 
 describe('P352 · firstFullyVisibleAnchor selection', () => {
   const rows = (offsets: Array<[number, number]>) =>
@@ -350,6 +460,81 @@ describe('P352 · reload restores the recorded reading anchor', () => {
         firstFullyVisible!.getBoundingClientRect().top,
       ).toBeGreaterThanOrEqual(port.top);
 
+      await unmountApp();
+    });
+
+    it(`P360: reload from the tail leaves no bubble half-cut at the top edge (${vp.name})`, async () => {
+      install();
+      const { sizeBox } = emulateLayout(vp.listTop, vp.viewportPx);
+      await mountApp();
+
+      const list = qs('.messages')!;
+      sizeBox(list);
+      // Reading at the tail, the topmost on-screen row is half-cut — the
+      // P360 anchor records that crossing row, not the first whole one.
+      await scrollListTo(list.scrollHeight - list.clientHeight);
+      const anchored = loadScrollAnchor('s-active');
+      expect(anchored).not.toBeNull();
+      expect(anchored).not.toBe('a-m0');
+      await unmountApp();
+      await mountApp();
+
+      const reloaded = qs('.messages')!;
+      const port = reloaded.getBoundingClientRect();
+      const rows = reloaded.querySelectorAll('.bubble-row');
+      // A row poking ≤ scroll-margin-top past the edge is just the anchor
+      // margin reveal (in a real layout the 16px row gap hides it whole) —
+      // a bubble is clipped only when more than that sliver shows.
+      const meaningful = rows.filter((row) => {
+        const r = row.getBoundingClientRect();
+        return (
+          r.bottom > port.top + SCROLL_MARGIN + 1 && r.top < port.bottom
+        );
+      });
+      expect(meaningful.length).toBeGreaterThan(0);
+      // Every on-screen bubble is whole — nothing clipped at the top edge.
+      expect(
+        meaningful[0].getBoundingClientRect().top,
+      ).toBeGreaterThanOrEqual(port.top - 1);
+      // The row at the top is the recorded anchor — the half-line the
+      // reader was on, now fully visible.
+      expect(meaningful[0].getAttribute('data-message-id')).toBe(anchored);
+      await unmountApp();
+    });
+
+    it(`P360: a grown viewport still snaps the crossing row into view (${vp.name})`, async () => {
+      install();
+      const { sizeBox } = emulateLayout(vp.listTop, vp.viewportPx);
+      await mountApp();
+
+      const list = qs('.messages')!;
+      sizeBox(list);
+      await scrollListTo(list.scrollHeight - list.clientHeight);
+      expect(loadScrollAnchor('s-active')).not.toBeNull();
+      await unmountApp();
+
+      // The port grew while the page was closed — the anchor's target
+      // offset now exceeds max scroll, so scrollIntoView clamps and the
+      // row above the anchor would cross the top edge half-cut. The
+      // restore snaps that crossing row fully into view instead.
+      emulateLayout(vp.listTop, vp.viewportPx + 184);
+      await mountApp();
+
+      const reloaded = qs('.messages')!;
+      const port = reloaded.getBoundingClientRect();
+      const rows = reloaded.querySelectorAll('.bubble-row');
+      const meaningful = rows.filter((row) => {
+        const r = row.getBoundingClientRect();
+        return (
+          r.bottom > port.top + SCROLL_MARGIN + 1 && r.top < port.bottom
+        );
+      });
+      expect(meaningful.length).toBeGreaterThan(0);
+      // The clamped anchor did not leave the crossing row half-cut — the
+      // snap pulled it fully into view above the anchor.
+      expect(
+        meaningful[0].getBoundingClientRect().top,
+      ).toBeGreaterThanOrEqual(port.top - 1);
       await unmountApp();
     });
   }

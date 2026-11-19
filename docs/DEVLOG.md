@@ -286,3 +286,4 @@
 2026-11-19 07:40 | P357 | 清空确认弹层统一口径，危险按钮改实心红
 2026-11-19 08:0x | P358 | 侧栏进阶工具与快捷入口统一控件语言（图标+文案+chevron），去掉无归属虚线与双描边关闭键
 2026-11-19 08:36 | P359 | 会话与记忆落盘（backend/data/sessions/<id>.json，原子写+懒加载），重启不再清空对话，前端缺失会话提示「上次的对话未保存」
+2026-11-19 09:16 | P360 | 续档滚动锚点改记「首条可见消息」（含压顶半截行）：近尾锚点 offset 恒小于记录时 scrollTop、必能到顶不再被 max scroll 钳位落底；新增 restoreAnchorFor 纯决策（缺失/损坏/已删消息一律回顶）与 firstVisibleAnchor，恢复后锚点行贴顶+8px margin，视口增大钳位时把压顶行整颗补进视口；ChatWindow 恢复路径接入，P328 追底逻辑不变；reload-scroll-anchor.test.ts 扩 9 例（纯逻辑 9 + 双视口 DOM 4）；真机 Chromium 复现验证 scrollTop 1178/1328、锚点行完整可见；208 文件 1636 例全绿，tsc 无新增，ci-deploy 通过

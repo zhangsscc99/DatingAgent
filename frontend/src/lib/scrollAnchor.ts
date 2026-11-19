@@ -2,11 +2,21 @@
  * P352 — reload scroll anchors. The .messages scrollport used to reopen a
  * persisted conversation at its tail, so the first bubble the reader saw
  * after a reload was half-cut mid-reply. Instead we remember, per session,
- * the id of the first fully visible message while the user scrolls, and
- * the restore path scrolls that bubble back to the top edge on reload
- * (or pins scrollTop 0 when nothing was recorded). New messages in the
- * live session still chase the tail through the P328 auto-scroll guard —
- * anchors only affect session load/restore.
+ * the id of the first visible message while the user scrolls, and the
+ * restore path scrolls that bubble back to the top edge on reload (or pins
+ * scrollTop 0 when nothing was recorded). New messages in the live session
+ * still chase the tail through the P328 auto-scroll guard — anchors only
+ * affect session load/restore.
+ *
+ * P360 — the P352 anchor recorded the first FULLY visible row, but a row
+ * recorded near the tail cannot be scrolled to the top edge: scrollIntoView
+ * clamps at max scroll and the restore lands on the bottom with the row
+ * above the anchor half-cut at the viewport edge — the same "一进页面就是
+ * 半句话" the fix was meant to kill. The anchor now records the first
+ * VISIBLE row (the one crossing the top edge counts): that row's content
+ * offset is always smaller than the scroll offset it was recorded at, so
+ * it can always reach the top — the restored viewport's first row is never
+ * half-cut.
  *
  * Keys live beside the composer drafts: `datingagent-scroll-anchor:<id>`.
  * Every storage access is guarded — private mode / quota failures degrade
@@ -92,10 +102,50 @@ export function moveScrollAnchor(
   purgeScrollAnchor(oldId, store);
 }
 
+/**
+ * P360 — where a restored session lands. Returns the persisted anchor id
+ * when it still names a rendered message (restore scrolls that row to the
+ * top edge); null in every other case — no anchor saved, storage unreadable
+ * or corrupted, or the id points at a message the session no longer has —
+ * and null means "pin scrollTop 0", never chase the tail.
+ */
+export function restoreAnchorFor(
+  sessionId: string,
+  messageIds: readonly string[],
+  store?: StorageLike,
+): string | null {
+  const anchor = loadScrollAnchor(sessionId, store);
+  if (anchor === null) return null;
+  const known = new Set(messageIds);
+  return known.has(anchor) ? anchor : null;
+}
+
 export interface AnchorCandidate {
   id: string;
   top: number;
   bottom: number;
+}
+
+/**
+ * P360 — the topmost row showing in the viewport: the row crossing the
+ * scrollport's top edge (partially visible counts — that half-line is what
+ * the reader was looking at when they left) or, when the top edge is
+ * clean, the first row inside. This is the id persisted as the session's
+ * reload anchor: its content offset is always smaller than the scroll
+ * offset it was seen at, so on restore it can always be scrolled to the
+ * top edge — never clamped at max scroll, never leaving a half-cut bubble
+ * above it. Returns null when no row is on screen — callers keep the
+ * previously recorded anchor rather than erasing it.
+ */
+export function firstVisibleAnchor(
+  candidates: readonly AnchorCandidate[],
+  viewportTop: number,
+  viewportBottom: number,
+): string | null {
+  for (const c of candidates) {
+    if (c.bottom > viewportTop && c.top < viewportBottom) return c.id;
+  }
+  return null;
 }
 
 /**
