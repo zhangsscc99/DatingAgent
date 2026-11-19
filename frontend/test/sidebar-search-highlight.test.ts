@@ -9,6 +9,7 @@ import {
   installFakeDom,
   FakeElement,
   FakeEvent,
+  matchesSelector,
   type FakeDom,
 } from './helpers/fakeDom';
 import type { StoredChatSession } from '../src/lib/chatStorage';
@@ -249,7 +250,7 @@ describe('P319 · filter hits render as <mark>', () => {
     });
   });
 
-  it('the match count is a plain-text status line reading 找到 2 段对话', async () => {
+  it('the match count is a plain-text status line reading 找到 2 个对话 · 1 条消息', async () => {
     const { dom, root } = await mountSidebar();
     await typeFilter(dom, '看展');
 
@@ -258,7 +259,7 @@ describe('P319 · filter hits render as <mark>', () => {
     expect(count!.tagName).toBe('SPAN');
     expect(count!.tagName).not.toBe('BUTTON');
     expect(count!.getAttribute('role')).toBe('status');
-    expect(count!.textContent).toBe('找到 2 段对话');
+    expect(count!.textContent).toBe('找到 2 个对话 · 1 条消息');
 
     await act(async () => {
       (root as Root).unmount();
@@ -274,7 +275,7 @@ describe('P333 · 找到 N 段对话 count sits above the result list', () => {
     const counts = dom.document.querySelectorAll('.recent-chat-filter-count');
     expect(counts, 'exactly one count element').toHaveLength(1);
     const count = counts[0];
-    expect(count.textContent).toMatch(/^找到 \d+ 段对话$/);
+    expect(count.textContent).toMatch(/^找到 \d+ 个对话 · \d+ 条消息$/);
     expect(
       count.getAttribute('role') === 'status' ||
         count.getAttribute('aria-live'),
@@ -364,7 +365,7 @@ describe('P354 · real filter path centres the hit in a marked window', () => {
     ).toBe(true);
 
     const count = dom.document.querySelector('.recent-chat-filter-count');
-    expect(count!.textContent).toBe('找到 1 段对话');
+    expect(count!.textContent).toBe('找到 1 个对话 · 1 条消息');
 
     await act(async () => {
       (root as Root).unmount();
@@ -454,5 +455,207 @@ describe('P319 · mark styling + source wiring', () => {
     expect(
       sidebarTsx.slice(excerptIdx, sidebarTsx.indexOf('recent-chat-meta')),
     ).toContain('highlightHit');
+  });
+});
+
+/* ---------- P372 · a real getComputedStyle over the shipped stylesheets ----------
+ * The fake DOM ships no layout engine (window.getComputedStyle returns ''),
+ * so this installs a genuine cascade: every rule in the real Sidebar.css /
+ * index.css is parsed, matched against the mounted tree with the same
+ * matchesSelector engine querySelector uses, media queries evaluated
+ * against the fake viewport (390px), var() resolved from the :root theme
+ * tokens, and inherited properties walked up the ancestor chain — exactly
+ * what the browser's getComputedStyle does, on the real authored values. */
+
+interface CssRule {
+  selector: string;
+  decls: Map<string, string>;
+  order: number;
+}
+
+/** Evaluate the media features the stylesheets actually use, against the
+ *  fake-DOM environment (390×844, motion allowed, light scheme). */
+function mediaMatches(query: string): boolean {
+  const q = query.trim();
+  const maxW = /max-width:\s*(\d+)px/.exec(q);
+  if (maxW) return 390 <= parseInt(maxW[1], 10);
+  const minW = /min-width:\s*(\d+)px/.exec(q);
+  if (minW) return 390 >= parseInt(minW[1], 10);
+  if (/prefers-reduced-motion\s*:\s*reduce/.test(q)) return false;
+  if (/prefers-color-scheme\s*:\s*dark/.test(q)) return false;
+  return false;
+}
+
+function parseStylesheet(css: string): CssRule[] {
+  const clean = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules: CssRule[] = [];
+  let order = 0;
+  const readRules = (text: string, include: boolean) => {
+    const re = /([^{}]+)\{([^{}]*)\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text))) {
+      const selector = m[1].trim();
+      if (!selector || selector.startsWith('@')) continue;
+      if (!include) continue;
+      const decls = new Map<string, string>();
+      for (const d of m[2].matchAll(/([a-z-]+)\s*:\s*([^;]+);/g)) {
+        decls.set(d[1].trim(), d[2].trim());
+      }
+      rules.push({ selector, decls, order: order++ });
+    }
+  };
+  // Peel @media blocks first so their inner rules keep their condition.
+  let rest = '';
+  for (let i = 0; i < clean.length; ) {
+    if (clean.startsWith('@media', i)) {
+      const brace = clean.indexOf('{', i);
+      const query = clean.slice(i + 6, brace);
+      let depth = 0;
+      let end = brace;
+      for (; end < clean.length; end++) {
+        if (clean[end] === '{') depth++;
+        else if (clean[end] === '}' && --depth === 0) break;
+      }
+      if (mediaMatches(query)) readRules(clean.slice(brace + 1, end), true);
+      i = end + 1;
+    } else {
+      rest += clean[i];
+      i++;
+    }
+  }
+  readRules(rest, true);
+  return rules;
+}
+
+const CASCADE_RULES = parseStylesheet(sidebarCss + '\n' + indexCss);
+const ROOT_VARS = themeVars(LIGHT_BASE, LIGHT_MOBILE);
+
+function ancestors(el: FakeElement): FakeElement[] {
+  const out: FakeElement[] = [];
+  for (let n = el.parentElement; n; n = n.parentElement) out.push(n);
+  return out;
+}
+
+/** Descendant-only selector matching: the last compound must match el;
+ *  earlier compounds must match ancestors in order. Pseudo selectors are
+ *  dropped except :root (documentElement). */
+function ruleMatches(el: FakeElement, selector: string): boolean {
+  return selector.split(',').some((sel) => {
+    const compounds = sel.trim().replace(/\s*>\s*/g, ' ').split(/\s+/);
+    const last = compounds[compounds.length - 1];
+    if (!last || /:(?!root\b)/.test(last.replace(/^:root/, ''))) {
+      if (last !== ':root' && last.includes(':')) return false;
+    }
+    const matchOne = (node: FakeElement, compound: string): boolean => {
+      if (compound === ':root') return node === node.ownerDocument?.documentElement;
+      return matchesSelector(node, compound);
+    };
+    if (!matchOne(el, last)) return false;
+    let chain = ancestors(el);
+    for (let i = compounds.length - 2; i >= 0; i--) {
+      const idx = chain.findIndex((a) => matchOne(a, compounds[i]));
+      if (idx < 0) return false;
+      chain = chain.slice(idx + 1);
+    }
+    return true;
+  });
+}
+
+const INHERITED = new Set(['color', 'font-weight', 'font-size', 'font-family', 'line-height']);
+
+function resolveDecl(declared: string): string {
+  return declared.replace(/var\((--[a-z-]+)\)/g, (_, name) => {
+    const v = ROOT_VARS.get(name);
+    expect(v, `resolving ${name}`).toBeTruthy();
+    return v!;
+  });
+}
+
+/** The computed value of one property on one element: last matching
+ *  declaration in source order wins; inherited properties fall back to
+ *  the nearest ancestor that declares them. */
+function computedValue(el: FakeElement, prop: string): string {
+  const lookup = (node: FakeElement): string | null => {
+    let value: string | null = null;
+    for (const rule of CASCADE_RULES) {
+      if (!ruleMatches(node, rule.selector)) continue;
+      const decl = rule.decls.get(prop) ?? (prop === 'background-color' ? rule.decls.get('background') : undefined);
+      if (decl !== undefined) value = decl;
+    }
+    const inline = node.style[prop] ?? node.style[prop.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase())];
+    if (typeof inline === 'string' && inline) value = inline;
+    return value;
+  };
+  let value = lookup(el);
+  if (value === null && INHERITED.has(prop)) {
+    for (const a of ancestors(el)) {
+      value = lookup(a);
+      if (value !== null) break;
+    }
+  }
+  if (value === null) {
+    if (prop === 'background-color' || prop === 'background') return 'rgba(0, 0, 0, 0)';
+    if (prop === 'font-weight') return '400';
+    return '';
+  }
+  return resolveDecl(value);
+}
+
+function installRealGetComputedStyle(dom: FakeDom) {
+  const fn = (el: FakeElement) =>
+    new Proxy(
+      {},
+      {
+        get: (_t, key) => {
+          if (key === 'getPropertyValue')
+            return (name: string) => computedValue(el, name);
+          return computedValue(
+            el,
+            String(key).replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()),
+          );
+        },
+      },
+    );
+  (dom.window as { getComputedStyle: unknown }).getComputedStyle = fn;
+  (globalThis as { getComputedStyle: unknown }).getComputedStyle = fn;
+  return fn as unknown as (el: FakeElement) => CSSStyleDeclaration;
+}
+
+describe('P372 · <mark> is visually distinguishable and the count uses one measure-word scheme', () => {
+  it('computed styles: mark background differs from its parent and font-weight >= 600', async () => {
+    const { dom, root } = await mountSidebar(BODY_HIT_SESSIONS);
+    installRealGetComputedStyle(dom);
+    await typeFilter(dom, '约会');
+
+    const item = dom.document.querySelector('.recent-chat-item')!;
+    const mark = item.querySelector('mark');
+    expect(mark, 'hit mark').toBeTruthy();
+
+    const markStyle = getComputedStyle(mark as unknown as HTMLElement);
+    const parentStyle = getComputedStyle(
+      mark!.parentElement as unknown as HTMLElement,
+    );
+    expect(markStyle.backgroundColor).not.toBe('');
+    expect(markStyle.backgroundColor).not.toBe(parentStyle.backgroundColor);
+    expect(parseInt(markStyle.fontWeight, 10)).toBeGreaterThanOrEqual(600);
+
+    await act(async () => {
+      (root as Root).unmount();
+    });
+  });
+
+  it('the count line reads 找到 N 个对话 · M 条消息 — never 段对话', async () => {
+    const { dom, root } = await mountSidebar();
+    await typeFilter(dom, '看展');
+
+    const count = dom.document.querySelector('.recent-chat-filter-count');
+    expect(count, 'count element').toBeTruthy();
+    expect(count!.textContent).toMatch(/找到 \d+ 个对话/);
+    expect(count!.textContent).toMatch(/\d+ 条消息/);
+    expect(count!.textContent).not.toContain('段对话');
+
+    await act(async () => {
+      (root as Root).unmount();
+    });
   });
 });

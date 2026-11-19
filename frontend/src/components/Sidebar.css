@@ -386,11 +386,16 @@
 }
 
 /* P319: a filter hit renders as a real <mark> — visible accent chip with
-   zero vertical padding, so the row's line height never changes. */
+   zero vertical padding, so the row's line height never changes.
+   P372: the chip used to set only a soft fill at body weight — on the
+   accent-soft result card it read as "no highlight at all". Now the hit
+   is bolded (600) and painted in --accent-strong so it separates from
+   both the card and the surrounding text. */
 .recent-chat-item mark {
   padding: 0 1px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-strong);
+  font-weight: 600;
   border-radius: 3px;
 }
 

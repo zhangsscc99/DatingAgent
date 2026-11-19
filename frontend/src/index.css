@@ -24,6 +24,7 @@
   --text-secondary: #4a4a58;
   --accent: #d81b74;
   --accent-soft: rgba(216, 27, 116, 0.1);
+  --accent-strong: #a80e54;
   --accent-glow: rgba(216, 27, 116, 0.24);
   --user-bg: #ececf3;
   --assistant-bg: #f4f4f8;
@@ -89,6 +90,7 @@
     --text-secondary: #a8a8bc;
     --accent: #e84393;
     --accent-soft: rgba(232, 67, 147, 0.15);
+    --accent-strong: #ff8ac2;
     --accent-glow: rgba(232, 67, 147, 0.3);
     --user-bg: #2d2d3a;
     --assistant-bg: #1e1e28;
@@ -127,6 +129,7 @@
   --text-secondary: #a8a8bc;
   --accent: #e84393;
   --accent-soft: rgba(232, 67, 147, 0.15);
+  --accent-strong: #ff8ac2;
   --accent-glow: rgba(232, 67, 147, 0.3);
   --user-bg: #2d2d3a;
   --assistant-bg: #1e1e28;
