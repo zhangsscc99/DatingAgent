@@ -63,6 +63,33 @@ function isStandaloneFact(text: string): boolean {
   return FACT_SUBJECT.test(t) || FACT_HEADLINE_LEAD.test(t);
 }
 
+/**
+ * P376 — a memory fact is a statement about the user, never the user's
+ * own question restated. The Round-103 capsule listed 「第一次约会安
+ * 排在哪儿比较好」 verbatim: an anchored clause that passed every gate
+ * yet asks a question — and, minus the punctuation, is the session
+ * title itself. Any candidate carrying a question word is rewritten to
+ * its declarative core (the span before the marker with the leading-in
+ * words trimmed); when nothing readable survives it is dropped, never
+ * stored.
+ */
+const QUESTION_MARK = /哪儿|哪里|怎么|怎样|如何|为什么|为啥|什么|吗|呢|哪/;
+
+/** Words that only lead into the question — trimming them leaves the declarative core. */
+const QUESTION_LEAD_IN = /[的地得在了要该想会愿意望打算安排办问说讲]+$/u;
+
+/**
+ * The statement inside a candidate, or null when the candidate is only a
+ * question. 「我明天第一次约会在哪办好」 → 「我明天第一次约会」;
+ * 「第一次约会安排在哪儿比较好」 leaves only a dangling fragment.
+ */
+function declarativeCore(text: string): string | null {
+  const mark = QUESTION_MARK.exec(text);
+  if (!mark) return text;
+  const core = text.slice(0, mark.index).replace(QUESTION_LEAD_IN, '');
+  return core.length > 0 ? core : null;
+}
+
 /** Clause boundaries: CJK and ASCII punctuation plus newlines. */
 const CLAUSE_SPLIT = /[^，。！？；、,.!?;\n]+/g;
 
@@ -180,7 +207,9 @@ export function extractMemoryFacts(message: string): ExtractedFact[] {
     for (const match of text.matchAll(rule.re)) {
       if (match.index === undefined) continue;
       if (rule.accept && !rule.accept(match)) continue;
-      const label = clip(rule.text(match));
+      const cored = declarativeCore(rule.text(match));
+      if (cored === null) continue;
+      const label = clip(cored);
       if (!isStandaloneFact(label)) continue;
       candidates.push({ index: match.index, end: match.index + match[0].length, text: label });
     }
@@ -188,7 +217,9 @@ export function extractMemoryFacts(message: string): ExtractedFact[] {
   for (const pattern of CONVERSATION_FACT_PATTERNS) {
     for (const match of text.matchAll(pattern)) {
       if (match.index === undefined) continue;
-      const label = clip(match[0]);
+      const cored = declarativeCore(match[0]);
+      if (cored === null) continue;
+      const label = clip(cored);
       if (!isStandaloneFact(label)) continue;
       candidates.push({
         index: match.index,
@@ -227,7 +258,9 @@ export function extractMemoryFacts(message: string): ExtractedFact[] {
     for (const clause of text.matchAll(CLAUSE_SPLIT)) {
       if (clause.index === undefined) continue;
       const label = clause[0].trim();
-      const clipped = clip(label);
+      const cored = declarativeCore(label);
+      if (cored === null) continue;
+      const clipped = clip(cored);
       const key = factKey(clipped);
       if (key.length < 2 || clipped.length > FACT_MAX_CHARS) continue;
       if (!isStandaloneFact(clipped)) continue;
@@ -256,9 +289,88 @@ function sameFact(a: string, b: string): boolean {
 }
 
 /**
+ * P376 — the session title is derived client-side from the first user
+ * message (trimmed, 20 chars then an ellipsis). A fact byte-identical
+ * to it renders the same sentence twice — but only when the shared text
+ * is the user's question restated: a declarative first message like
+ * 「她三天没回我消息了」 is a real fact (the capsule already hides the
+ * echo at render time), while a question adds no information at all.
+ */
+const SESSION_TITLE_MAX = 20;
+
+function sessionTitleText(context: AgentContext, message: string): string {
+  const first = (context.conversationHistory ?? []).find(
+    (m) => m.role === 'user' && m.content.trim().length > 0,
+  );
+  const raw = (first?.content ?? message).trim();
+  if (raw.length <= SESSION_TITLE_MAX) return raw;
+  const sliced = raw.slice(0, SESSION_TITLE_MAX).trimEnd();
+  return sliced ? `${sliced}…` : '';
+}
+
+/**
+ * P376 — character-bigram Dice similarity over normalised fact text.
+ * Exported so the fact-shape test can assert pairwise distance between
+ * stored facts; the merge below guarantees every stored pair stays
+ * under 0.8.
+ */
+export function factSimilarity(a: string, b: string): number {
+  const x = factKey(a);
+  const y = factKey(b);
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  const grams = (s: string): Set<string> => {
+    const out = new Set<string>();
+    for (let i = 0; i + 1 < s.length; i++) out.add(s.slice(i, i + 2));
+    return out.size > 0 ? out : new Set([s]);
+  };
+  const ga = grams(x);
+  const gb = grams(y);
+  let shared = 0;
+  for (const gram of ga) if (gb.has(gram)) shared += 1;
+  return (2 * shared) / (ga.size + gb.size);
+}
+
+/**
+ * P376 — a shared run of this many characters names the same event:
+ * 「第一次约会」 sits inside both 「明天第一次约会」 and 「第一次约
+ * 会安排在哪儿」, so two facts containing it are one memory, not two.
+ */
+const SAME_EVENT_MIN_RUN = 5;
+
+/** Longest common substring length — fact keys stay under ~30 chars. */
+function sharedRunLength(a: string, b: string): number {
+  let best = 0;
+  const dp = new Array<number>(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = b.length; j >= 1; j--) {
+      dp[j] = a[i - 1] === b[j - 1] ? dp[j - 1] + 1 : 0;
+      if (dp[j] > best) best = dp[j];
+    }
+  }
+  return best;
+}
+
+/**
+ * Whether two normalised fact keys name the same memory: identical or
+ * contained text (sameFact), a shared event run, or near-duplicate
+ * wording (similarity ≥ 0.8).
+ */
+function mergeableFact(a: string, b: string): boolean {
+  return (
+    sameFact(a, b) ||
+    sharedRunLength(a, b) >= SAME_EVENT_MIN_RUN ||
+    factSimilarity(a, b) >= 0.8
+  );
+}
+
+/**
  * Fold one user message's facts into the session memory: forgotten keys
- * are never re-added, duplicates and near-duplicates merge, and the list
- * is capped at SESSION_MEMORY_MAX. Returns the live fact array.
+ * are never re-added, a fact byte-identical to the session title is
+ * refused, and duplicates / same-event facts merge — the longer wording
+ * carries more information, so it replaces the stored row in place while
+ * keeping the first-stated timestamp. The list is capped at
+ * SESSION_MEMORY_MAX. Returns the live fact array.
  */
 export function rememberUserMessage(
   context: AgentContext,
@@ -267,9 +379,29 @@ export function rememberUserMessage(
 ): MemoryFact[] {
   const facts = (context.memoryFacts ??= []);
   const forgotten = (context.forgottenFactKeys ??= new Set<string>());
+  const title = sessionTitleText(context, message);
+  // A question the title already states verbatim is never a fact — drop
+  // such rows even when a pre-gate shard carried them over.
+  const titleIsQuestion = title.length > 0 && QUESTION_MARK.test(title);
+  if (titleIsQuestion) {
+    for (let i = facts.length - 1; i >= 0; i--) {
+      if (facts[i].text === title) facts.splice(i, 1);
+    }
+  }
   for (const fact of extractMemoryFacts(message)) {
     if (forgotten.has(fact.key)) continue;
-    if (facts.some((f) => sameFact(f.key, fact.key))) continue;
+    if (titleIsQuestion && fact.text === title) continue;
+    const mergeIndex = facts.findIndex((f) => mergeableFact(f.key, fact.key));
+    if (mergeIndex !== -1) {
+      if (fact.key.length > facts[mergeIndex].key.length) {
+        facts[mergeIndex] = {
+          key: fact.key,
+          text: fact.text,
+          ts: facts[mergeIndex].ts,
+        };
+      }
+      continue;
+    }
     if (facts.length >= SESSION_MEMORY_MAX) break;
     facts.push({ key: fact.key, text: fact.text, ts });
   }

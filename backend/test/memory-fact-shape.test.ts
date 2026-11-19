@@ -30,7 +30,9 @@ vi.mock('../src/llm/client.js', () => ({
 }));
 
 const { createApp } = await import('../src/routes/app.js');
-const { extractMemoryFacts } = await import('../src/lib/memory-extract.js');
+const { extractMemoryFacts, factSimilarity } = await import(
+  '../src/lib/memory-extract.js'
+);
 
 function response(partial: Partial<LLMResponse>): LLMResponse {
   return { content: null, toolCalls: [], finishReason: 'stop', ...partial };
@@ -138,6 +140,118 @@ describe('P366 · /api/chat never stores a fragment', () => {
     for (const item of items) {
       expect(item).not.toMatch(/[的地得]$/);
       expect(item.length).toBeGreaterThanOrEqual(6);
+    }
+  });
+});
+
+/**
+ * P376 — the Round-103 walkthrough (1795090365, 390×844) showed the
+ * capsule listing 「记得 3 件事：第一次约会安排在哪儿比较好 / 她三天
+ * 没回我消息了 / 明天第一次约会」: the first pill is the user's own
+ * question stored verbatim (and, punctuation aside, the session title),
+ * and the third pill names the same event as the first.
+ *
+ * The contract pinned here: a user question is rewritten to its
+ * declarative core or dropped — never stored as-is; a stored fact is
+ * never byte-identical to the session title; same-event facts merge
+ * into the most informative wording, so three rounds keep at most two
+ * facts with pairwise similarity under 0.8.
+ */
+describe('P376 · user questions are never stored as facts', () => {
+  const QUESTION_WORD = /^.{0,6}(哪儿|哪里|怎么|吗|呢)/;
+
+  it('「第一次约会安排在哪儿比较好？」 — a pure question — yields no memory', () => {
+    expect(extractMemoryFacts('第一次约会安排在哪儿比较好？')).toEqual([]);
+  });
+
+  it('「明天第一次约会我该安排在哪」 yields only declarative facts — no question words', () => {
+    const facts = extractMemoryFacts('明天第一次约会我该安排在哪');
+    for (const fact of facts) {
+      expect(fact.text, fact.text).not.toMatch(QUESTION_WORD);
+      // A produced fact is a declarative statement: explicit subject or a
+      // time/event headline lead, never a restated question.
+      expect(
+        /我|你|她|他|它|ta/i.test(fact.text) ||
+          /^(?:今天|明天|后天|昨天|昨晚|周末|下周|这周|今晚|明晚|第[一二两三四五六七八九十0-9]+次)/.test(
+            fact.text,
+          ),
+        fact.text,
+      ).toBe(true);
+    }
+    // The real fact inside the question still lands.
+    expect(facts.some((f) => f.text === '明天第一次约会')).toBe(true);
+  });
+
+  it('a question trailing a statement is rewritten to its declarative core', () => {
+    const facts = extractMemoryFacts('她没回我消息怎么办');
+    expect(facts).toEqual([{ key: '她没回我消息', text: '她没回我消息' }]);
+  });
+});
+
+describe('P376 · three rounds keep ≤2 distinct facts and none repeats the title', () => {
+  let server: ReturnType<ReturnType<typeof createApp>['listen']> | undefined;
+  let baseUrl = '';
+
+  beforeAll(async () => {
+    const app = createApp();
+    server = app.listen(0);
+    await new Promise<void>((resolve) => server!.once('listening', resolve));
+    const addr = server.address();
+    if (typeof addr === 'object' && addr) baseUrl = `http://127.0.0.1:${addr.port}`;
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => server?.close(() => resolve()));
+  });
+
+  beforeEach(() => {
+    chatMock.mockReset();
+    chatMock.mockResolvedValue(response({ content: '嗯，我记下了。' }));
+  });
+
+  async function postChat(message: string, sessionId?: string): Promise<ChatBody> {
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message, sessionId }),
+    });
+    expect(res.status).toBe(200);
+    return (await res.json()) as ChatBody;
+  }
+
+  /** The title the sidebar derives from the first user message. */
+  function titleOf(message: string): string {
+    const text = message.trim();
+    if (text.length <= 20) return text;
+    const sliced = text.slice(0, 20).trimEnd();
+    return sliced ? `${sliced}…` : '新会话';
+  }
+
+  it('the Round-103 conversation stores no question, no title echo, no same-event pair', async () => {
+    const firstMessage = '第一次约会安排在哪儿比较好？';
+    const first = await postChat(firstMessage);
+    // The session title is the first user message, verbatim (≤20 chars).
+    const sessionTitle = titleOf(firstMessage);
+    // The question itself stores nothing.
+    expect(first.memory?.count ?? 0).toBe(0);
+
+    const second = await postChat('她三天没回我消息了', first.sessionId);
+    const third = await postChat('明天第一次约会我该安排在哪', first.sessionId);
+    expect(second.memory?.count ?? 0).toBeGreaterThanOrEqual(1);
+
+    const items = third.memory?.items ?? [];
+    // Three rounds merge down to at most two facts.
+    expect(items.length).toBeLessThanOrEqual(2);
+    // Pairwise text similarity stays under 0.8 — no same-event repeats.
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        expect(factSimilarity(items[i], items[j]), `${items[i]} vs ${items[j]}`).toBeLessThan(0.8);
+      }
+    }
+    // No stored fact is byte-identical to the session title.
+    for (const item of items) {
+      expect(item).not.toBe(sessionTitle);
+      expect(item).not.toMatch(/^.{0,6}(哪儿|哪里|怎么|吗|呢)/);
     }
   });
 });

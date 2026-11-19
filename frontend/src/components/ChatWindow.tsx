@@ -301,10 +301,17 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // P366: a fact identical to the session title duplicates what the
   // title already shows, so it drops out of the pill rows and the lead
   // count — but stays in visibleRows so the panel can still manage it.
+  // P376: sessions written before the same-event merge can still hold
+  // two keys with one display text — the capsule never renders the same
+  // pill twice (the panel keeps every row for management).
   const capsuleTitle = (sessionTitle ?? '').trim();
-  const capsuleRows = visibleRows.filter(
-    (row) => row.label.trim() !== capsuleTitle,
-  );
+  const seenCapsuleLabels = new Set<string>();
+  const capsuleRows = visibleRows.filter((row) => {
+    const label = row.label.trim();
+    if (label === capsuleTitle || seenCapsuleLabels.has(label)) return false;
+    seenCapsuleLabels.add(label);
+    return true;
+  });
   const capsuleFacts = capsuleRows.slice(0, MEMORY_RECEIPT_MAX_ITEMS);
   const hiddenFactCount = capsuleRows.length - capsuleFacts.length;
   const handleDismissFact = (item: string) => {

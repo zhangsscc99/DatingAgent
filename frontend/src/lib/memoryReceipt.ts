@@ -126,6 +126,13 @@ const CONVERSATION_FACT_FILLER: readonly string[] = [
   '我该怎么办',
 ];
 
+/**
+ * P376 — a clause carrying a question word is the user's question, not a
+ * fact about the user (「第一次约会安排在哪儿比较好」); the clause
+ * fallback must never name it. Twin of backend/src/lib/conversationFacts.ts.
+ */
+const CONVERSATION_FACT_QUESTION = /哪儿|哪里|怎么|怎样|如何|为什么|为啥|什么|吗|呢|哪/;
+
 /** Clause boundaries for the P323 fallback split. */
 const CONVERSATION_FACT_CLAUSE = /[^，。！？；、,.!?;\n]+/g;
 
@@ -238,6 +245,8 @@ export function conversationFactItems(
         if (clipped.length < 2 || clipped.length > VALUE_MAX_CHARS) continue;
         if (CONVERSATION_FACT_FILLER.includes(label.toLowerCase())) continue;
         if (CONVERSATION_FACT_OPEN_DELIBERATION.test(label)) continue;
+        // P376 — a question clause is never a durable fact.
+        if (CONVERSATION_FACT_QUESTION.test(label)) continue;
         if (!CONVERSATION_FACT_ANCHORS.test(label)) continue;
         if (
           candidates.some((c) => index < c.end && c.index < index + clause[0].length)
