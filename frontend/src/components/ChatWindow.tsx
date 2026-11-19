@@ -276,11 +276,19 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // P382: dedupe on the text that carries the information — the title
   // keeps the ？/。 a stored fact drops, and either side can wear a
   // trailing ellipsis the other lacks, so byte-compare misses the echo.
-  const normalizeFactText = (value: string): string =>
-    value.trim().replace(/[\s?？!！。…、，,；;：:]+$/u, '');
-  const capsuleTitle = normalizeFactText(sessionTitle ?? '');
-  const seenCapsuleLabels = new Set<string>();
-  const capsuleRows = visibleRows.filter((row) => {
+  // P400: the dedupe key strips punctuation, whitespace and tail
+  // particles (了/的/啊/吧), and containment counts — the capsule never
+  // repeats the session title nor shows two pills whose normalised text
+  // is a substring of one another (the longer wording wins, first-
+  // stated on a tie, matching the backend read-path dedupe).
+  const capsuleKeyOf = (value: string): string =>
+    value
+      .trim()
+      .toLowerCase()
+      .replace(/[\s\p{P}\p{S}]+/gu, '')
+      .replace(/[了的啊吧]+$/u, '');
+  const capsuleTitle = capsuleKeyOf(sessionTitle ?? '');
+  const capsuleEligible = visibleRows.filter((row) => {
     // P387: a fact text that still carries a question mark is the user's
     // question restated — it never renders as a pill.
     // P392: same for deliberation/question markers on pre-gate shards —
@@ -293,12 +301,19 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
     ) {
       return false;
     }
-    const label = normalizeFactText(row.label);
+    const label = capsuleKeyOf(row.label);
     if (label.length === 0) return false;
-    if (capsuleTitle.length > 0 && label === capsuleTitle) return false;
-    if (seenCapsuleLabels.has(label)) return false;
-    seenCapsuleLabels.add(label);
-    return true;
+    if (capsuleTitle.length === 0) return true;
+    return !capsuleTitle.includes(label);
+  });
+  const capsuleRows = capsuleEligible.filter((row, i) => {
+    const key = capsuleKeyOf(row.label);
+    return !capsuleEligible.some((other, j) => {
+      if (j === i) return false;
+      const otherKey = capsuleKeyOf(other.label);
+      if (otherKey === key) return j < i;
+      return key.length >= 4 && otherKey.includes(key);
+    });
   });
   const capsuleFacts = capsuleRows.slice(0, MEMORY_RECEIPT_MAX_ITEMS);
   const hiddenFactCount = capsuleRows.length - capsuleFacts.length;

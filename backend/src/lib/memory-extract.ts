@@ -202,16 +202,62 @@ function isInterrogativeCandidate(
 }
 
 /**
+ * P400 — the shaped text must also be grammatical: no duplicated
+ * copula/subject (「我可能是我」「是是我」「我我」「她她」) and no two
+ * 是 inside the first six characters. The Round-103R7 capsule listed
+ * 「我可能是我自己不够好」 — inferSubject prepended 我 to a body that
+ * already carried 我 after 是, leaving a copula + repeated subject no
+ * reader can parse.
+ */
+const FACT_GRAMMAR_BROKEN =
+  /我可能是我|是是我|是是你|是是他|是是她|我我|你你|她她|他他|我们我们|对方对方/;
+
+/**
+ * Deterministic repairs, applied in order: a prepended subject that
+ * collided with the body's own 我 loses the copula + repeated subject
+ * (「我可能是我(是)X」 → 「我可能X」), a doubled copula collapses, and a
+ * repeated pronoun collapses to one. Each fix is a pure string rewrite
+ * — no clock, no LLM, same input same output.
+ */
+const FACT_GRAMMAR_REPAIRS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/我可能是我(?:是)?/u, '我可能'],
+  [/是是+/gu, '是'],
+  [/(我们|对方|我|你|她|他|它|ta)\1/giu, '$1'],
+];
+
+function factGrammarBroken(text: string): boolean {
+  if (FACT_GRAMMAR_BROKEN.test(text)) return true;
+  // Two 是 inside the first six characters is a duplicated copula.
+  const head = text.slice(0, 6);
+  return (head.match(/是/g) ?? []).length > 1;
+}
+
+/**
+ * Repair a malformed candidate, or null when the deterministic fixes
+ * still leave broken grammar — prefer missing over wrong.
+ */
+function repairFactGrammar(text: string): string | null {
+  if (!factGrammarBroken(text)) return text;
+  let fixed = text;
+  for (const [re, to] of FACT_GRAMMAR_REPAIRS) {
+    fixed = fixed.replace(re, to);
+  }
+  return factGrammarBroken(fixed) ? null : fixed;
+}
+
+/**
  * Shape one candidate into a storable fact: question-shaped candidates
- * are dropped outright (P387), the subject moves up front, then the
- * standalone gates decide. Returns null when nothing readable remains.
+ * are dropped outright (P387), the subject moves up front, malformed
+ * text is repaired or dropped (P400), then the standalone gates
+ * decide. Returns null when nothing readable remains.
  */
 function shapeFact(raw: string, source: string, index: number): string | null {
   if (isInterrogativeCandidate(raw, source, index)) return null;
   const cored = declarativeCore(raw);
   if (cored === null) return null;
-  const fact = clip(inferSubject(cored, source, index, cored !== raw));
-  return isStandaloneFact(fact) ? fact : null;
+  const shaped = clip(inferSubject(cored, source, index, cored !== raw));
+  const fact = repairFactGrammar(shaped);
+  return fact !== null && isStandaloneFact(fact) ? fact : null;
 }
 
 /** Clause boundaries: CJK and ASCII punctuation plus newlines. */
@@ -415,23 +461,51 @@ function sameFact(a: string, b: string): boolean {
  */
 const SESSION_TITLE_MAX = 20;
 
-function sessionTitleText(context: AgentContext, message: string): string {
+/**
+ * The text the session title is derived from — the first user message,
+ * or the message being processed when history is empty.
+ */
+function firstUserMessage(context: AgentContext, message: string): string {
   const first = (context.conversationHistory ?? []).find(
     (m) => m.role === 'user' && m.content.trim().length > 0,
   );
-  const raw = (first?.content ?? message).trim();
+  return (first?.content ?? message).trim();
+}
+
+function sessionTitleText(context: AgentContext, message: string): string {
+  const raw = firstUserMessage(context, message);
   if (raw.length <= SESSION_TITLE_MAX) return raw;
   const sliced = raw.slice(0, SESSION_TITLE_MAX).trimEnd();
   return sliced ? `${sliced}…` : '';
 }
 
 /**
- * P382 — compare a fact against the title on the text that carries the
- * information: the title keeps the question mark the fact drops, and
- * either side can wear a trailing 。/… the other lacks.
+ * P400 — normalised text for the verbatim gate: case, whitespace and
+ * every punctuation mark are surface noise; what matters is the words.
  */
-function titleKey(text: string): string {
-  return factKey(text).replace(/[?？!！。…、，,；;：:]+$/u, '');
+function verbatimKey(text: string): string {
+  return text.trim().toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '');
+}
+
+/**
+ * P400 — the capsule/title dedupe key additionally drops tail
+ * particles (了/的/啊/吧): 「她三天没回我消息了」 and 「她三天没回
+ * 我消息」 name the same memory.
+ */
+function capsuleKey(text: string): string {
+  return verbatimKey(text).replace(/[了的啊吧]+$/u, '');
+}
+
+/**
+ * P400 — a fact that is a verbatim substring of the conversation title
+ * or of the user's own first message is raw-sentence hoisting, not a
+ * distilled statement: it is dropped (a rewrite like prepending the
+ * missing subject already landed a different string, so anything still
+ * verbatim is the raw clause).
+ */
+function verbatimEcho(factText: string, sourceKey: string): boolean {
+  const fKey = verbatimKey(factText);
+  return fKey.length > 0 && sourceKey.length > 0 && sourceKey.includes(fKey);
 }
 
 /**
@@ -506,17 +580,21 @@ export function rememberUserMessage(
 ): MemoryFact[] {
   const facts = (context.memoryFacts ??= []);
   const forgotten = (context.forgottenFactKeys ??= new Set<string>());
-  const tKey = titleKey(sessionTitleText(context, message));
-  // The title already states this fact — drop such rows even when a
-  // pre-P382 shard carried them over.
-  if (tKey.length > 0) {
+  const tKey = verbatimKey(sessionTitleText(context, message));
+  const sourceKey = verbatimKey(firstUserMessage(context, message));
+  // The title / the user's own first message already states this fact —
+  // drop such rows even when a pre-P382 shard carried them over (P400:
+  // verbatim substring now counts, not just an identical sentence).
+  if (tKey.length > 0 || sourceKey.length > 0) {
     for (let i = facts.length - 1; i >= 0; i--) {
-      if (titleKey(facts[i].text) === tKey) facts.splice(i, 1);
+      if (verbatimEcho(facts[i].text, tKey) || verbatimEcho(facts[i].text, sourceKey)) {
+        facts.splice(i, 1);
+      }
     }
   }
   for (const fact of extractMemoryFacts(message)) {
     if (forgotten.has(fact.key)) continue;
-    if (tKey.length > 0 && titleKey(fact.text) === tKey) continue;
+    if (verbatimEcho(fact.text, tKey) || verbatimEcho(fact.text, sourceKey)) continue;
     const mergeIndex = facts.findIndex((f) => mergeableFact(f.key, fact.key));
     if (mergeIndex !== -1) {
       if (fact.key.length > facts[mergeIndex].key.length) {
@@ -614,17 +692,39 @@ function factOnlyEchoesQuestion(context: AgentContext, text: string): boolean {
 export function sessionMemoryFacts(context: AgentContext): MemoryFact[] {
   const facts = context.memoryFacts ?? [];
   if (facts.length === 0) return facts;
-  const tKey = titleKey(sessionTitleText(context, ''));
+  const tKey = verbatimKey(sessionTitleText(context, ''));
+  const sourceKey = verbatimKey(firstUserMessage(context, ''));
   for (let i = facts.length - 1; i >= 0; i--) {
     const { text } = facts[i];
     if (
       FACT_INTERROGATIVE.test(text) ||
       !isStandaloneFact(text) ||
-      (tKey.length > 0 && titleKey(text) === tKey) ||
+      factGrammarBroken(text) ||
+      verbatimEcho(text, tKey) ||
+      verbatimEcho(text, sourceKey) ||
       factOnlyEchoesQuestion(context, text)
     ) {
       facts.splice(i, 1);
     }
+  }
+  // P400 — normalised-substring dedupe: punctuation, whitespace and
+  // tail particles (了/的/啊/吧) are stripped before comparing, so two
+  // facts whose keys contain one another name the same memory. The
+  // longer wording stays; a tie keeps the first-stated row. Ordering
+  // and SESSION_MEMORY_MAX are untouched.
+  for (let i = facts.length - 1; i >= 0; i--) {
+    const ki = capsuleKey(facts[i].text);
+    if (ki.length === 0) {
+      facts.splice(i, 1);
+      continue;
+    }
+    const swallowed = facts.some((f, j) => {
+      if (j === i) return false;
+      const kj = capsuleKey(f.text);
+      if (kj === ki) return j < i;
+      return ki.length >= 4 && kj.includes(ki);
+    });
+    if (swallowed) facts.splice(i, 1);
   }
   return facts;
 }
