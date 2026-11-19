@@ -32,7 +32,7 @@ import {
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { COARSE_POINTER_QUERY, heroHint } from '../lib/heroHint';
 import {
-  MEMORY_RECEIPT_PREFIX,
+  MEMORY_RECEIPT_MAX_ITEMS,
   memoryReceiptItems,
   rememberedItems,
 } from '../lib/memoryReceipt';
@@ -141,9 +141,10 @@ interface Props {
   /**
    * P339: the server-held memory of this conversation — the keyed facts
    * mined per user turn on the backend. When provided, the capsule lists
-   * exactly these facts (first 3 + 「共 N 条」) and each row can be
-   * forgotten server-side; when undefined the capsule keeps deriving its
-   * facts locally from the messages (the pre-P339 fallback).
+   * exactly these facts (P351: 记得 N 件事 lead + first-3 pills + 「+N」)
+   * and each row can be forgotten server-side; when undefined the capsule
+   * keeps deriving its facts locally from the messages (the pre-P339
+   * fallback).
    */
   memory?: ConversationMemory;
   /** P339: 忘记这条 — delete one fact by key; the row stays until the
@@ -266,13 +267,14 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const visibleRows = receiptRows.filter(
     (row) => row.key !== null || !dismissedFacts.includes(row.label),
   );
-  const memoryReceipt =
-    visibleRows.length > 0
-      ? `${MEMORY_RECEIPT_PREFIX}${visibleRows
-          .slice(0, 3)
-          .map((row) => row.label)
-          .join('；')}${visibleRows.length > 3 ? ` · 共 ${visibleRows.length} 条` : ''}`
-      : null;
+  // P351: the receipt used to join every fact with ； on a single nowrap
+  // line — the overflow was ellipsised and the trailing 「共 N 条」 count
+  // was eaten with it. The capsule now leads with an always-visible
+  // 记得 N 件事 count (first in the flow, so it can never be clipped) and
+  // renders each fact as its own pill — the first three, then a 「+N」
+  // chip for the rest, which the existing 管理记忆 panel lists in full.
+  const capsuleFacts = visibleRows.slice(0, MEMORY_RECEIPT_MAX_ITEMS);
+  const hiddenFactCount = visibleRows.length - capsuleFacts.length;
   const handleDismissFact = (item: string) => {
     setDismissedFacts(dismissReceiptItem(item));
     setMemoryUndoItem(item);
@@ -567,7 +569,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
 
   return (
     <div className="chat-window">
-      {memoryReceipt && (
+      {visibleRows.length > 0 && (
         <div className="memory-receipt" role="status">
           <div className="memory-capsule-wrap">
             <button
@@ -592,7 +594,25 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
               >
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
               </svg>
-              <span className="memory-capsule-text">{memoryReceipt}</span>
+              <span className="memory-capsule-text">
+                <span className="memory-capsule-lead">
+                  {`记得 ${visibleRows.length} 件事`}
+                </span>
+                {capsuleFacts.map((row) => (
+                  <span
+                    key={row.key ?? row.label}
+                    className="memory-capsule-fact"
+                    data-fact="true"
+                  >
+                    {row.label}
+                  </span>
+                ))}
+                {hiddenFactCount > 0 && (
+                  <span className="memory-capsule-more">
+                    +{hiddenFactCount}
+                  </span>
+                )}
+              </span>
               <svg
                 className="memory-capsule-chevron"
                 width="11"

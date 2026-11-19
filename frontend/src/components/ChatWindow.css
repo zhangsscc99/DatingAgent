@@ -27,8 +27,8 @@
 }
 
 /* The pill itself: 13px secondary text on --surface (~8:1 contrast in
- * both themes) — legible without shouting. Text ellipsises inside the
- * pill so a long fact list can never stretch the header row. */
+ * both themes) — legible without shouting. Facts wrap as individual
+ * pills inside so a long fact list can never stretch the header row. */
 .memory-capsule {
   display: inline-flex;
   align-items: center;
@@ -61,11 +61,49 @@
   color: var(--accent);
 }
 
+/* P351 — the joined single-line receipt ellipsised its tail, eating the
+ * 「共 N 条」 count with it. The text now wraps: a leading 记得 N 件事
+ * count that sits first in the flow (so it can never be clipped), then
+ * each fact as its own pill — at most two pill rows, the third clipped
+ * clean at the row boundary. No text-overflow: ellipsis anywhere. */
 .memory-capsule-text {
   min-width: 0;
-  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 4px;
+  row-gap: 4px;
+  max-height: 40px; /* two 18px pill rows + the 4px row gap */
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+/* The count lead — unclippable by construction: it is the first item in
+ * the wrap flow, so the two-row clip can only ever remove fact pills. */
+.memory-capsule-lead {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.memory-capsule-fact,
+.memory-capsule-more {
+  flex-shrink: 0;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.memory-capsule-more {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 /* P317 — the capsule is the 管理记忆 entry, but a static-looking pill gave

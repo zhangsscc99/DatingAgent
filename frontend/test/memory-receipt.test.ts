@@ -139,8 +139,10 @@ describe('P293 · rendered receipt at the head of the conversation', () => {
 
     const markup = renderChat({ profile });
     expect(markup).toContain('memory-receipt');
-    expect(markup).toContain('记得你提到');
-    // The line carries an actual stored field value.
+    // P351: the capsule leads with the always-visible fact count — the
+    // goals + interests rows behind it make two.
+    expect(markup).toContain('记得 2 件事');
+    // The pill rows carry the actual stored field values.
     expect(markup).toContain('想认真谈恋爱');
     expect(markup).toContain('徒步');
   });
@@ -150,7 +152,7 @@ describe('P293 · rendered receipt at the head of the conversation', () => {
     expect(loadProfile()).toBeNull();
     const markup = renderChat({ profile: loadProfile() });
     expect(markup).not.toContain('memory-receipt');
-    expect(markup).not.toContain('记得你提到');
+    expect(markup).not.toContain('记得');
   });
 
   it('renders nothing on the empty welcome screen even with a profile', () => {
@@ -176,7 +178,7 @@ describe('P293 · rendered receipt at the head of the conversation', () => {
   it('a session-only preference still produces the receipt line', () => {
     const markup = renderChat({ replyLength: 'concise' });
     expect(markup).toContain('memory-receipt');
-    expect(markup).toContain('记得你提到');
+    expect(markup).toContain('记得 1 件事');
     expect(markup).toContain('回答简短一些');
   });
 });
@@ -386,7 +388,7 @@ describe('P296 · rendered receipt without a stored profile', () => {
     expect(loadProfile()).toBeNull();
     const markup = renderChat({ messages: factTurns, profile: null });
     expect(markup).toContain('memory-receipt');
-    expect(markup).toContain('记得你提到');
+    expect(markup).toContain('记得 2 件事');
     expect(markup).toContain('没睡好');
     expect(markup).toContain('看展');
   });
@@ -394,7 +396,7 @@ describe('P296 · rendered receipt without a stored profile', () => {
   it('renders nothing for an empty conversation without a profile', () => {
     const markup = renderChat({ messages: [] as ChatMessage[], profile: null });
     expect(markup).not.toContain('memory-receipt');
-    expect(markup).not.toContain('记得你提到');
+    expect(markup).not.toContain('记得');
   });
 });
 
@@ -447,12 +449,14 @@ describe('P323 · the Round-88 reagent — four turns, three remembered facts', 
     ]);
   });
 
-  it('390-wide: still a single capsule whose text can never wrap past one line', () => {
+  it('390-wide: still a single capsule whose content is capped at two pill rows', () => {
     stubStorage();
     const markup = renderChat({ messages: p323Turns, profile: null });
     expect(markup.match(/class="memory-capsule"/g)).toHaveLength(1);
-    // The pill text ellipsises inside its capsule, so a three-fact line
-    // stays one quiet line at 390×844 — never a second wrapped line.
+    // P351: the joined line that ellipsised its tail is gone — each fact
+    // is its own pill, the pills wrap, and the container clips at a row
+    // boundary. No nowrap/ellipsis may come back: the count lead must
+    // stay visible at every width.
     const css = readFileSync(
       join(
         dirname(fileURLToPath(import.meta.url)),
@@ -464,9 +468,11 @@ describe('P323 · the Round-88 reagent — four turns, three remembered facts', 
       'utf8',
     );
     const textRule = /\.memory-capsule-text\s*\{([^}]*)\}/.exec(css)![1];
-    expect(textRule).toContain('white-space: nowrap');
+    expect(textRule).toContain('flex-wrap: wrap');
     expect(textRule).toContain('overflow: hidden');
-    expect(textRule).toContain('text-overflow: ellipsis');
+    expect(textRule).toContain('max-height');
+    expect(textRule).not.toContain('text-overflow: ellipsis');
+    expect(textRule).not.toContain('white-space: nowrap');
     const capsuleRule = /\.memory-capsule\s*\{([^}]*)\}/.exec(css)![1];
     expect(capsuleRule).toContain('max-width: 100%');
   });

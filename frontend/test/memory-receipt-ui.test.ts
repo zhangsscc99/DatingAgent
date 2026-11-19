@@ -19,7 +19,8 @@ import type { ChatMessage } from '../src/types';
  * P308 — the 「已记住」 receipt was a centred 12px grey line under the
  * header: no icon, no management entry, flush against the first bubble.
  * It is now an icon capsule anchored at the right of the session header
- * area, labelled 「记得你提到：…」, that expands into a list of remembered
+ * area (P351: a 记得 N 件事 count lead plus one pill per fact) that
+ * expands into a list of remembered
  * items where each row is deletable (the deletion is recorded in
  * memoryReceiptDismissals and drops the fact from the receipt's client
  * state). The capsule and the bottom 「完善资料」 nudge are mutually
@@ -218,10 +219,10 @@ describe('P308 · the receipt is a capsule with an icon and a management entry',
     expect(markup).toContain('<button type="button" class="memory-capsule"');
   });
 
-  it('names the remembered items behind the new prefix', () => {
+  it('names the remembered items as pills behind the count lead', () => {
     stubStorage();
     const markup = renderChat({ profile: null });
-    expect(markup).toContain('记得你提到：');
+    expect(markup).toContain('记得 2 件事');
     expect(markup).toContain('没睡好');
     expect(markup).toContain('看展');
     expect(markup).not.toContain('已记住：');
@@ -385,10 +386,13 @@ describe('P308 · expanding and deleting remembered items', () => {
     ) as FakeElement;
     await click(target);
 
-    // The receipt text no longer names 看展, the panel row is gone, and
-    // the dismissal is recorded in storage (the client state behind the
-    // receipt), not merely hidden in the DOM.
-    expect(qs('.memory-capsule-text')!.textContent).toBe('记得你提到：没睡好');
+    // The receipt no longer names 看展 — its pill is gone and the count
+    // lead drops to one — and the dismissal is recorded in storage (the
+    // client state behind the receipt), not merely hidden in the DOM.
+    expect(qs('.memory-capsule-lead')!.textContent).toBe('记得 1 件事');
+    expect(qs('.memory-capsule-text')!.textContent).toContain('没睡好');
+    expect(qs('.memory-capsule-text')!.textContent).not.toContain('看展');
+    expect(qsa('span[data-fact]')).toHaveLength(1);
     expect(qsa('.memory-panel-row')).toHaveLength(1);
     expect(dom.localStorage.getItem('datingagent.memoryDismissals')).toContain(
       '看展',

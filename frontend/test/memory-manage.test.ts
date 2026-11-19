@@ -21,8 +21,9 @@ import type { ChatMessage, ConversationMemory, MemoryFact } from '../src/types';
  * P339 — the memory capsule used to be read-only and locally derived:
  * a deletion lived only in `datingagent.memoryDismissals` on the client,
  * and nothing could list or forget a single remembered fact. The capsule
- * now lists the server-held memory (first 3 facts + 「共 N 条」), expands
- * into the full list, and each row carries 「忘记这条」 wired to
+ * now lists the server-held memory (P351: a 记得 N 件事 lead + the first
+ * 3 facts as pills + a 「+N」 chip), expands into the full list, and each
+ * row carries 「忘记这条」 wired to
  * DELETE /api/conversations/:id/memory/:key — the fact stays gone after a
  * refresh because the deletion is persisted server-side.
  */
@@ -118,12 +119,12 @@ function Harness({ sessionId }: { sessionId: string }) {
   });
 }
 
-describe('P339 · capsule shows the server memory: first 3 + 共 N 条', () => {
+describe('P339 · capsule shows the server memory: count lead + pills', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('the collapsed capsule names the first 3 facts and 共 5 条', () => {
+  it('the collapsed capsule leads with 记得 5 件事, shows the first 3 facts as pills and a +2 chip', () => {
     const memory: ConversationMemory = { count: 5, items: seedFacts() };
     const markup = renderToStaticMarkup(
       createElement(ChatWindow, {
@@ -136,16 +137,22 @@ describe('P339 · capsule shows the server memory: first 3 + 共 N 条', () => {
         onForgetMemory: noop,
       }),
     );
-    expect(markup).toContain('记得你提到：');
-    const capsuleText = /<span class="memory-capsule-text">([^<]*)<\/span>/.exec(
-      markup,
-    )![1];
-    expect(capsuleText).toBe('记得你提到：她最近有点累；我明天第一次约会；没睡好 · 共 5 条');
-    // The 4th/5th facts stay behind the expand affordance.
-    expect(capsuleText).not.toContain('带闺蜜');
+    // P351: the count lead is always visible — it can never be ellipsised.
+    expect(markup).toContain('记得 5 件事');
+    // The first three facts render as individual pills.
+    expect(markup.match(/data-fact="true"/g)).toHaveLength(3);
+    for (const label of ['她最近有点累', '我明天第一次约会', '没睡好']) {
+      expect(markup).toContain(`class="memory-capsule-fact"`);
+      expect(markup).toContain(label);
+    }
+    // Facts 4/5 stay behind the expand affordance — counted by +2.
+    expect(markup).toContain('memory-capsule-more');
+    expect(markup).toContain('+2');
+    expect(markup).not.toContain('带闺蜜');
+    expect(markup).not.toContain('三个小时没回');
   });
 
-  it('exactly 3 facts shows no 共 N 条 suffix', () => {
+  it('exactly 3 facts shows 记得 3 件事 and no +N chip', () => {
     const memory: ConversationMemory = {
       count: 3,
       items: seedFacts().slice(0, 3),
@@ -161,11 +168,9 @@ describe('P339 · capsule shows the server memory: first 3 + 共 N 条', () => {
         onForgetMemory: noop,
       }),
     );
-    const capsuleText = /<span class="memory-capsule-text">([^<]*)<\/span>/.exec(
-      markup,
-    )![1];
-    expect(capsuleText).toBe('记得你提到：她最近有点累；我明天第一次约会；没睡好');
-    expect(capsuleText).not.toContain('共');
+    expect(markup).toContain('记得 3 件事');
+    expect(markup.match(/data-fact="true"/g)).toHaveLength(3);
+    expect(markup).not.toContain('memory-capsule-more');
   });
 });
 
@@ -256,7 +261,9 @@ describe('P339 · expand, forget, and the fact stays gone after refresh', () => 
     ).toBe(true);
     expect(qsa('.memory-panel-row')).toHaveLength(4);
     expect(qs('.memory-capsule-text')!.textContent).not.toContain('她最近有点累');
-    expect(qs('.memory-capsule-text')!.textContent).toContain('共 4 条');
+    // P351: the count lead updates — 4 facts now, so +1 sits behind it.
+    expect(qs('.memory-capsule-text')!.textContent).toContain('记得 4 件事');
+    expect(qs('.memory-capsule-more')!.textContent).toBe('+1');
 
     // Refresh: remount — the fake backend no longer holds the fact, so the
     // capsule can never re-derive it.
