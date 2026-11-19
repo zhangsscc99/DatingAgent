@@ -373,9 +373,29 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
             已停止生成
           </div>
         )}
+        {/* P371: 「换一个」 used to leave the bubble visually inert for up to
+            6.4 s — only the button greyed out, so the highest-frequency micro
+            loop in the product had no feedback. The status is now a visible
+            pill inside the bubble (the outgoing text stays on screen until the
+            first token), announced once via the polite live region and
+            exposed to machines as [aria-label="正在重新生成"]. */}
         {message.regenerating && (
-          <div className="regen-status" role="status" aria-live="polite">
-            正在重新生成…
+          <div
+            className="regen-status"
+            role="status"
+            aria-live="polite"
+            aria-label="正在重新生成"
+            data-testid="regen-indicator"
+            data-version={versionIndex > 1 ? String(versionIndex) : undefined}
+          >
+            <span className="regen-status-dots" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+            <span className="regen-status-label">
+              {versionIndex > 1 ? `正在重新生成（第 ${versionIndex} 版）…` : '正在重新生成…'}
+            </span>
           </div>
         )}
         {message.error && message.errorDetail && (
