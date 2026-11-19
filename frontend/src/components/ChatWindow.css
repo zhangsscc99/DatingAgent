@@ -315,6 +315,79 @@
   font-size: 13px;
 }
 
+/* P367 — the narrow first screen's one explicit primary action: three
+   one-tap example cards that send immediately (rendered only under
+   compactFeatures; desktop keeps the starter chips). The accent-soft /
+   accent-glow chip register is the same accent language .welcome-tag
+   speaks — clearly tappable, but softer than the send key's solid so
+   the single [data-primary-cta] hierarchy survives. */
+.hero-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0;
+  text-align: left;
+}
+
+.hero-cta-lead {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.hero-cta-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  /* P367: the one-tap card is a thumb target first — never below the
+     44px floor the rest of the touch chrome already keeps. */
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--accent-glow);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 20px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.hero-cta-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.hero-cta-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.hero-cta-card:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+.hero-cta-card-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The paper-plane glyph ties the card to the send affordance — same
+   stroke icon the composer's send key uses. */
+.hero-cta-card-icon {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
 /* P290: demoted to a quiet secondary action — plain outline and muted
    text so it no longer competes with the primary CTA. */
 .welcome-cta {
@@ -568,6 +641,16 @@
   }
 
   .messages-hero > .welcome > .welcome-cta {
+    margin-top: auto;
+  }
+
+  /* P367 — the welcome column's free space used to split two ways
+     (above the content / above the footnote), pooling a ~200px dead
+     band over the first screen. A third auto margin ahead of the CTA
+     group shares it, so the top whitespace resolves to roughly a third
+     of the free space and stays ≤120px while the footnote keeps its
+     bottom pin. */
+  .messages-hero > .welcome > .hero-cta {
     margin-top: auto;
   }
 }
@@ -955,11 +1038,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .scroll-to-bottom,
-  .pending-reply-btn {
+  .pending-reply-btn,
+  .hero-cta-card {
     transition: none;
   }
 
-  .scroll-to-bottom:hover {
+  .scroll-to-bottom:hover,
+  .hero-cta-card:hover {
     transform: none;
   }
 }

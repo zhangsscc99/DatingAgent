@@ -31,6 +31,7 @@ import {
 } from '../lib/profileNudge';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { COARSE_POINTER_QUERY, heroHint } from '../lib/heroHint';
+import { HERO_EXAMPLE_PROMPTS } from '../lib/heroCta';
 import {
   MEMORY_RECEIPT_MAX_ITEMS,
   memoryReceiptItems,
@@ -836,6 +837,49 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 hero button only duplicated the textarea's job, so what
                 remains here is passive guidance, not a control. */}
             <p className="welcome-hint">{startHint}</p>
+            {/* P367: ≤768px gets the one explicit primary action the
+                passive layout lacked — three one-tap example cards that
+                SEND immediately through handleSend (the composer's own
+                path): never a prefill, never a dead option. Desktop
+                keeps its starter chips; the send key stays the single
+                [data-primary-cta]. */}
+            {compactFeatures && (
+              <div
+                className="hero-cta"
+                data-testid="hero-primary-cta"
+                role="group"
+                aria-label="示例开场白：点一条直接发送"
+              >
+                <p className="hero-cta-lead">点一条，直接发送</p>
+                {HERO_EXAMPLE_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    className="hero-cta-card"
+                    aria-label={`直接发送：${prompt}`}
+                    disabled={loading}
+                    onClick={() => handleSend(prompt)}
+                  >
+                    <span className="hero-cta-card-text">{prompt}</span>
+                    <svg
+                      className="hero-cta-card-icon"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m22 2-7 20-4-9-9-4Z" />
+                      <path d="M22 2 11 13" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            )}
             {/* P343: ≤768px demotes the starter chips to one muted,
                 non-interactive hint line — text, not button-chrome — so
                 the composer's send key stays the first screen's only real

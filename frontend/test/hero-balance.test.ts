@@ -13,6 +13,7 @@ import {
 } from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
 import { STARTER_ENTRIES } from '../src/lib/starterEntries';
+import { HERO_EXAMPLE_PROMPTS } from '../src/lib/heroCta';
 import type { ChatMessage } from '../src/types';
 
 /**
@@ -480,7 +481,7 @@ describe('P343 · the first screen keeps ≤4 clickables and one primary', () =>
     await unmount();
   });
 
-  it('visible `button, a[href], [role=button]` number ≤4 — the send key alone inside ChatWindow', async () => {
+  it('visible `button, a[href], [role=button]` number ≤4 — three example cards + send', async () => {
     await mount(VIEWPORT_W);
     const controls = qsa('button, a[href], [role=button]').filter((el) =>
       inFirstViewport(el),
@@ -488,14 +489,19 @@ describe('P343 · the first screen keeps ≤4 clickables and one primary', () =>
     const labels = controls.map(
       (el) => el.getAttribute('aria-label') ?? el.textContent.trim(),
     );
-    // The real shell adds topbar menu/theme/more — inside ChatWindow the
-    // send key is the only mounted control (chips are text, the footnote
-    // is a role="link" span, the cycler and the kbd hint are gone).
+    // P367: the three one-tap example cards are now the hero's explicit
+    // primary action — real sends, not prefills. With the composer send
+    // key the first screen stays at 4 controls (the real shell adds
+    // topbar menu/theme/more); chips are still text, the footnote a
+    // role="link" span, the cycler and the kbd hint still unmounted.
     expect(
       controls.length,
       `first-screen controls: ${labels.join(' | ')}`,
     ).toBeLessThanOrEqual(4);
-    expect(labels).toEqual(['发送消息']);
+    expect(labels).toEqual([
+      ...HERO_EXAMPLE_PROMPTS.map((p) => `直接发送：${p}`),
+      '发送消息',
+    ]);
     expect(qs('.reply-length-toggle')).toBeNull();
     expect(qs('.input-hint-btn')).toBeNull();
     await unmount();
