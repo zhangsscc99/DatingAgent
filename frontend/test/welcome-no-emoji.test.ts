@@ -39,17 +39,23 @@ describe('P200 · welcome card and onboarding have no emoji decoration', () => {
     expect(onboarding).not.toContain('profile-icon');
   });
 
-  it('keeps the three capability cards in the original order', () => {
-    const labels = [...welcomeBlock.matchAll(/<strong>([^<]+)<\/strong>/g)].map(
-      (m) => m[1],
-    );
-    expect(labels).toEqual(['帮你把话说到点上', '真诚沟通', '约会前把安排想清楚']);
-    expect(welcomeBlock.match(/className="feature"/g)).toHaveLength(3);
+  it('drops the passive capability cards — the shared hero CTA leads instead (P380)', () => {
+    // P380 removed the three explanation cards from every width: the
+    // one obvious action is the shared primary button; the starter
+    // chips stay as the secondary entries.
+    expect(welcomeBlock).not.toContain('className="feature"');
+    expect(welcomeBlock).not.toContain('帮你把话说到点上');
+    expect(welcomeBlock).not.toContain('约会前把安排想清楚');
+    expect(welcomeBlock).toContain('className="hero-cta-primary"');
+    expect(welcomeBlock).toContain('data-testid="hero-primary-cta"');
+    expect(welcomeBlock).toContain('STARTER_ENTRIES.map');
   });
 
-  it('replaces the capability icons with restrained currentColor-stroke SVGs', () => {
-    expect(welcomeBlock).toContain('<FeatureIcon iconKey=');
-    expect(welcomeBlock.match(/aria-hidden="true"/g)?.length).toBeGreaterThanOrEqual(3);
+  it('keeps the restrained currentColor-stroke icon on the example cards', () => {
+    // The FeatureIcon set went away with the cards (P380); the hero
+    // example-card send glyph keeps the same restrained style.
+    expect(welcomeBlock).not.toContain('FeatureIcon');
+    expect(welcomeBlock.match(/aria-hidden="true"/g)?.length).toBeGreaterThanOrEqual(1);
     expect(chatWindow).toContain('stroke="currentColor"');
     expect(chatWindow).toContain('aria-hidden="true"');
   });

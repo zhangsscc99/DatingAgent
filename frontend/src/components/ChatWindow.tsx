@@ -84,40 +84,6 @@ const MEMORY_UNDO_MS = 6000;
 // entry with no intake branch still does real work: its prompt prefills
 // the composer (the P316 drawer path), it is never a dead option.
 
-type FeatureIconKey = 'wrench' | 'chat' | 'chart';
-
-// P200: restrained inline SVGs (currentColor stroke) replace the emoji
-// decoration on the welcome card; the text labels carry the meaning, so
-// every icon is aria-hidden. Same pattern as the P199 SidebarIcon.
-const FEATURE_ICON_PATHS: Record<FeatureIconKey, string[]> = {
-  wrench: [
-    'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z',
-  ],
-  chat: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
-  chart: ['M3 3v18h18', 'M18 17V9', 'M13 17V5', 'M8 17v-3'],
-};
-
-function FeatureIcon({ iconKey }: { iconKey: FeatureIconKey }) {
-  return (
-    <svg
-      className="feature-icon"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      {FEATURE_ICON_PATHS[iconKey].map((d) => (
-        <path key={d} d={d} />
-      ))}
-    </svg>
-  );
-}
-
 interface Props {
   messages: ChatMessage[];
   loading: boolean;
@@ -876,20 +842,24 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 nothing. The three example prompts stay on as a secondary,
                 lighter group that still sends on tap through handleSend
                 (the composer's own path): never a prefill, never a dead
-                option. Desktop keeps its starter chips; the send key
-                stays the single [data-primary-cta]. */}
-            {compactFeatures && (
-              <div className="hero-cta">
-                <button
-                  type="button"
-                  className="hero-cta-primary"
-                  data-testid="hero-primary-cta"
-                  aria-label={HERO_PRIMARY_LABEL}
-                  disabled={loading}
-                  onClick={() => inputRef.current?.focus()}
-                >
-                  {HERO_PRIMARY_LABEL}
-                </button>
+                option.
+                P380: the same single button now leads the desktop empty
+                state too — one shared element, no second implementation;
+                the example group stays compact-only (the starter chips
+                already cover desktop quick-starts), and the send key
+                keeps the single [data-primary-cta]. */}
+            <div className="hero-cta">
+              <button
+                type="button"
+                className="hero-cta-primary"
+                data-testid="hero-primary-cta"
+                aria-label={HERO_PRIMARY_LABEL}
+                disabled={loading}
+                onClick={() => inputRef.current?.focus()}
+              >
+                {HERO_PRIMARY_LABEL}
+              </button>
+              {compactFeatures && (
                 <div
                   className="hero-examples"
                   role="group"
@@ -923,8 +893,8 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
             {/* P343: ≤768px demotes the starter chips to muted,
                 non-interactive copy — text, not button-chrome — so the
                 hero's primary button stays the first screen's obvious
@@ -988,41 +958,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 onCancel={() => setActiveStarter(null)}
               />
             )}
-            {/* P336: the three feature cards stay ≥769px. P374 drops the
-                compact summary line entirely — the first screen's
-                auxiliary-copy budget is two muted lines, already spent on
-                the subtitle and the starter pills. */}
-            {!compactFeatures && (
-              <div className="welcome-features">
-                <div className="feature">
-                  <span aria-hidden="true">
-                    <FeatureIcon iconKey="wrench" />
-                  </span>
-                  <div>
-                    <strong>帮你把话说到点上</strong>
-                    <p>该不该发、怎么发，给一个具体说法</p>
-                  </div>
-                </div>
-                <div className="feature">
-                  <span aria-hidden="true">
-                    <FeatureIcon iconKey="chat" />
-                  </span>
-                  <div>
-                    <strong>真诚沟通</strong>
-                    <p>拒绝 PUA 套路，倡导共情与边界感</p>
-                  </div>
-                </div>
-                <div className="feature">
-                  <span aria-hidden="true">
-                    <FeatureIcon iconKey="chart" />
-                  </span>
-                  <div>
-                    <strong>约会前把安排想清楚</strong>
-                    <p>资料、聊天、约会，一次聊明白</p>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* P380: the three explanation cards are gone — they were the
+                passive half of the first screen's 7 competing entries,
+                and their copy overlaps the subtitle. What remains: one
+                primary button above and the secondary starter chips. */}
             {/* P336/P343: the「完善资料」entry sits at the foot of the
                 welcome block — a footnote link, not a control in the main
                 flow. At ≤768px it drops out of the button pool entirely:

@@ -14,6 +14,7 @@ import {
 import ChatWindow from '../src/components/ChatWindow';
 import { HERO_EXAMPLE_PROMPTS, HERO_PRIMARY_LABEL } from '../src/lib/heroCta';
 import { COARSE_POINTER_QUERY } from '../src/lib/heroHint';
+import { STARTER_ENTRIES } from '../src/lib/starterEntries';
 import type { ChatMessage } from '../src/types';
 
 /**
@@ -36,13 +37,27 @@ import type { ChatMessage } from '../src/types';
  *  4. The primary resolves ≥44px tall and full-width by stylesheet; the
  *     group's free-space auto margin and the ≤120px top-whitespace
  *     constants stay.
- *  5. The whole group drops out with the first message and never renders
- *     on desktop ≥769px.
+ *  5. The whole group drops out with the first message.
+ *
+ * P380 — measured at 1440×900 on 1795101019 (docs/runs/walk-1795101019-d1.png):
+ * the desktop empty state had NO primary CTA at all — the compact fix above
+ * was phone-only — while hint + 4 chips + 3 explanation cards + 4 sidebar
+ * shortcuts made 7 entries compete for one path, the hero sat >250px from
+ * the composer, and the empty send key still wore the solid brand fill.
+ * The same single button now renders on desktop (the example group stays
+ * compact-only — the starter chips already cover desktop quick-starts),
+ * the explanation cards are gone, the trailing bookend is capped so the
+ * hero's foot lands ≤160px from the composer, and the empty send key
+ * drops to a real disabled visual. Asserted in the last describe.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const chatWindowCss = readFileSync(
   join(SRC, 'components', 'ChatWindow.css'),
+  'utf8',
+);
+const inputBarCss = readFileSync(
+  join(SRC, 'components', 'InputBar.css'),
   'utf8',
 );
 
@@ -69,6 +84,29 @@ function mediaBlock(css: string, query: string): string {
     }
   }
   return '';
+}
+
+/** Strip every @media block so only top-level rules remain. */
+function topLevel(css: string): string {
+  let out = '';
+  let i = 0;
+  while (i < css.length) {
+    const at = css.indexOf('@media', i);
+    if (at < 0) return out + css.slice(i);
+    out += css.slice(i, at);
+    const openBrace = css.indexOf('{', at);
+    let depth = 0;
+    let j = openBrace;
+    for (; j < css.length; j++) {
+      if (css[j] === '{') depth++;
+      else if (css[j] === '}') {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    i = j + 1;
+  }
+  return out;
 }
 
 /** Declaration body of `selector { … }` — exact selector match. */
@@ -231,7 +269,9 @@ describe('P374 · the compact hero has one real primary action at 390×844', () 
   });
 
   it('the primary resolves ≥44px and full-width; the secondary cards carry no accent chrome', () => {
-    const primary = ruleBody(chatWindowCss, '.hero-cta-primary');
+    // Base rule — the (min-width: 769px) P380 override lives earlier in
+    // the file, so the whole-file lookup would resolve it first.
+    const primary = ruleBody(topLevel(chatWindowCss), '.hero-cta-primary');
     expect(primary).not.toBe('');
     expect(primary).toContain('width: 100%');
     expect(primary).toContain('background: var(--accent)');
@@ -284,13 +324,15 @@ describe('P374 · the compact hero has one real primary action at 390×844', () 
     expect(rule).toContain('margin-top: auto');
   });
 
-  it('the group drops out with the first message and never renders on desktop', async () => {
+  it('the group drops out with the first message; the desktop shares the same button (P380)', async () => {
     await mount([{ id: 'u1', role: 'user', content: '在吗', createdAt: 1 }]);
     expect(qs('[data-testid="hero-primary-cta"]')).toBeNull();
     expect(qsa('.hero-cta-card')).toHaveLength(0);
     await unmount();
 
-    // 1440×900 keeps its own look: starter chips, no hero CTA.
+    // 1440×900: P380 mounts the same primary button — the example card
+    // group stays compact-only; the starter chips remain the desktop
+    // quick-start entries.
     dom = installFakeDom();
     const mq = mediaQueryFor(false, false);
     (dom.window as Record<string, unknown>).matchMedia = mq;
@@ -311,7 +353,9 @@ describe('P374 · the compact hero has one real primary action at 390×844', () 
       await Promise.resolve();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    expect(qs('[data-testid="hero-primary-cta"]')).toBeNull();
+    const cta = qs('[data-testid="hero-primary-cta"]');
+    expect(cta).not.toBeNull();
+    expect(cta!.tagName).toBe('BUTTON');
     expect(qsa('.hero-cta-card')).toHaveLength(0);
     expect(qsa('.starter-chip')).toHaveLength(4);
     await unmount();
@@ -341,6 +385,307 @@ describe('P374 · the compact hero has one real primary action at 390×844', () 
     for (const card of qsa('.hero-cta-card')) {
       expect(card.disabled).toBe(true);
     }
+    await unmount();
+  });
+});
+
+/**
+ * P380 — the desktop edition of the same contract, measured at 1440×900
+ * on 1795101019 (docs/runs/walk-1795101019-d1.png): no hero-primary-cta
+ * at all, hint + 4 chips + 3 explanation cards + 4 sidebar shortcuts
+ * competing, a >250px gap between the empty state and the composer, and
+ * a brand-solid send key while the input was empty.
+ *
+ * Contract asserted here (the backlog's verify clause):
+ *  1. At 1440×900 `[data-testid=hero-primary-cta]` mounts — the SAME
+ *     button element as the phone layout — inside .welcome/.hero with
+ *     top < 700 and a stylesheet-guaranteed ≥44×44 box; clicking it
+ *     focuses #chat-input and sends nothing.
+ *  2. First-screen "start a conversation" primary candidates —
+ *     clickable, ≥44×44, brand background or brand border — number ≤2.
+ *     The three explanation cards are gone (the starter chips stay as
+ *     the neutral secondary entries).
+ *  3. The hero's foot lands ≤160px above the composer — resolved from
+ *     the capped trailing bookend, the row gaps and the scrollport pad.
+ *  4. Empty input: `.input-send` resolves a disabled visual that is NOT
+ *     the brand fill (neutral + dimmed + not-allowed cursor) and carries
+ *     the disabled attribute; typing restores the enabled brand key.
+ *  5. The same key assertions re-run at 390×844 — no phone regression.
+ *
+ * The fake DOM reports zero rects/computed styles, so geometry and
+ * colours are pinned as the same render-level expressions a real-layout
+ * run evaluates plus the resolved CSS constants (the established harness
+ * convention in this file and hero-single-cta.test.ts).
+ */
+describe('P380 · the same primary CTA leads the desktop empty state (1440×900)', () => {
+  const DESKTOP_W = 1440;
+  const DESKTOP_H = 900;
+  /** The hero foot must land within this of the composer top. */
+  const MAX_HERO_TO_COMPOSER = 160;
+
+  const desktopChat = mediaBlock(chatWindowCss, '(min-width: 769px)');
+
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qs = (sel: string) =>
+    dom.document.querySelector(sel) as FakeElement | null;
+  const qsa = (sel: string) => dom.document.querySelectorAll(sel);
+
+  const mount = async (
+    widthPx: number,
+    onSend: (text: string) => void = () => {},
+  ) => {
+    dom = installFakeDom();
+    // Width-driven stub: the hero branches only on (max-width: 768px);
+    // the pointer query resolves false on every mount here.
+    const mq = mediaQueryFor(false, widthPx <= 768);
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    vi.stubGlobal('matchMedia', mq);
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(ChatWindow, {
+          messages: [] as ChatMessage[],
+          loading: false,
+          onSend,
+          onSetupProfile: () => {},
+        }),
+      );
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const unmount = async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    dom.document.body.textContent = '';
+  };
+
+  const type = async (el: FakeElement | null | undefined, value: string) => {
+    if (!el) throw new Error('input target missing');
+    el.value = value;
+    await act(async () => {
+      el.dispatchEvent(new FakeEvent('input', { bubbles: true }));
+    });
+  };
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** A control the user can actually reach: not disabled, not tabbed out,
+   *  not inside an sr-only live region. */
+  function isFocusable(el: FakeElement): boolean {
+    if (el.disabled) return false;
+    if (el.getAttribute('tabindex') === '-1') return false;
+    if (el.closest('.sr-only')) return false;
+    return true;
+  }
+
+  /** Inside the first screen at scrollTop = 0 (see the harness note). */
+  function inFirstViewport(el: FakeElement, height: number): boolean {
+    const r = el.getBoundingClientRect();
+    return r.top < height && r.bottom >= 0;
+  }
+
+  /** Every resting-state declaration body that could paint `el` — the
+   *  same resolution style hero-single-cta.test.ts uses. */
+  function chromeRules(el: FakeElement): string {
+    const bodies: string[] = [];
+    const css = `${chatWindowCss}\n${inputBarCss}`;
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selText = m[1];
+      if (selText.includes('@')) continue;
+      for (const part of selText.split(',')) {
+        const compound = part.trim().split(/[\s>+~]+/).pop() ?? '';
+        const resting = compound.replace(
+          /:{1,2}[a-zA-Z-]+(?:\([^)]*\))?/g,
+          '',
+        );
+        if (resting && el.matches(resting)) bodies.push(m[2]);
+      }
+    }
+    return bodies.join('\n');
+  }
+
+  function firstPx(rule: string, prop: string): number {
+    const m = new RegExp(`${prop}\\s*:\\s*([0-9.]+)px`).exec(rule);
+    return m ? Number(m[1]) : 0;
+  }
+
+  /** A "primary candidate" per the verify clause: a clickable element
+   *  whose resolved box reaches the 44px floor on both axes. */
+  function isLargeCandidate(el: FakeElement): boolean {
+    const rules = chromeRules(el);
+    const h = firstPx(rules, 'min-height') || firstPx(rules, 'height');
+    const w = /(?:^|;)\s*width\s*:\s*100%/.test(rules)
+      ? 44
+      : firstPx(rules, 'min-width') || firstPx(rules, 'width');
+    return h >= 44 && w >= 44;
+  }
+
+  /** Brand chrome = resting background or border painted var(--accent)
+   *  exactly (accent-soft/-glow tints do not match). */
+  function hasBrandChrome(el: FakeElement): boolean {
+    const rules = chromeRules(el);
+    return (
+      /background(?:-color)?\s*:[^;]*var\(--accent\)/.test(rules) ||
+      /border(?:-[a-z-]*)?\s*:[^;]*var\(--accent\)/.test(rules)
+    );
+  }
+
+  it('1440×900: mounts the same hero-primary-cta — real button, in the first viewport, ≥44×44', async () => {
+    await mount(DESKTOP_W);
+    const cta = qs('[data-testid="hero-primary-cta"]');
+    expect(cta).not.toBeNull();
+    // The exact same element the phone layout renders: one button, one
+    // shared implementation — the example group stays compact-only.
+    expect(cta!.tagName).toBe('BUTTON');
+    expect(cta!.getAttribute('type')).toBe('button');
+    expect(cta!.textContent).toBe(HERO_PRIMARY_LABEL);
+    expect(cta!.textContent).toBe('说说你的情况');
+    expect(cta!.closest('.welcome')).not.toBeNull();
+    expect(cta!.closest('.hero')).not.toBeNull();
+    const rect = cta!.getBoundingClientRect();
+    expect(rect.top).toBeLessThan(700);
+    expect(rect.top).toBeLessThan(DESKTOP_H);
+    expect(cta!.disabled).toBe(false);
+    expect(cta!.hasAttribute('data-primary-cta')).toBe(false);
+    await unmount();
+
+    // The ≥44×44 guarantee resolves from the stylesheet: the shared
+    // min-height floor plus the desktop min-width override.
+    const primary = ruleBody(topLevel(chatWindowCss), '.hero-cta-primary');
+    expect(declPxValues(primary, 'min-height')[0]).toBeGreaterThanOrEqual(44);
+    expect(primary).toContain('background: var(--accent)');
+    const deskRule = ruleBody(desktopChat, '.hero-cta-primary');
+    expect(deskRule).not.toBe('');
+    expect(declPxValues(deskRule, 'min-width')[0]).toBeGreaterThanOrEqual(44);
+  });
+
+  it('1440×900: clicking it focuses #chat-input and sends nothing', async () => {
+    const sent: string[] = [];
+    await mount(DESKTOP_W, (text) => sent.push(text));
+    const cta = qs('[data-testid="hero-primary-cta"]')!;
+    await act(async () => {
+      cta.dispatchEvent(
+        new FakeEvent('click', { bubbles: true, cancelable: true }),
+      );
+    });
+    expect(dom.document.activeElement?.id).toBe('chat-input');
+    expect(sent).toEqual([]);
+    expect((qs('#chat-input') as FakeElement).value).toBe('');
+    await unmount();
+  });
+
+  it('1440×900: ≤2 brand-chrome ≥44×44 primary entries; the explanation cards are gone', async () => {
+    await mount(DESKTOP_W);
+    const candidates = qsa('button, a[href], [role="button"], [role="link"]')
+      .filter((el) => isFocusable(el) && inFirstViewport(el, DESKTOP_H))
+      .filter(isLargeCandidate);
+    const branded = candidates.filter(hasBrandChrome);
+    expect(
+      branded.length,
+      `brand-chrome candidates: ${branded
+        .map((el) => `${el.className}:${el.textContent.trim()}`)
+        .join(' | ')}`,
+    ).toBeLessThanOrEqual(2);
+    expect(branded.length).toBeGreaterThanOrEqual(1);
+    expect(branded[0].getAttribute('data-testid')).toBe('hero-primary-cta');
+    // The entry-point consolidation: the three explanation cards are
+    // removed; the four starter chips stay as the neutral secondary
+    // quick-start entries (no brand chrome, no size floor).
+    expect(qsa('.feature')).toHaveLength(0);
+    expect(qsa('.starter-chip')).toHaveLength(STARTER_ENTRIES.length);
+    for (const chip of qsa('.starter-chip')) {
+      expect(hasBrandChrome(chip)).toBe(false);
+    }
+    await unmount();
+  });
+
+  it('1440×900: the hero foot resolves ≤160px above the composer', () => {
+    // Model: .welcome bottom → composer top = row gap to the scroll
+    // sentinel + gap to the capped ::after spacer + the spacer itself +
+    // the scrollport's bottom padding. The P305 bookends used to split
+    // the free space evenly, leaving >250px — the cap closes it.
+    const afterRule = ruleBody(desktopChat, '.messages-hero::after');
+    expect(afterRule).not.toBe('');
+    const basis = /flex\s*:\s*0\s+1\s+([0-9.]+)px/.exec(afterRule)?.[1];
+    expect(basis, '::after keeps a capped basis').toBeTruthy();
+    const rowGap = declPxValues(
+      ruleBody(topLevel(chatWindowCss), '.messages'),
+      'gap',
+    )[0];
+    const pad = declPxValues(
+      ruleBody(topLevel(chatWindowCss), '.messages'),
+      'padding',
+    );
+    expect(rowGap).toBeGreaterThan(0);
+    expect(pad[0]).toBeGreaterThan(0);
+    const gap = Number(basis) + rowGap * 2 + pad[0];
+    expect(gap).toBeLessThanOrEqual(MAX_HERO_TO_COMPOSER);
+  });
+
+  it('empty input: .input-send is disabled + neutral, not the brand fill — typing restores it', async () => {
+    await mount(DESKTOP_W);
+    const send = qs('.input-send')!;
+    // The real disabled state: the attribute is set while the box is
+    // empty, so the action is blocked at the control.
+    expect(send.disabled).toBe(true);
+    expect(send.getAttribute('disabled')).not.toBeNull();
+
+    // …and a real disabled VISUAL: the resolved disabled fill is the
+    // neutral surface-hover, not the brand solid, dimmed below full
+    // opacity, with the not-allowed cursor.
+    const disabledRule = ruleBody(inputBarCss, '.input-bar .input-send:disabled');
+    expect(disabledRule).not.toBe('');
+    expect(disabledRule).not.toContain('var(--accent');
+    expect(disabledRule).toContain('background: var(--surface-hover)');
+    expect(disabledRule).toContain('color: var(--text-muted)');
+    expect(disabledRule).toContain('cursor: not-allowed');
+    const opacity = /opacity\s*:\s*([0-9.]+)/.exec(disabledRule)?.[1];
+    expect(opacity).toBeTruthy();
+    expect(Number(opacity)).toBeLessThan(1);
+
+    // Typing flips the control back to the enabled brand key — a
+    // different resolved background than the disabled rule.
+    await type(qs('#chat-input'), '她两天没回我了');
+    expect(send.disabled).toBe(false);
+    const enabledRule = ruleBody(
+      topLevel(inputBarCss),
+      '.input-bar .input-send',
+    );
+    expect(enabledRule).toContain('background: var(--accent)');
+    expect(enabledRule).toContain('color: var(--on-accent)');
+    await unmount();
+  });
+
+  it('390×844 regression: same button, same disabled send, ≤2 brand primaries', async () => {
+    await mount(VIEWPORT_W);
+    const cta = qs('[data-testid="hero-primary-cta"]')!;
+    expect(cta).not.toBeNull();
+    expect(cta.tagName).toBe('BUTTON');
+    expect(cta.getBoundingClientRect().top).toBeLessThan(MAX_CTA_TOP);
+    // The phone keeps its secondary example group; the chips stay text.
+    expect(qsa('.hero-cta-card')).toHaveLength(HERO_EXAMPLE_PROMPTS.length);
+    expect(qsa('.starter-chip')).toHaveLength(0);
+    expect(qs('.welcome-hint')).toBeNull();
+    expect(qsa('.feature')).toHaveLength(0);
+    const candidates = qsa('button, a[href], [role="button"], [role="link"]')
+      .filter((el) => isFocusable(el) && inFirstViewport(el, VIEWPORT_H))
+      .filter(isLargeCandidate);
+    const branded = candidates.filter(hasBrandChrome);
+    expect(branded.length).toBeLessThanOrEqual(2);
+    expect(branded[0].getAttribute('data-testid')).toBe('hero-primary-cta');
+    // Same disabled-visual contract on the empty send key.
+    expect(qs('.input-send')!.disabled).toBe(true);
     await unmount();
   });
 });

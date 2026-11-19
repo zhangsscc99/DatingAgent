@@ -187,11 +187,14 @@ describe('P307 · welcome bottom clearance (≤768px)', () => {
     expect(chipsMargin[0]).toBeLessThanOrEqual(10); // was 16 top
     expect(chipsMargin[chipsMargin.length >= 3 ? 2 : 0]).toBeLessThanOrEqual(6); // was 8 bottom
 
-    const featuresGap = declPxValues(
-      ruleBody(mobileChat, '.welcome-features'),
+    // P380: the .welcome-features card grid is gone at every width —
+    // the deepest content element on mobile is now the .hero-cta group,
+    // whose internal gap stays inside the same tightened budget.
+    const heroGap = declPxValues(
+      ruleBody(topLevel(chatWindowCss), '.hero-cta'),
       'gap',
     )[0];
-    expect(featuresGap).toBeLessThanOrEqual(12); // was 16, ×2 gaps
+    expect(heroGap).toBeLessThanOrEqual(12); // was .welcome-features 16, ×2 gaps
   });
 
   it('keeps the ≥69px measured overflow covered: lift + padding ≥ the clip', () => {
@@ -214,7 +217,13 @@ describe('P307 · welcome bottom clearance (≤768px)', () => {
       ruleBody(mobileChat, '.starter-chips'),
       'margin',
     )[0]!;
-    const gap = declPxValues(ruleBody(mobileChat, '.welcome-features'), 'gap')[0]!;
+    // P380: .welcome-features is gone — the .hero-cta group is the
+    // deepest hero element now, so its internal gap stands in for the
+    // card-grid term.
+    const gap = declPxValues(
+      ruleBody(topLevel(chatWindowCss), '.hero-cta'),
+      'gap',
+    )[0]!;
     const lift =
       24 - padTop +
       (20 - subMargin) +

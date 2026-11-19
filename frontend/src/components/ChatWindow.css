@@ -275,6 +275,28 @@
     padding-left: 66px;
     padding-right: 66px;
   }
+
+  /* P380 — the centred bookends left a >250px dead band between the
+     welcome block and the composer at 1440×900 (vision: 「中央空态与
+     底部输入框割裂：二者距离过远」). The trailing spacer is capped so
+     the hero's foot lands within the ≤160px contract of the input bar;
+     the leading spacer keeps absorbing whatever free space is left. */
+  .messages-hero::after {
+    flex: 0 1 96px;
+  }
+
+  /* P380 — the shared hero CTA renders on desktop too: it centres in the
+     welcome column as a button-sized control instead of the phone's
+     full-width bar. */
+  .messages-hero .hero-cta {
+    align-items: center;
+  }
+
+  .hero-cta-primary {
+    width: auto;
+    min-width: 320px;
+    padding: 14px 28px;
+  }
 }
 
 .welcome {
@@ -491,38 +513,6 @@
   color: var(--accent);
 }
 
-.welcome-features {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  text-align: left;
-}
-
-.feature {
-  display: flex;
-  gap: 14px;
-  padding: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.feature span {
-  font-size: 24px;
-  flex-shrink: 0;
-}
-
-.feature strong {
-  display: block;
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-.feature p {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
 @media (max-width: 768px) {
   .messages {
     padding: 16px;
@@ -595,12 +585,7 @@
     text-overflow: ellipsis;
   }
 
-  .welcome-features {
-    gap: 12px;
-  }
-
-  .welcome > p,
-  .feature p {
+  .welcome > p {
     color: var(--text-secondary);
   }
 

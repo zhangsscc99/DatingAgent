@@ -94,18 +94,19 @@ describe('P290/P312 · one primary CTA on the first screen — the composer send
     expect(welcome).not.toContain('data-primary-cta');
   });
 
-  it('the welcome block keeps passive guidance on desktop — the compact screen gets the hero button', () => {
+  it('the welcome block keeps the hint on desktop — and P380 shares the same hero button', () => {
     // SSR renders the ≥769px hero (no window → compactFeatures false), so
-    // the markup keeps the hint paragraph and never shows the compact CTA.
+    // the markup keeps the hint paragraph AND — since P380 — the same
+    // hero-primary-cta button the compact screen mounts.
     const markup = renderWelcome();
     expect(markup).toContain('class="welcome-hint"');
     expect(markup).toContain('在下方输入框');
     expect(markup).not.toContain('welcome-primary-cta');
-    expect(markup).not.toContain('说说你的情况');
-    expect(markup).not.toContain('hero-primary-cta');
-    // The hint is a paragraph; P374's compact-only hero button is the one
-    // welcome element allowed to reach the composer — and only to focus
-    // it, never to send.
+    expect(markup).toContain('说说你的情况');
+    expect(markup).toContain('hero-primary-cta');
+    // The hint is a paragraph; the shared hero button is the one welcome
+    // element allowed to reach the composer — and only to focus it,
+    // never to send.
     const welcomeBlock = chatWindowTsx.slice(
       chatWindowTsx.indexOf('className="welcome'),
       chatWindowTsx.indexOf('renderedMessages.map'),
@@ -115,16 +116,18 @@ describe('P290/P312 · one primary CTA on the first screen — the composer send
     expect(welcomeBlock).toContain('inputRef.current?.focus()');
   });
 
-  it('the send key keeps its brand solid; only the compact hero button shares it', () => {
+  it('the send key keeps its brand solid; only the shared hero button shares it', () => {
     const rule = ruleBody(inputBarCss, '.input-bar .input-send');
     expect(rule).toContain('background: var(--accent)');
     expect(rule).toContain('color: var(--on-accent)');
-    // The retired welcome button's rules are gone; P374's compact-only
-    // hero action is the one welcome element allowed the fill — it is the
-    // phone first screen's obvious next action — while every other
-    // welcome control stays secondary.
+    // The retired welcome button's rules are gone; the shared hero
+    // action is the one welcome element allowed the fill — the first
+    // screen's obvious next action at every breakpoint — while every
+    // other welcome control stays secondary.
     expect(ruleBody(chatWindowCss, '.welcome-primary-cta')).toBe('');
-    expect(ruleBody(chatWindowCss, '.hero-cta-primary')).toContain(
+    // P380: join every `.hero-cta-primary` body — the ≥769px override
+    // (width/min-width/padding) now sorts before the base rule.
+    expect(ruleBodies(chatWindowCss, '.hero-cta-primary').join('\n')).toContain(
       'background: var(--accent)',
     );
     for (const secondary of ['.welcome-cta', '.starter-chip', '.profile-nudge-btn', '.hero-cta-card']) {
@@ -212,20 +215,20 @@ describe('P290 · every other first-screen action is secondary', () => {
     expect(bodies.every((b) => !b.includes('color: var(--accent)'))).toBe(true);
   });
 
-  it('the send key is disabled while the composer is empty, but keeps the brand fill', () => {
+  it('the send key is disabled while the composer is empty — and now READS disabled (P380)', () => {
     stubDraftStorage({});
     const markup = renderWelcome();
     const send = buttonTag(markup, 'input-send');
     expect(send).toContain('disabled=""');
     expect(send).toContain('aria-label="发送消息"');
-    // P336: `disabled` blocks the action, it must not read disabled — the
-    // muted --surface-hover ghost is gone; the empty key keeps the screen's
-    // single brand solid.
+    // P380: `disabled` blocks the action AND reads disabled — the empty
+    // key drops the brand fill for a dimmed neutral now that the hero
+    // button owns the first screen's one solid accent control.
     const rule = ruleBody(inputBarCss, '.input-bar .input-send:disabled');
-    expect(rule).toContain('background: var(--accent)');
-    expect(rule).toContain('color: var(--on-accent)');
-    expect(rule).not.toContain('var(--surface-hover)');
-    expect(rule).not.toContain('var(--text-muted)');
+    expect(rule).toContain('background: var(--surface-hover)');
+    expect(rule).toContain('color: var(--text-muted)');
+    expect(rule).toContain('cursor: not-allowed');
+    expect(rule).not.toContain('var(--accent)');
   });
 
   it('the send key returns to brand solid once the composer has text', () => {

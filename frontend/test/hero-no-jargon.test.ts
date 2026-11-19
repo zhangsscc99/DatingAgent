@@ -62,12 +62,16 @@ describe('P229 · empty-state hero copy carries no framework jargon', () => {
     expect(html).not.toContain('架构驱动');
   });
 
-  it('still renders three capability cards with their new titles in order', () => {
+  it('drops the passive capability cards — one shared hero CTA + starter chips (P380)', () => {
     const html = renderEmptyState();
-    const titles = [...html.matchAll(/<strong>([^<]+)<\/strong>/g)].map(
-      (m) => m[1],
-    );
-    expect(titles).toEqual(CARD_TITLES);
-    expect(html.match(/class="feature"/g)).toHaveLength(3);
+    // P380: the three explanation cards were the removable half of the
+    // desktop's 7 competing entries — the shared primary button leads
+    // and the four starter chips stay as the secondary entries.
+    expect(html.match(/class="feature"/g)).toBeNull();
+    for (const title of CARD_TITLES) {
+      expect(html).not.toContain(title);
+    }
+    expect(html).toContain('data-testid="hero-primary-cta"');
+    expect(html.match(/class="starter-chip(?:\s[^"]*)?"/g)).toHaveLength(4);
   });
 });

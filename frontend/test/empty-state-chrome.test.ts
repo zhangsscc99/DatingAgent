@@ -197,19 +197,19 @@ describe('P312 · empty-state chrome', () => {
     expect(primaries[0].closest('.input-bar')).not.toBeNull();
     expect(qs('#chat-input')).not.toBeNull();
 
-    // .welcome keeps passive guidance on desktop — P374: the compact
-    // screen's hint line is replaced by the hero's focus-only primary
-    // button (a data-testid, never the send key's data-primary-cta).
+    // .welcome shares one focus-only primary button at every width —
+    // P380 mounts P374's hero CTA on desktop too (a data-testid, never
+    // the send key's data-primary-cta); the hint stays desktop-only.
     const welcome = qs('.welcome');
     expect(welcome, label).not.toBeNull();
     expect(welcome!.querySelector('[data-primary-cta]')).toBeNull();
     expect(welcome!.querySelector('.welcome-primary-cta')).toBeNull();
+    const hero = welcome!.querySelector('[data-testid="hero-primary-cta"]');
+    expect(hero, label).not.toBeNull();
+    expect(hero!.tagName).toBe('BUTTON');
     const hint = welcome!.querySelector('p.welcome-hint');
     if (narrow) {
       expect(hint).toBeNull();
-      const hero = welcome!.querySelector('[data-testid="hero-primary-cta"]');
-      expect(hero).not.toBeNull();
-      expect(hero!.tagName).toBe('BUTTON');
     } else {
       expect(hint).not.toBeNull();
       expect(hint!.textContent).toContain('输入框');

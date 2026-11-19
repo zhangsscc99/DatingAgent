@@ -34,14 +34,15 @@ import type { ChatMessage } from '../src/types';
  *     key is not focusable; the keyboard shortcut hint and the length
  *     cycler are not rendered on the narrow spotlighted screen).
  *  2. Exactly ONE control carries the brand solid fill — the composer
- *     send key ([data-primary-cta]) — and the EMPTY send key keeps that
- *     fill too: `disabled` blocks the action, it must not read disabled.
- *  3. The send key's fill clears ≥3:1 contrast against its composer
- *     background — both the plain --surface bar and the P336 spotlight
- *     tint (--accent-soft over --surface) — in light and dark.
- *  4. At 390 wide the three feature cards do not render; one quiet
- *     non-interactive summary line stands in their place. At ≥1024 the
- *     three-card grid is unchanged.
+ *     send key ([data-primary-cta]). P380: the EMPTY send key now reads
+ *     disabled instead — neutral fill + dimmed opacity — because the
+ *     hero's primary button owns the first screen's one solid control.
+ *  3. The ENABLED send key's fill clears ≥3:1 contrast against its
+ *     composer background — both the plain --surface bar and the P336
+ *     spotlight tint (--accent-soft over --surface) — in light and dark.
+ *  4. At 390 wide the three feature cards do not render. P380: they do
+ *     not render at ≥769px either — the explanation cards were the
+ *     removable half of the desktop's 7 competing entries.
  *  5. The「完善资料」entry is `data-variant="link"` chrome — the welcome
  *     block's last element — carrying no border/fill/padding box.
  *
@@ -322,18 +323,23 @@ describe('P336 · one real primary CTA on the empty first screen (390×844)', ()
     await unmount();
   });
 
-  it('the send key keeps its brand solid — even while empty-disabled; only the hero action shares it', () => {
-    // Enabled and empty-disabled states share the one solid fill.
-    for (const sel of ['.input-bar .input-send', '.input-bar .input-send:disabled']) {
-      const rule = ruleBody(inputBarCss, sel);
-      expect(rule, sel).toContain('background: var(--accent)');
-      expect(rule, sel).toContain('color: var(--on-accent)');
-      expect(rule, sel).not.toContain('background: var(--surface-hover)');
-      expect(rule, sel).not.toContain('var(--text-muted)');
-    }
-    // P374: the hero's one real primary button is the only OTHER element
-    // allowed the brand solid — and it is the only clickable one while
-    // the empty send key sits disabled.
+  it('the enabled send key keeps its brand solid; empty-disabled drops to neutral (P380)', () => {
+    // Enabled keeps the one solid fill…
+    const enabled = ruleBody(inputBarCss, '.input-bar .input-send');
+    expect(enabled).toContain('background: var(--accent)');
+    expect(enabled).toContain('color: var(--on-accent)');
+    // …but P380 gives the empty-disabled key a real disabled visual:
+    // neutral surface fill + muted ink + not-allowed — the hero button
+    // now owns the first screen's only solid accent control.
+    const disabled = ruleBody(inputBarCss, '.input-bar .input-send:disabled');
+    expect(disabled).not.toBe('');
+    expect(disabled).toContain('background: var(--surface-hover)');
+    expect(disabled).toContain('color: var(--text-muted)');
+    expect(disabled).toContain('cursor: not-allowed');
+    expect(disabled).not.toContain('var(--accent)');
+    // P374/P380: the hero's one real primary button is the only OTHER
+    // element allowed the brand solid — and it is the only clickable one
+    // while the empty send key sits disabled.
     const heroRule = ruleBody(chatWindowCss, '.hero-cta-primary');
     expect(heroRule).toContain('background: var(--accent)');
     expect(heroRule).toContain('color: var(--on-accent)');
@@ -409,19 +415,24 @@ describe('P336 · one real primary CTA on the empty first screen (390×844)', ()
     await unmount();
   });
 
-  it('1440-wide render: the three feature cards keep their grid', async () => {
+  it('1440-wide render: the three explanation cards are gone (P380)', async () => {
     await mount(1440);
-    expect(qsa('.feature')).toHaveLength(3);
+    // P380: the passive cards were the removable half of the desktop's
+    // 7 competing entries — the shared hero CTA leads instead.
+    expect(qsa('.feature')).toHaveLength(0);
     expect(qs('.welcome-feature-line')).toBeNull();
     await unmount();
   });
 });
 
-describe('P336 · the send key clears >=3:1 against its composer background', () => {
+describe('P336 · the ENABLED send key clears >=3:1 against its composer background', () => {
   it('accent fill vs the plain --surface bar and the spotlight tint', () => {
+    // P380: the contrast contract now measures the ENABLED send key —
+    // the disabled state intentionally falls below it (it must read
+    // disabled), asserted in the next test.
     const sendFill = declaredProperty(
       inputBarCss,
-      '.input-bar .input-send:disabled',
+      '.input-bar .input-send',
       'background',
     );
     const barBg = declaredProperty(inputBarCss, '.input-bar', 'background');
@@ -444,6 +455,26 @@ describe('P336 · the send key clears >=3:1 against its composer background', ()
           `${name} · ${bgName}: send ${fill} on ${bg} → ${ratio.toFixed(2)}:1`,
         ).toBeGreaterThanOrEqual(3);
       }
+    }
+  });
+
+  it('the empty-disabled fill deliberately drops below 3:1 — it must read disabled (P380)', () => {
+    const disabledFill = declaredProperty(
+      inputBarCss,
+      '.input-bar .input-send:disabled',
+      'background',
+    );
+    const barBg = declaredProperty(inputBarCss, '.input-bar', 'background');
+    const accent = declaredProperty(inputBarCss, '.input-bar .input-send', 'background');
+    expect(disabledFill).not.toBe(accent);
+    for (const [name, vars] of CONTEXTS) {
+      const fill = compositeOver(resolveColor(vars, disabledFill), '#ffffff');
+      const surface = resolveColor(vars, barBg);
+      const ratio = contrastRatio(fill, surface);
+      expect(
+        ratio,
+        `${name}: disabled ${fill} on ${surface} → ${ratio.toFixed(2)}:1`,
+      ).toBeLessThan(3);
     }
   });
 
@@ -837,12 +868,18 @@ describe('P374 · one obvious primary action on the mobile first screen', () => 
     expect(pillRule).toContain('text-overflow: ellipsis');
   });
 
-  it('1440×900 keeps its own hero — chips, hint and cards, no CTA button', async () => {
+  it('1440×900 mounts the same primary CTA — example cards stay compact-only (P380)', async () => {
     await mount(1440);
-    expect(qs('[data-testid="hero-primary-cta"]')).toBeNull();
+    // P380: the desktop empty state shares the one real button; the
+    // compact-only example group and the three explanation cards stay
+    // off it — chips + hint remain the secondary entries.
+    const cta = qs('[data-testid="hero-primary-cta"]');
+    expect(cta).not.toBeNull();
+    expect(cta!.tagName).toBe('BUTTON');
+    expect(qsa('.hero-cta-card')).toHaveLength(0);
     expect(qsa('.starter-chip')).toHaveLength(STARTER_ENTRIES.length);
     expect(qs('.welcome-hint')).not.toBeNull();
-    expect(qsa('.feature')).toHaveLength(3);
+    expect(qsa('.feature')).toHaveLength(0);
     await unmount();
   });
 });

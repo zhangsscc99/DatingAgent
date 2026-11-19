@@ -533,15 +533,17 @@ describe('P343 · the first screen keeps ≤4 clickables and one primary', () =>
     expect(qs('.welcome')!.querySelector('[data-primary-cta]')).toBeNull();
     await unmount();
 
-    // Enabled and empty-disabled states share the one brand solid.
-    for (const sel of [
-      '.input-bar .input-send',
-      '.input-bar .input-send:disabled',
-    ]) {
-      const rule = ruleBody(inputBarCss, sel);
-      expect(rule, sel).toContain('background: var(--accent)');
-      expect(rule, sel).toContain('color: var(--on-accent)');
-    }
+    // The ENABLED key keeps the one brand solid; P380 gives the
+    // empty-disabled key a real disabled visual instead (the shared
+    // hero button owns the first screen's single accent control).
+    const enabledRule = ruleBody(inputBarCss, '.input-bar .input-send');
+    expect(enabledRule).toContain('background: var(--accent)');
+    expect(enabledRule).toContain('color: var(--on-accent)');
+    const disabledRule = ruleBody(inputBarCss, '.input-bar .input-send:disabled');
+    expect(disabledRule).toContain('background: var(--surface-hover)');
+    expect(disabledRule).toContain('color: var(--text-muted)');
+    expect(disabledRule).toContain('cursor: not-allowed');
+    expect(disabledRule).not.toContain('var(--accent)');
     // Nothing else on the hero wears the accent fill — P374: the example
     // cards and starter pills keep neutral chrome, and the feature-line
     // rule is gone with its element.
@@ -572,7 +574,7 @@ describe('P343 · desktop ≥769px keeps the full welcome block', () => {
     dom.document.querySelector(sel) as FakeElement | null;
   const qsa = (sel: string) => dom.document.querySelectorAll(sel);
 
-  it('1440-wide render: tappable chips, three cards and a real footnote button', async () => {
+  it('1440-wide render: tappable chips, shared hero CTA and a real footnote button', async () => {
     dom = installFakeDom();
     const mq = mediaQueryForWidth(1440);
     (dom.window as Record<string, unknown>).matchMedia = mq;
@@ -602,7 +604,12 @@ describe('P343 · desktop ≥769px keeps the full welcome block', () => {
     const cta = qs('.welcome-cta');
     expect(cta).not.toBeNull();
     expect(cta!.tagName).toBe('BUTTON');
-    expect(qsa('.feature')).toHaveLength(3);
+    // P380: the three explanation cards are removed; the shared
+    // hero-primary-cta mounts on desktop too.
+    expect(qsa('.feature')).toHaveLength(0);
+    const heroCta = qs('[data-testid="hero-primary-cta"]');
+    expect(heroCta).not.toBeNull();
+    expect(heroCta!.tagName).toBe('BUTTON');
     // The cycler is untouched on the desktop empty screen.
     expect(qs('.reply-length-toggle')).not.toBeNull();
 
