@@ -66,8 +66,8 @@ describe('P155 · clear all history chats', () => {
     it('wires App to confirm first, then clear the store and reset the chat surface', () => {
       const app = read('App.tsx');
       expect(app).not.toContain('window.confirm');
-      // P266: the description now names the counts via the shared builder.
-      expect(app).toContain('describeConfirm(confirmRequest)');
+      // P266/P357: the dialog copy names the counts via the shared builder.
+      expect(app).toContain('confirmDialogCopy(confirmRequest)');
       expect(app).toContain('onClearAllChats={requestClearAllChats}');
       expect(app).toContain('onClearAll={requestClearAllChats}');
       const handler = app.slice(app.indexOf('const handleClearAllChats'));

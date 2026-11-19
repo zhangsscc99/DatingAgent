@@ -169,8 +169,9 @@ describe('P228 · in-app confirm dialog', () => {
     dialog = alertDialog();
     expect(dialog).not.toBeNull();
     // P266: one session with one message remains after the s1 delete.
+    // P357: the body now uses the same 「移到回收站」 wording as a delete.
     expect(dialog!.textContent).toContain(
-      '将清空 1 段对话，共 1 条消息；清空后可在回收站保留 7 天，之后自动清除。',
+      '将把 1 段对话（共 1 条消息）移到回收站，7 天内可以恢复。',
     );
     expect(dom.document.activeElement).toBe(cancelButton());
     expect(confirmSpy).not.toHaveBeenCalled();
@@ -220,13 +221,13 @@ describe('P228 · in-app confirm dialog', () => {
       }
     });
 
-    it('the dialog copy comes from the shared describeConfirm builder', () => {
+    it('the dialog copy comes from the shared confirmDialogCopy builder', () => {
       const app = read('App.tsx');
-      expect(app).toContain('describeConfirm(confirmRequest)');
+      expect(app).toContain('confirmDialogCopy(confirmRequest)');
       expect(app).not.toContain('确定清空全部历史对话？');
       const copy = read('lib/confirmCopy.ts');
-      expect(copy).toContain('回收站，7 天内可以恢复。');
-      expect(copy).toContain('清空后可在回收站保留 7 天，之后自动清除。');
+      expect(copy).toContain('confirmDialogCopy');
+      expect(copy).toContain('移到回收站，7 天内可以恢复。');
     });
 
     it('ConfirmDialog is a labelled alertdialog with a danger primary and a default-focused 取消', () => {

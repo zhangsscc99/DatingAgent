@@ -64,34 +64,39 @@
 .confirm-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 12px;
 }
 
+/* P357 — the destructive confirm must outweigh the way out: a solid,
+   bold --danger button next to a quiet neutral 取消. The old pairing
+   (brand-outlined 取消 vs a pale --danger-soft confirm) read backwards. */
 .confirm-btn {
   padding: 9px 18px;
-  background: var(--bg);
+  background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  color: var(--text);
+  color: var(--text-secondary);
   font-size: 13px;
+  font-weight: 400;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, filter 0.15s;
 }
 
 .confirm-btn:hover {
-  border-color: var(--accent);
+  border-color: var(--text-secondary);
 }
 
 .confirm-btn.danger {
-  background: var(--danger-soft);
-  border-color: var(--danger-border);
-  color: var(--danger);
-  font-weight: 600;
+  background: var(--danger);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 700;
 }
 
 .confirm-btn.danger:hover {
-  border-color: var(--danger);
+  border-color: transparent;
+  filter: brightness(0.94);
 }
 
 .confirm-btn:focus-visible {

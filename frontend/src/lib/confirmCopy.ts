@@ -1,3 +1,4 @@
+import { CLEAR_ALL_LABEL } from './copy';
 import type { ChatStorageState } from './chatStorage';
 
 /**
@@ -55,16 +56,39 @@ export function deleteConfirmRequest(
 }
 
 /**
- * The dialog description for a pending request. A session with no
- * messages falls back to a count-free sentence rather than 「0 条消息」;
- * 清空全部 always has ≥1 session so it keeps the counts.
+ * P357 — one copy source for the whole dialog. The old wiring forked
+ * three ways for the same action: the title said 「清空全部对话」, the
+ * body said 「将清空 1 段对话…」 and the button said 「清空全部」. Now the
+ * clear-all branch renders CLEAR_ALL_LABEL for both the title and the
+ * button, and its body uses the same 「移到回收站」 sentence as a single
+ * delete, so the three strings can never disagree again. A session with
+ * no messages falls back to a count-free sentence rather than
+ * 「0 条消息」. Counts are still frozen inside the request — nothing
+ * re-reads storage while the dialog is open.
+ */
+export function confirmDialogCopy(request: ConfirmRequest): {
+  title: string;
+  description: string;
+  confirmLabel: string;
+} {
+  if (request.kind === 'clear-all') {
+    return {
+      title: CLEAR_ALL_LABEL,
+      description: `将把 ${request.sessionCount} 段对话（共 ${request.messageCount} 条消息）移到回收站，7 天内可以恢复。`,
+      confirmLabel: CLEAR_ALL_LABEL,
+    };
+  }
+  const description =
+    request.messageCount > 0
+      ? `将把「${request.title}」的 ${request.messageCount} 条消息移到回收站，7 天内可以恢复。`
+      : '将把这个对话移到回收站，7 天内可以恢复。';
+  return { title: '删除这段对话', description, confirmLabel: '删除' };
+}
+
+/**
+ * The dialog description for a pending request — delegates to
+ * confirmDialogCopy so every wording lives in that one builder.
  */
 export function describeConfirm(request: ConfirmRequest): string {
-  if (request.kind === 'clear-all') {
-    return `将清空 ${request.sessionCount} 段对话，共 ${request.messageCount} 条消息；清空后可在回收站保留 7 天，之后自动清除。`;
-  }
-  if (request.messageCount > 0) {
-    return `将把「${request.title}」的 ${request.messageCount} 条消息移到回收站，7 天内可以恢复。`;
-  }
-  return '将把这个对话移到回收站，7 天内可以恢复。';
+  return confirmDialogCopy(request).description;
 }

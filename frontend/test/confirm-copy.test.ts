@@ -62,7 +62,7 @@ describe('P266 · confirm dialog states counts and recovery', () => {
     expect(copy).toContain('7 天');
     expect(copy).not.toContain('6 秒');
     expect(copy).not.toContain('撤销');
-    expect(copy).toBe('将清空 2 段对话，共 5 条消息；清空后可在回收站保留 7 天，之后自动清除。');
+    expect(copy).toBe('将把 2 段对话（共 5 条消息）移到回收站，7 天内可以恢复。');
   });
 
   it('single delete still promises 「7 天内可以恢复」 unchanged', () => {
@@ -129,7 +129,7 @@ describe('P266 · confirm dialog states counts and recovery', () => {
     const app = read('App.tsx');
     expect(app).toContain('deleteConfirmRequest(loadChatState(), id, title)');
     expect(app).toContain('clearAllConfirmRequest(loadChatState())');
-    expect(app).toContain('describeConfirm(confirmRequest)');
+    expect(app).toContain('confirmDialogCopy(confirmRequest)');
     // Both 清空全部 entry points still share the one request path.
     expect(app).toContain('onClearAllChats={requestClearAllChats}');
     expect(app).toContain('onClearAll={requestClearAllChats}');

@@ -70,7 +70,6 @@ import {
   exportableMessages,
 } from './lib/exportConversation';
 import { copyText } from './lib/clipboard';
-import { CLEAR_ALL_LABEL } from './lib/copy';
 import { buildChatRequestBody } from './lib/chatRequest';
 import { createErrorToast, type ErrorToastState } from './lib/errorToast';
 import {
@@ -80,7 +79,7 @@ import {
 import {
   clearAllConfirmRequest,
   deleteConfirmRequest,
-  describeConfirm,
+  confirmDialogCopy,
   type ConfirmRequest,
 } from './lib/confirmCopy';
 import { pushInputHistory } from './lib/inputHistory';
@@ -2096,11 +2095,9 @@ export default function App() {
       )}
       {confirmRequest && (
         <ConfirmDialog
-          title={
-            confirmRequest.kind === 'clear-all' ? CLEAR_ALL_LABEL : '删除对话'
-          }
-          description={describeConfirm(confirmRequest)}
-          confirmLabel={confirmRequest.kind === 'clear-all' ? '清空全部' : '删除'}
+          title={confirmDialogCopy(confirmRequest).title}
+          description={confirmDialogCopy(confirmRequest).description}
+          confirmLabel={confirmDialogCopy(confirmRequest).confirmLabel}
           onCancel={() => setConfirmRequest(null)}
           onConfirm={() => {
             const request = confirmRequest;

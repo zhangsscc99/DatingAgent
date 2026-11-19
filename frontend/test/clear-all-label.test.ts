@@ -41,14 +41,16 @@ describe('P267 · one clear-all label everywhere', () => {
     expect(sheet).toContain('`${CLEAR_ALL_LABEL}（还没有对话可以清空）`');
   });
 
-  it('App.tsx uses the constant for the clear-all confirm title', () => {
-    const src = read('App.tsx');
-    expect(src).toContain("import { CLEAR_ALL_LABEL } from './lib/copy'");
-    expect(src).toContain(
-      "confirmRequest.kind === 'clear-all' ? CLEAR_ALL_LABEL : '删除对话'",
-    );
-    expect(src).not.toContain('清空全部历史对话');
-    // The confirm button label stays untouched.
-    expect(src).toContain("confirmRequest.kind === 'clear-all' ? '清空全部' : '删除'");
+  it('the clear-all confirm copy comes from the constant via confirmDialogCopy', () => {
+    // P357: App no longer forks title/label per kind — confirmDialogCopy
+    // is the one source, and it renders CLEAR_ALL_LABEL for both.
+    const app = read('App.tsx');
+    expect(app).toContain('confirmDialogCopy(confirmRequest)');
+    expect(app).not.toContain("confirmRequest.kind === 'clear-all' ?");
+    expect(app).not.toContain('清空全部历史对话');
+    const lib = read('lib/confirmCopy.ts');
+    expect(lib).toContain("import { CLEAR_ALL_LABEL } from './copy'");
+    expect(lib).toContain('title: CLEAR_ALL_LABEL');
+    expect(lib).toContain('confirmLabel: CLEAR_ALL_LABEL');
   });
 });
