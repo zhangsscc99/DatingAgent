@@ -14,7 +14,6 @@ import {
 import ChatWindow from '../src/components/ChatWindow';
 import Sidebar from '../src/components/Sidebar';
 import { HERO_EXAMPLE_PROMPTS, HERO_PRIMARY_LABEL } from '../src/lib/heroCta';
-import { COARSE_POINTER_QUERY } from '../src/lib/heroHint';
 import { STARTER_ENTRIES } from '../src/lib/starterEntries';
 import type { ChatMessage } from '../src/types';
 
@@ -46,11 +45,15 @@ import type { ChatMessage } from '../src/types';
  * shortcuts made 7 entries compete for one path, the hero sat >250px from
  * the composer, and the empty send key still wore the solid brand fill.
  * The same single button now renders on desktop (the example group stays
- * compact-only — the starter chips already cover desktop quick-starts),
+ * compact-only — the starter entries cover desktop quick-starts),
  * the explanation cards are gone, the trailing bookend is capped so the
  * hero's foot lands ≤160px from the composer, and the empty send key
  * drops to a real disabled visual. Asserted in the last describe.
  */
+
+// P394: heroHint.ts is gone with the hint — the pointer query the
+// matchMedia stubs match against is inlined here.
+const COARSE_POINTER_QUERY = '(pointer: coarse)';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const chatWindowCss = readFileSync(
@@ -336,8 +339,8 @@ describe('P374 · the compact hero has one real primary action at 390×844', () 
     await unmount();
 
     // 1440×900: P380 mounts the same primary button — the example card
-    // group stays compact-only; the starter chips remain the desktop
-    // quick-start entries.
+    // group stays compact-only; P394 moved the starter capsules into the
+    // sidebar's 快捷入口, so the hero keeps no capsule copy.
     dom = installFakeDom();
     const mq = mediaQueryFor(false, false);
     (dom.window as Record<string, unknown>).matchMedia = mq;
@@ -362,7 +365,7 @@ describe('P374 · the compact hero has one real primary action at 390×844', () 
     expect(cta).not.toBeNull();
     expect(cta!.tagName).toBe('BUTTON');
     expect(qsa('.hero-cta-card')).toHaveLength(0);
-    expect(qsa('.starter-chip')).toHaveLength(4);
+    expect(qsa('.starter-chip')).toHaveLength(0);
     await unmount();
   });
 
@@ -605,13 +608,12 @@ describe('P380 · the same primary CTA leads the desktop empty state (1440×900)
     expect(branded.length).toBeGreaterThanOrEqual(1);
     expect(branded[0].getAttribute('data-testid')).toBe('hero-primary-cta');
     // The entry-point consolidation: the three explanation cards are
-    // removed; the four starter chips stay as the neutral secondary
-    // quick-start entries (no brand chrome, no size floor).
+    // removed; P394 moved the starter capsules to the sidebar's 快捷入口
+    // too — the hero's centre is now ONE input path (primary button →
+    // composer) with no capsule copy at all.
     expect(qsa('.feature')).toHaveLength(0);
-    expect(qsa('.starter-chip')).toHaveLength(STARTER_ENTRIES.length);
-    for (const chip of qsa('.starter-chip')) {
-      expect(hasBrandChrome(chip)).toBe(false);
-    }
+    expect(qsa('.starter-chip')).toHaveLength(0);
+    expect(qsa('.starter-chips')).toHaveLength(0);
     await unmount();
   });
 
@@ -696,23 +698,22 @@ describe('P380 · the same primary CTA leads the desktop empty state (1440×900)
 });
 
 /**
- * P388 — measured at 1440×900 (docs/runs/walk-1795109419-d1.png, re-measured
- * walk-1795115528-d1.png): every starter name rendered TWICE — the
- * sidebar's 快捷入口 rows plus the centre .starter-chip capsules — the
- * hero's foot sat 288px above the composer, and the
- * 「在下方输入框写下你的情况」hint pointed off-screen from mid-hero.
+ * P394 — measured at 1440×900 (docs/runs/walk-1795115528-d1.png, re-flagged
+ * walk-1795122630): every starter name rendered TWICE — the sidebar's
+ * 快捷入口 rows plus the centre .starter-chip capsules — and the hero's
+ * foot still sat ~290px above the composer while the
+ * 「在下方输入框写下你的情况」copy named a target off-screen.
  *
  * Contract asserted here (the backlog's verify clause):
  *  1. At 1440×900 each of the four STARTER_ENTRIES names resolves exactly
- *     ONE visible entry — the centre chips own the desktop copy; the
- *     aside's identical section is conditionally not rendered (never a
- *     hidden duplicate a :visible query could still count).
- *  2. The hero's foot lands ≤160px above the composer at BOTH
- *     walkthrough sizes — the P380 bookend model plus the real fix:
- *     `.welcome`'s vertical auto margins, which had been eating half the
- *     scrollport's free space below the block, are pinned to 0.
- *  3. The hint paragraph sits directly above the composer — outside
- *     .welcome — and stays desktop-only.
+ *     ONE visible entry — the centre capsules are gone entirely, so the
+ *     aside's 快捷入口 rows own the names at every width (the P388
+ *     direction reversed: the desktop keeps the WORKING entries in the
+ *     sidebar and the hero converges on one input path).
+ *  2. The hero's foot lands ≤160px above the composer — the P380 bookend
+ *     model, now without the hint strip that padded the last 24px.
+ *  3. The off-screen-pointing copy is removed — no .welcome-hint element
+ *     and no 「在下方输入框」 text anywhere in the tree.
  *  4. At 390×844 each name still resolves exactly one visible entry —
  *     the non-interactive pills; the closed drawer is aria-hidden +
  *     inert in the DOM and visibility:hidden in the stylesheet.
@@ -720,7 +721,7 @@ describe('P380 · the same primary CTA leads the desktop empty state (1440×900)
  * Same fake-DOM convention as above: the "visible-hit" count is the
  * render-level expression a real :visible query evaluates.
  */
-describe('P388 · one visible entry per starter name; hero foot ≤160px above composer', () => {
+describe('P394 · one visible entry per starter name; hero foot ≤160px above composer', () => {
   let dom: FakeDom;
   let root: Root | null = null;
 
@@ -811,31 +812,34 @@ describe('P388 · one visible entry per starter name; hero foot ≤160px above c
     vi.unstubAllGlobals();
   });
 
-  it('1440×900: each starter name resolves exactly ONE visible entry — the centre chips own the copy', async () => {
+  it('1440×900: each starter name resolves exactly ONE visible entry — the sidebar rows own the copy', async () => {
     await mountScreen(1440, false);
     // The duplicated surface is gone from the DOM entirely — real
     // conditional rendering, not a hidden element a :visible query
-    // could still trip over.
-    expect(qsa('.quick-btn')).toHaveLength(0);
-    expect(qs('[aria-label="快捷入口"]')).toBeNull();
-    expect(qsa('.starter-chip')).toHaveLength(STARTER_ENTRIES.length);
+    // could still trip over. The capsules left the hero; the aside's
+    // 快捷入口 rows are the single copy on desktop now.
+    expect(qsa('.starter-chip')).toHaveLength(0);
+    expect(qsa('.starter-chips')).toHaveLength(0);
+    expect(qs('[aria-label="快捷入口"]')).not.toBeNull();
+    expect(qsa('.quick-btn')).toHaveLength(STARTER_ENTRIES.length);
     for (const entry of STARTER_ENTRIES) {
       const hits = visibleHits(entry.label);
       expect(
         hits.length,
         `${entry.label} hits: ${hits.map((el) => el.className).join(' | ')}`,
       ).toBe(1);
-      expect(hits[0].classList.contains('starter-chip')).toBe(true);
+      expect(hits[0].classList.contains('quick-btn')).toBe(true);
     }
     await unmount();
   });
 
-  it('1440×900: hero bottom → composer top resolves ≤160px — the vertical auto margins are pinned to 0', () => {
-    // The measured 288px gap came from `.welcome`'s `margin: auto`
-    // resolving on the column-flex scrollport's MAIN axis too: the free
-    // space split evenly above and below the block. The vertical pair is
-    // pinned to 0, so ::before owns all of it and the foot→bar distance
-    // is just the sentinel gaps + the capped ::after + the scrollpad.
+  it('1440×900: hero bottom → composer top resolves ≤160px — margins pinned, spacer capped, no hint strip', () => {
+    // The measured ~290px gap came from `.welcome`'s `margin: auto`
+    // resolving on the column-flex scrollport's MAIN axis plus the
+    // 24px .welcome-hint strip parked above the composer. The vertical
+    // pair stays pinned to 0, ::before owns all the free space, and the
+    // hint is gone — the foot→bar distance is just the sentinel gaps +
+    // the capped ::after + the scrollpad.
     const welcomeRule = ruleBody(topLevel(chatWindowCss), '.welcome');
     expect(welcomeRule).toContain('margin-top: 0');
     expect(welcomeRule).toContain('margin-bottom: 0');
@@ -856,20 +860,20 @@ describe('P388 · one visible entry per starter name; hero foot ≤160px above c
     expect(Number(basis) + rowGap * 2 + pad[0]).toBeLessThanOrEqual(160);
   });
 
-  it('the「在下方输入框…」hint renders directly above the composer, never inside .welcome', async () => {
+  it('the「在下方输入框…」copy is gone — nothing on the first screen points off-screen', async () => {
     await mountScreen(1440, false);
-    const hint = qs('p.welcome-hint');
-    expect(hint).not.toBeNull();
-    expect(hint!.textContent).toContain('在下方输入框写下你的情况');
-    // Adjacent to its target: a direct child of .chat-window, immediately
-    // ahead of the composer — not mid-hero pointing off-screen.
-    expect(hint!.closest('.welcome')).toBeNull();
-    expect(hint!.parentElement!.classList.contains('chat-window')).toBe(
-      true,
-    );
-    const siblings = hint!.parentElement!.children;
-    const next = siblings[siblings.indexOf(hint!) + 1];
-    expect(next?.classList.contains('input-bar')).toBe(true);
+    // No hint element and none of the off-screen-pointing sentence —
+    // the hero sits inside the composer path now, so the signpost is
+    // redundant at best.
+    expect(qs('.welcome-hint')).toBeNull();
+    const offenders = dom.document.documentElement
+      ._walk()
+      .filter(
+        (el) =>
+          el.children.length === 0 &&
+          el.textContent.includes('在下方输入框'),
+      );
+    expect(offenders).toHaveLength(0);
     await unmount();
   });
 

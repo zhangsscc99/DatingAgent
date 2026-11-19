@@ -14,8 +14,7 @@
  * whose whole job is focusing #chat-input (it sends nothing), while
  * the prompts live on as a secondary, lighter group that still sends
  * on tap. The copy lives here so the component maps one shared list
- * instead of hard-coding it (same convention as heroHint.ts and
- * starterEntries.ts).
+ * instead of hard-coding it (same convention as starterEntries.ts).
  */
 export const HERO_PRIMARY_LABEL = '说说你的情况';
 

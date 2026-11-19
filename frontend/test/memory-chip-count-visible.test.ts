@@ -12,12 +12,15 @@ import {
   type FakeDom,
 } from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
-import { COARSE_POINTER_QUERY } from '../src/lib/heroHint';
 import {
   MEMORY_RECEIPT_MAX_ITEMS,
   MEMORY_RECEIPT_PREFIX,
 } from '../src/lib/memoryReceipt';
 import type { ChatMessage, ConversationMemory, MemoryFact } from '../src/types';
+
+// P394: heroHint.ts is gone with the hint — the media query constant
+// this stub matches against is inlined here.
+const COARSE_POINTER_QUERY = '(pointer: coarse)';
 
 /**
  * P363 — device-level regression for the memory capsule's fact count.

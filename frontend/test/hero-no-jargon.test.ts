@@ -62,16 +62,21 @@ describe('P229 · empty-state hero copy carries no framework jargon', () => {
     expect(html).not.toContain('架构驱动');
   });
 
-  it('drops the passive capability cards — one shared hero CTA + starter chips (P380)', () => {
+  it('drops the passive capability cards — one shared hero CTA, no capsules (P380/P394)', () => {
     const html = renderEmptyState();
     // P380: the three explanation cards were the removable half of the
-    // desktop's 7 competing entries — the shared primary button leads
-    // and the four starter chips stay as the secondary entries.
+    // desktop's 7 competing entries — the shared primary button leads.
+    // P394: the starter capsules left the hero too (the sidebar's
+    // 快捷入口 owns the four names now), and the off-screen-pointing
+    // hint line is gone. SSR renders the ≥769px hero (no window), so
+    // the markup is the desktop empty state.
     expect(html.match(/class="feature"/g)).toBeNull();
     for (const title of CARD_TITLES) {
       expect(html).not.toContain(title);
     }
     expect(html).toContain('data-testid="hero-primary-cta"');
-    expect(html.match(/class="starter-chip(?:\s[^"]*)?"/g)).toHaveLength(4);
+    expect(html.match(/class="starter-chip(?:\s[^"]*)?"/g)).toBeNull();
+    expect(html).not.toContain('welcome-hint');
+    expect(html).not.toContain('在下方输入框');
   });
 });

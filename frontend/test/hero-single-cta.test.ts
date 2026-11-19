@@ -877,13 +877,15 @@ describe('P374 · one obvious primary action on the mobile first screen', () => 
     await mount(1440);
     // P380: the desktop empty state shares the one real button; the
     // compact-only example group and the three explanation cards stay
-    // off it — chips + hint remain the secondary entries.
+    // off it. P394: the starter capsules moved to the sidebar's 快捷入口
+    // and the off-screen-pointing hint line is gone — the centre is one
+    // input path now.
     const cta = qs('[data-testid="hero-primary-cta"]');
     expect(cta).not.toBeNull();
     expect(cta!.tagName).toBe('BUTTON');
     expect(qsa('.hero-cta-card')).toHaveLength(0);
-    expect(qsa('.starter-chip')).toHaveLength(STARTER_ENTRIES.length);
-    expect(qs('.welcome-hint')).not.toBeNull();
+    expect(qsa('.starter-chip')).toHaveLength(0);
+    expect(qs('.welcome-hint')).toBeNull();
     expect(qsa('.feature')).toHaveLength(0);
     await unmount();
   });

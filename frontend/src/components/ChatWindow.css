@@ -374,20 +374,9 @@
   color: var(--accent);
 }
 
-/* P312: the brand action moved to the composer's send key — the hint
-   pointing at it is passive copy in the same muted register.
-   P388: the line moved out of the hero to a normal-flow strip directly
-   above the composer it names — the ~290px hero→composer gap had it
-   pointing off-screen. */
-.chat-window > .welcome-hint {
-  flex-shrink: 0;
-  margin: 0;
-  padding: 0 16px 6px;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 18px;
-  text-align: center;
-}
+/* P394 — the 「在下方输入框…」 welcome-hint strip is removed with the
+   element: it pointed off-screen while mid-hero, and pinned above the
+   composer it was still a redundant signpost on a one-path first screen. */
 
 /* P374 — the compact first screen's ONE explicit primary action: a real
    button that focuses the composer and sends nothing (rendered only

@@ -722,9 +722,9 @@ describe('P378 · sidebar chrome density — borders, inset filter, one clear-al
               el.classList.contains('tool-entry') ||
               el.classList.contains('recent-chat-trash'),
           );
-        // P388: ≥769px the aside's 快捷入口 section doesn't mount (the
-        // centre chips own the desktop copy), so only the five tool rows
-        // and the 回收站 row remain of this set.
+        // P394: the aside's 快捷入口 rows render at every width now —
+        // the hero's capsules left the desktop, so the four quick rows
+        // join the five tool rows and the 回收站 row at both sizes.
         expect(rows.length).toBeGreaterThanOrEqual(vp.width <= 768 ? 10 : 6);
         for (const el of rows) {
           expect(

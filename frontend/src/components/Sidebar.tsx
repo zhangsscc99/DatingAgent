@@ -32,7 +32,7 @@ import { toolDisplayName } from '../lib/toolLabels';
 import { toolPromptFor } from '../lib/toolPrompts';
 import { STARTER_ENTRIES } from '../lib/starterEntries';
 import type { StarterIconKey } from '../lib/starterEntries';
-import type { ToolInfo, UserProfile } from '../types';
+import type { ChatIntent, ToolInfo, UserProfile } from '../types';
 import './Sidebar.css';
 
 // P164 moved the matcher to lib/sessionFilter.ts; re-exported so existing
@@ -50,7 +50,7 @@ interface Props {
    * ignored below the mobile breakpoint (the drawer owns open/close there). */
   collapsed?: boolean;
   onClose?: () => void;
-  onQuickPrompt: (prompt: string) => void;
+  onQuickPrompt: (prompt: string, intent?: ChatIntent) => void;
   onNewChat: () => void;
   onSelectChat?: (sessionId: string) => void;
   onDeleteChat?: (sessionId: string) => void;
@@ -806,15 +806,14 @@ export default function Sidebar({
           )
         )}
 
-        {/* P388: ≥769px the welcome hero already enumerates the same four
-            STARTER_ENTRIES as tappable .starter-chip capsules — mounting
-            the identical rows here gave every name TWO visible entries on
-            the desktop first screen (walk-1795109419/walk-1795115528), so
-            the section is compact-only like the profile card above. At
-            ≤768px the hero's chips collapse to non-interactive pills
-            (P343), so the drawer keeps these rows as the phone's one
-            tappable starter path. */}
-        {!wideViewport && (
+        {/* P394: the four names used to render TWICE on the desktop first
+            screen — these rows plus the hero's identical .starter-chip
+            capsules. The centre capsules are gone now, so this section is
+            the single copy of the starter entries at every width (the
+            phone keeps it as the drawer's tappable starter path — the
+            hero only renders non-interactive pills there). Entries that
+            carry an intent open the hero's intake panel on desktop; the
+            rest prefill the composer, same as before. */}
         <section className="sidebar-section" aria-label="快捷入口">
           <h3>快捷入口</h3>
           <div className="quick-prompts">
@@ -823,7 +822,7 @@ export default function Sidebar({
                 key={p.label}
                 className="quick-btn"
                 data-control="row"
-                onClick={() => onQuickPrompt(p.prompt)}
+                onClick={() => onQuickPrompt(p.prompt, p.intent)}
                 disabled={busy}
                 aria-disabled={busy || undefined}
                 title={busy ? '回复生成中，请稍候' : undefined}
@@ -836,7 +835,6 @@ export default function Sidebar({
             ))}
           </div>
         </section>
-        )}
 
         <section className="sidebar-section" aria-label="进阶工具">
           {/* P378: the whole block folds into a disclosure group, collapsed

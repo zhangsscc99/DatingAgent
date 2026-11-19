@@ -94,26 +94,25 @@ describe('P290/P312 · one primary CTA on the first screen — the composer send
     expect(welcome).not.toContain('data-primary-cta');
   });
 
-  it('the welcome block keeps the hint on desktop — and P380 shares the same hero button', () => {
+  it('the welcome block drops the hint — P380 shares the same hero button, P394 drops the off-screen copy', () => {
     // SSR renders the ≥769px hero (no window → compactFeatures false), so
-    // the markup keeps the hint paragraph AND — since P380 — the same
-    // hero-primary-cta button the compact screen mounts.
+    // the markup carries the hero-primary-cta button the compact screen
+    // mounts — and, since P394, none of the 「在下方输入框…」 guidance:
+    // it pointed off-screen while mid-hero and stayed a redundant
+    // signpost once pinned above the composer.
     const markup = renderWelcome();
-    expect(markup).toContain('class="welcome-hint"');
-    expect(markup).toContain('在下方输入框');
+    expect(markup).not.toContain('class="welcome-hint"');
+    expect(markup).not.toContain('在下方输入框');
     expect(markup).not.toContain('welcome-primary-cta');
     expect(markup).toContain('说说你的情况');
     expect(markup).toContain('hero-primary-cta');
-    // The hint is a paragraph; the shared hero button is the one welcome
-    // element allowed to reach the composer — and only to focus it,
-    // never to send.
-    // P388: the hint moved out of the hero to directly above the
-    // composer, so the first-screen block runs to the <InputBar> mount.
+    // The shared hero button is the one welcome element allowed to reach
+    // the composer — and only to focus it, never to send.
     const welcomeBlock = chatWindowTsx.slice(
       chatWindowTsx.indexOf('className="welcome'),
       chatWindowTsx.indexOf('<InputBar\n'),
     );
-    expect(welcomeBlock).toContain('<p className="welcome-hint">');
+    expect(welcomeBlock).not.toContain('welcome-hint');
     expect(welcomeBlock).toContain('data-testid="hero-primary-cta"');
     expect(welcomeBlock).toContain('inputRef.current?.focus()');
   });
@@ -196,14 +195,11 @@ describe('P290 · every other first-screen action is secondary', () => {
     expect(markup).toContain('完善资料，获得更个性化建议');
   });
 
-  it('the welcome hint reads as muted guidance, not a control', () => {
+  it('the welcome hint is gone — element and rule retired together (P394)', () => {
     const rule = ruleBody(chatWindowCss, '.chat-window > .welcome-hint');
-    expect(rule).not.toBe('');
-    // Passive copy: no accent, no border, no cursor affordance.
-    expect(rule).not.toContain('var(--accent)');
-    expect(rule).not.toContain('cursor');
+    expect(rule).toBe('');
     const markup = renderWelcome();
-    expect(markup).toContain('<p class="welcome-hint">');
+    expect(markup).not.toContain('welcome-hint');
   });
 
   it('the profile nudge is absent on the empty first screen and muted when it appears', () => {

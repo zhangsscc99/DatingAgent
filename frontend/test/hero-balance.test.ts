@@ -574,7 +574,7 @@ describe('P343 · desktop ≥769px keeps the full welcome block', () => {
     dom.document.querySelector(sel) as FakeElement | null;
   const qsa = (sel: string) => dom.document.querySelectorAll(sel);
 
-  it('1440-wide render: tappable chips, shared hero CTA and a real footnote button', async () => {
+  it('1440-wide render: shared hero CTA and a real footnote button — no capsules (P394)', async () => {
     dom = installFakeDom();
     const mq = mediaQueryForWidth(1440);
     (dom.window as Record<string, unknown>).matchMedia = mq;
@@ -598,8 +598,10 @@ describe('P343 · desktop ≥769px keeps the full welcome block', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    // P355: four chips — every shared STARTER_ENTRIES row is tappable.
-    expect(qsa('.starter-chip')).toHaveLength(STARTER_ENTRIES.length);
+    // P394: the centre capsules are gone — the sidebar's 快捷入口 owns
+    // the four names on desktop, and the pills stay compact-only.
+    expect(qsa('.starter-chip')).toHaveLength(0);
+    expect(qs('.starter-chips')).toBeNull();
     expect(qs('.starter-chips-line')).toBeNull();
     const cta = qs('.welcome-cta');
     expect(cta).not.toBeNull();

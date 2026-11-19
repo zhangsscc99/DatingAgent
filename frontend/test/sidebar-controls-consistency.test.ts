@@ -445,10 +445,10 @@ describe('P361 · sidebar entries share one control language', () => {
         const marked = aside!
           ._walk()
           .filter((el) => el.getAttribute('data-control') === 'row');
-        // P388: the 快捷入口 rows don't mount at ≥769px — the desktop
-        // count drops by the four starter entries (the centre hero chips
-        // own that copy now).
-        const quickRows = vp.width <= 768 ? 4 : 0;
+        // P394: the 快捷入口 rows mount at every width again — the
+        // hero's capsules left the desktop, so these four rows are the
+        // single copy of the starter entries.
+        const quickRows = 4;
         expect(marked.length).toBeGreaterThanOrEqual(
           1 + 1 + quickRows + TOOL_FALLBACK.length + 1, // new-chat + session + quick + tools + 设置
         );
@@ -468,11 +468,9 @@ describe('P361 · sidebar entries share one control language', () => {
         const marked = aside
           ._walk()
           .filter((el) => el.getAttribute('data-control') === 'row');
-        // P388: ≥769px the 快捷入口 rows don't mount, so the desktop set
-        // is four entries smaller than the drawer's.
-        expect(marked.length).toBeGreaterThanOrEqual(
-          vp.width <= 768 ? 10 : 6,
-        );
+        // P394: the 快捷入口 rows mount at both widths — the desktop set
+        // matches the drawer's now.
+        expect(marked.length).toBeGreaterThanOrEqual(10);
 
         for (const prop of ['border-radius', 'padding', 'min-height']) {
           const values = new Map<string, string[]>();

@@ -22,11 +22,15 @@ import type { ChatIntent } from '../src/types';
  * P345 — the welcome starter capsules used to be dead options: each
  * click just prefilled a fixed sentence, so picking one was identical to
  * typing it (and the request carried no signal at all). They are now
- * structural branches — a chip opens its own intake (缺哪项资料 / 她的
+ * structural branches — an entry opens its own intake (缺哪项资料 / 她的
  * 原话 / 城市·预算·第几次), assembles a per-branch first message into the
  * composer, and the send carries that branch's `intent` on /api/chat.
- * P355: the chips render the shared STARTER_ENTRIES labels (the drawer
- * copy), so the scenario labels below are the sentence-shaped ones.
+ * P355: the entries render the shared STARTER_ENTRIES labels.
+ * P394: the hero's own capsules are gone — the sidebar's 快捷入口 rows
+ * are the single copy of the four names on desktop, and a row carrying
+ * an intent opens the same intake inside the empty-state hero (routed
+ * through ChatWindow's openStarterIntent handle). The trigger below is
+ * therefore the `.quick-btn` row, not a `.starter-chip`.
  *
  * Mounted-App assertions on the fake DOM (same harness as
  * sidebar-tool-entries.test.ts): three different intake shapes, three
@@ -114,7 +118,7 @@ describe('P345 · starter capsules are structural branches (mounted App)', () =>
   };
 
   const install = () => {
-    dom = installFakeDom(); // matchMedia matches nothing → desktop, chips render
+    dom = installFakeDom(); // matchMedia matches nothing → desktop, 快捷入口 rows render
     stream = new ControlledSseStream();
     vi.stubGlobal(
       'fetch',
@@ -178,14 +182,17 @@ describe('P345 · starter capsules are structural branches (mounted App)', () =>
       await mountApp();
       const sentBefore = chatBodies.length;
 
-      // The chip toggles its intake open — no more cosmetic prefill.
-      const chip = dom.document
-        .querySelectorAll('.starter-chip')
-        .find((b) => b.getAttribute('aria-label') === scenario.label);
-      await click(chip);
+      // The sidebar row opens its intake inside the hero — no more
+      // cosmetic prefill.
+      const row = dom.document
+        .querySelectorAll('.quick-btn')
+        .find(
+          (b) =>
+            b.getAttribute('aria-label') === `快捷提问：${scenario.label}`,
+        );
+      await click(row);
       const panel = qs('.starter-intake');
       expect(panel, 'intake panel').not.toBeNull();
-      expect(chip!.getAttribute('aria-expanded')).toBe('true');
       // The composer is NOT prefilled by the click alone.
       expect((qs('#chat-input') as FakeElement).value).toBe('');
 
@@ -225,12 +232,16 @@ describe('P345 · starter capsules are structural branches (mounted App)', () =>
   it('each intake branch has its own field shape', async () => {
     install();
     await mountApp();
-    const chips = dom.document.querySelectorAll('.starter-chip');
-    // P355: four chips — the whole shared STARTER_ENTRIES list renders.
-    expect(chips).toHaveLength(4);
+    const rows = dom.document.querySelectorAll('.quick-btn');
+    // P355/P394: four rows — the whole shared STARTER_ENTRIES list renders.
+    expect(rows).toHaveLength(4);
 
     const shapeOf = async (label: string) => {
-      await click(chips.find((b) => b.getAttribute('aria-label') === label));
+      await click(
+        rows.find(
+          (b) => b.getAttribute('aria-label') === `快捷提问：${label}`,
+        ),
+      );
       const panel = qs('.starter-intake');
       const shape = {
         options: panel?.querySelectorAll('.starter-intake-option').length ?? 0,

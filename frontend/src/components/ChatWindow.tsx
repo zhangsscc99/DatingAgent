@@ -30,7 +30,6 @@ import {
   shouldShowProfileNudge,
 } from '../lib/profileNudge';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-import { COARSE_POINTER_QUERY, heroHint } from '../lib/heroHint';
 import { HERO_EXAMPLE_PROMPTS, HERO_PRIMARY_LABEL } from '../lib/heroCta';
 import {
   MEMORY_RECEIPT_MAX_ITEMS,
@@ -149,6 +148,12 @@ export interface ChatWindowHandle {
   /** P316: drop a ready-to-edit prompt into the composer — the same
    * inputRef.prefill path the welcome chips use; never auto-sends. */
   prefillComposer: (text: string) => void;
+  /** P394: open the starter intake for `intent` inside the empty-state
+   * hero — the desktop replacement for the removed starter chips. Returns
+   * false when the hero isn't up (mid-conversation, restoring, search
+   * open) or the layout is compact, so the caller can fall back to the
+   * plain composer prefill. */
+  openStarterIntent: (intent: ChatIntent) => boolean;
 }
 
 const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
@@ -202,15 +207,13 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // quiet non-interactive summary line so the phone first screen keeps a
   // single focus — the composer send key.
   const compactFeatures = useMediaQuery('(max-width: 768px)');
-  // P350: the hero hint must describe the affordance the device actually has —
-  // a touch phone has no Enter key, only the composer's send button.
-  const coarsePointer = useMediaQuery(COARSE_POINTER_QUERY);
-  const startHint = heroHint({ coarsePointer, narrowViewport: compactFeatures });
 
-  // P345: which starter intake is open under the chips (null = the three
-  // capsules sit idle), and the intent armed by the last intake fill —
-  // attached to the very next send, then cleared. A typed message that
-  // never touched a starter sends no intent.
+  // P345: which starter intake is open in the hero (null = none), and the
+  // intent armed by the last intake fill — attached to the very next send,
+  // then cleared. A typed message that never touched a starter sends no
+  // intent. P394: the hero's own starter capsules are gone (the sidebar's
+  // 快捷入口 owns the four names on desktop now), so the intake opens via
+  // the openStarterIntent handle instead of a chip toggle.
   const [activeStarter, setActiveStarter] = useState<ChatIntent | null>(null);
   const [pendingIntent, setPendingIntent] = useState<ChatIntent | null>(null);
 
@@ -605,10 +608,26 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const prefillComposer = useCallback((text: string) => {
     inputRef.current?.prefill(text);
   }, []);
-  useImperativeHandle(ref, () => ({ openSearch, prefillComposer }), [
-    openSearch,
-    prefillComposer,
-  ]);
+  // P394: the sidebar's 快捷入口 rows drive the starter intake now — the
+  // hero's own capsules are gone from the desktop empty state. Only the
+  // desktop hero can host the panel, so anything else reports failure and
+  // the caller falls back to a plain composer prefill (the mobile drawer
+  // path keeps prefilling, as it always has).
+  const openStarterIntent = useCallback(
+    (intent: ChatIntent): boolean => {
+      if (restoring || searchOpen || messages.length > 0 || compactFeatures) {
+        return false;
+      }
+      setActiveStarter(intent);
+      return true;
+    },
+    [restoring, searchOpen, messages.length, compactFeatures],
+  );
+  useImperativeHandle(
+    ref,
+    () => ({ openSearch, prefillComposer, openStarterIntent }),
+    [openSearch, prefillComposer, openStarterIntent],
+  );
 
   // P375: publish the composer's live height as --composer-h so .messages
   // can hold a scroll-end inset of composer+16px — the tail bubble then
@@ -696,6 +715,12 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // P343: the one condition under which the welcome hero renders — the
   // scrollport modifier hangs off the same flag so the two can never drift.
   const heroVisible = !restoring && !searchOpen && messages.length === 0;
+  // P394: the intake lives inside the hero — if the hero drops out (a send
+  // lands, a session restores, search opens) any armed panel goes with it
+  // instead of popping back armed on the next empty state.
+  useEffect(() => {
+    if (!heroVisible) setActiveStarter(null);
+  }, [heroVisible]);
 
   return (
     <div className="chat-window">
@@ -859,12 +884,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 ))}
               </div>
             )}
-            {/* P388: the 「在下方输入框…」 guidance line used to sit here —
-                the ~290px hero→composer gap had it pointing off-screen.
-                It now renders directly above the composer itself, still
-                desktop-only (the compact screen's primary button below
-                does the pointing and the first screen's auxiliary-copy
-                budget is two muted lines). */}
+            {/* P394: the 「在下方输入框…」 guidance line is gone for good —
+                it pointed off-screen while mid-hero, and even pinned above
+                the composer it stayed a redundant second signpost on a
+                first screen that converges on ONE input path. */}
             {/* P374: the compact first screen gets ONE obvious action — a
                 real primary button that focuses #chat-input and sends
                 nothing. The three example prompts stay on as a secondary,
@@ -923,17 +946,14 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 </div>
               )}
             </div>
-            {/* P343: ≤768px demotes the starter chips to muted,
-                non-interactive copy — text, not button-chrome — so the
-                hero's primary button stays the first screen's obvious
-                action. The tappable chips keep working ≥769px.
-                P355: both forms enumerate the shared STARTER_ENTRIES — the
-                same four entries the sidebar「快捷入口」lists, in the same
-                order, never a second hardcoded list.
-                P374: the ·-joined sentence broke mid-phrase at 390px, so
-                each label is now its own nowrap pill — the row wraps only
-                between pills, never inside one. */}
-            {compactFeatures ? (
+            {/* P343/P374: at ≤768px the four starters render as one muted,
+                non-interactive line of wrap-safe pills — the sidebar
+                drawer's 快捷入口 rows are the phone's tappable path.
+                P394: the desktop capsules are gone entirely — the same
+                four names lived TWICE on the first screen (aside rows +
+                this row), so the aside's 快捷入口 is now the single copy
+                at ≥769px too. */}
+            {compactFeatures && (
               <p className="starter-chips-line">
                 <span className="starter-chips-lead">也可以直接问：</span>
                 {STARTER_ENTRIES.map((s) => (
@@ -942,42 +962,13 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                   </span>
                 ))}
               </p>
-            ) : (
-              <div className="starter-chips" role="group" aria-label="开始话题">
-                {STARTER_ENTRIES.map((s) => {
-                  const expands = s.intent !== undefined;
-                  const active = expands && activeStarter === s.intent;
-                  return (
-                    <button
-                      key={s.label}
-                      type="button"
-                      className="starter-chip secondary"
-                      aria-label={s.label}
-                      aria-expanded={expands ? active : undefined}
-                      data-active={active ? 'true' : undefined}
-                      onClick={() => {
-                        const intent = s.intent;
-                        if (intent) {
-                          setActiveStarter((cur) =>
-                            cur === intent ? null : intent,
-                          );
-                        } else {
-                          // P355: no intake branch — the entry's own prompt
-                          // prefills the composer (never a dead option).
-                          setActiveStarter(null);
-                          inputRef.current?.prefill(s.prompt);
-                        }
-                      }}
-                    >
-                      {s.label}
-                    </button>
-                  );
-                })}
-              </div>
             )}
-            {/* P345: the branch's intake sits under the chips — each
+            {/* P345/P394: the branch's intake sits in the hero — each
                 starter asks for its own inputs and assembles a first
-                message that prefills the composer with its intent armed. */}
+                message that prefills the composer with its intent armed.
+                The desktop trigger is the sidebar's 快捷入口 row (routed
+                through openStarterIntent); a non-intent entry prefills
+                straight away and never reaches here. */}
             {!compactFeatures && activeStarter !== null && (
               <StarterIntake
                 key={activeStarter}
@@ -989,7 +980,8 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
             {/* P380: the three explanation cards are gone — they were the
                 passive half of the first screen's 7 competing entries,
                 and their copy overlaps the subtitle. What remains: one
-                primary button above and the secondary starter chips. */}
+                primary button. P394: the starter capsules left with them —
+                the sidebar's 快捷入口 owns the four names now. */}
             {/* P336/P343: the「完善资料」entry sits at the foot of the
                 welcome block — a footnote link, not a control in the main
                 flow. At ≤768px it drops out of the button pool entirely:
@@ -1134,14 +1126,10 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
           </button>
         </div>
       )}
-      {/* P388: the 「在下方输入框…」 hint moved out of the hero to a
-          normal-flow strip directly above the composer it names — kept,
-          but now adjacent to its target instead of pointing off-screen.
-          Same visibility conditions it had inside .welcome (desktop
-          empty state only). */}
-      {heroVisible && !compactFeatures && (
-        <p className="welcome-hint">{startHint}</p>
-      )}
+      {/* P394: the 「在下方输入框…」 guidance line is gone — it named a
+          target off-screen for most of the empty state's life, and with
+          the hero pulled within 160px of the composer the input path
+          needs no signpost. */}
       <InputBar
         ref={inputRef}
         // P336: on the empty first screen the composer is the single

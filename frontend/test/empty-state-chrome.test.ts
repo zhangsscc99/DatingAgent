@@ -25,9 +25,9 @@ import {
  *    desktop too), and the popover itself mounts nothing but the language
  *    row;
  *  - .recent-chat-filter does not render while the session list is empty;
- *  - the welcome's start button is gone — passive .welcome-hint copy
- *    instead — leaving exactly ONE [data-primary-cta] element on the
- *    screen, the composer's send key;
+ *  - the welcome's start button and the passive .welcome-hint copy are
+ *    both gone (P394) — leaving exactly ONE [data-primary-cta] element
+ *    on the screen, the composer's send key;
  *  - P320: the sidebar「+ 新对话」drops its solid brand fill for a
  *    `secondary` outline while pristine — it was the second pink solid
  *    competing with the composer CTA on the 1440×900 first screen;
@@ -199,7 +199,8 @@ describe('P312 · empty-state chrome', () => {
 
     // .welcome shares one focus-only primary button at every width —
     // P380 mounts P374's hero CTA on desktop too (a data-testid, never
-    // the send key's data-primary-cta); the hint stays desktop-only.
+    // the send key's data-primary-cta); P394 retires the hint line at
+    // every width (it pointed off-screen on desktop).
     const welcome = qs('.welcome');
     expect(welcome, label).not.toBeNull();
     expect(welcome!.querySelector('[data-primary-cta]')).toBeNull();
@@ -207,17 +208,9 @@ describe('P312 · empty-state chrome', () => {
     const hero = welcome!.querySelector('[data-testid="hero-primary-cta"]');
     expect(hero, label).not.toBeNull();
     expect(hero!.tagName).toBe('BUTTON');
-    // P388: the hint moved out of .welcome to a normal-flow strip right
-    // above the composer it names — query document-wide, and pin that it
-    // no longer lives inside the hero.
-    const hint = qs('p.welcome-hint');
-    if (narrow) {
-      expect(hint).toBeNull();
-    } else {
-      expect(hint).not.toBeNull();
-      expect(hint!.closest('.welcome')).toBeNull();
-      expect(hint!.textContent).toContain('输入框');
-    }
+    // P394: the 「在下方输入框…」 strip is gone at both widths — the
+    // hero sits within the composer path now.
+    expect(qs('p.welcome-hint')).toBeNull();
   };
 
   afterAll(() => {

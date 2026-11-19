@@ -47,7 +47,7 @@ describe('P172 · quick prompt busy gate', () => {
     it('App.tsx gates the quick-prompt handler before closeSidebar', () => {
       const app = read('App.tsx');
       expect(app).toContain("from './lib/quickPromptGate'");
-      const handler = app.slice(app.indexOf('onQuickPrompt={(prompt)'));
+      const handler = app.slice(app.indexOf('onQuickPrompt={(prompt'));
       const handlerBlock = handler.slice(0, handler.indexOf('}}'));
       // The busy gate must early-return before handleQuickPrompt/closeSidebar.
       expect(handlerBlock.indexOf('canRunQuickPrompt(loading')).toBeGreaterThanOrEqual(0);
@@ -55,7 +55,7 @@ describe('P172 · quick prompt busy gate', () => {
         handlerBlock.indexOf('closeSidebar()'),
       );
       // closeSidebar is not called unconditionally on the quick-prompt path.
-      expect(handlerBlock).not.toMatch(/onQuickPrompt=\{\(prompt\) => \{\s*handleQuickPrompt/);
+      expect(handlerBlock).not.toMatch(/onQuickPrompt=\{\(prompt[^)]*\) => \{\s*handleQuickPrompt/);
     });
   });
 });

@@ -28,11 +28,11 @@ import { STARTER_ENTRIES } from '../src/lib/starterEntries';
  *  2. 390×844 — the mobile single-line description is generated from the
  *     same array (all four names, same order); the drawer lists the same
  *     four buttons.
- *  3. 1440×900 — the four starter chips are the ONLY copy of the four
- *     names: P388 removed the desktop drawer's identical 快捷入口 section
- *     (two visible entries per name was the measured defect); the
- *     intent-less fourth chip still does real work (prefills the
- *     composer, never a dead option).
+ *  3. 1440×900 — the aside's 快捷入口 rows are the ONLY copy of the four
+ *     names: P394 removed the hero's identical starter capsules (two
+ *     visible entries per name was the measured defect); an intent-less
+ *     row still does real work (prefills the composer, never a dead
+ *     option) and an intent row opens the hero's intake panel.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -173,21 +173,24 @@ describe('P355 · welcome starters and 快捷入口 share one source', () => {
     await unmountApp();
   });
 
-  it('1440×900: the centre chips are the single copy — the 快捷入口 section stays off the desktop aside (P388)', async () => {
+  it('1440×900: the aside rows are the single copy — the hero capsules are gone (P394)', async () => {
     await mountApp(1440);
-    const chips = qsa('.starter-chip');
-    expect(chips.map((b) => b.getAttribute('aria-label'))).toEqual(LABELS);
-    // P388: the persistent aside's identical rows were the second visible
-    // entry for every name — the section does not mount at ≥769px at all
-    // (real conditional rendering, not hidden DOM). The mobile drawer
-    // keeps it, where the hero only renders non-interactive pills.
-    expect(qsa('.quick-btn')).toHaveLength(0);
-    expect(qs('[aria-label="快捷入口"]')).toBeNull();
+    // P394: the hero's .starter-chip capsules were the second visible
+    // entry for every name — they do not mount at ≥769px at all (real
+    // conditional rendering, not hidden DOM). The aside keeps the
+    // section, where its rows stay the working starter path.
+    expect(qsa('.starter-chip')).toHaveLength(0);
+    expect(qs('.starter-chips')).toBeNull();
+    expect(qs('[aria-label="快捷入口"]')).not.toBeNull();
+    const quick = qsa('.quick-btn');
+    expect(quick.map((b) => b.getAttribute('aria-label'))).toEqual(
+      LABELS.map((l) => `快捷提问：${l}`),
+    );
 
-    // The fourth chip is not a dead option: no intake branch, so it
-    // prefills the composer with its own prompt instead.
-    const fourth = chips.find(
-      (b) => b.getAttribute('aria-label') === '我们合不合适',
+    // The intent-less fourth entry is not a dead option: no intake
+    // branch, so it prefills the composer with its own prompt instead.
+    const fourth = quick.find(
+      (b) => b.getAttribute('aria-label') === '快捷提问：我们合不合适',
     );
     await click(fourth);
     await flush();
