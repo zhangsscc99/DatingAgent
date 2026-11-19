@@ -3267,3 +3267,4 @@ step10| 桌面首屏 d1        | 清晰度 4/5 | 层级 4/5 | 排版问题: 无�
 - **P368（P3，visual）** 侧栏控件趋同 + 虚线泛滥（第 3 次）。
 - **P369（P1，test）** 侧栏「筛选」「清空」缺可执行的机器断言，导致走查只能靠肉眼判存疑。
 ⚠️ 全量 E2E 失败：`first-token-latency.test.ts` › "typing indicator mounts within 300 ms of submit"（elapsed 334ms > 300ms，隔离单文件 2 次全绿 → 墙钟抖动；commit `79ea75d`，2026-11-19T09:27Z，已建阻塞项 DAE2E-20261119）
+| 2026-11-19 10:35 | P363 | devin swe-2-medium 报 `Reached free model rate limit`（reset in 23 minutes / 11:01 UTC），未留下任何改动（工作树干净） | Hermes 调度器（opencode-go / deepseek-v4.1-flash） | 实测定案：线上构建 390×844 下胶囊已是「记得 4 件事 + 3 pill + +1」、text-overflow clip、scrollWidth==clientWidth，原报为旧构建；补设备级回归 frontend/test/memory-chip-count-visible.test.ts（4 例 2 连绿） |
