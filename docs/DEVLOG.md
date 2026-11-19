@@ -274,3 +274,4 @@
 2026-11-19 00:19 | P345 | 三个起始胶囊改为结构化分支：桌面点 chip 不再预填固定句，而是展开各自追问表单（资料优化→缺的资料多选、聊天指导→贴她的原话 textarea、约会规划→城市/预算/第几次），assembleStarterMessage 组装真实首条消息填入输入框并 arm 该分支 intent（profile/chat-coach/date-plan）随 /api/chat 请求体发送，手动打字不带 intent；后端 parseChatIntent 校验（非法值 400 与既有枚举口径一致），harness.run 第 6 参仅在 conversationHistory 为空时把 STARTER_INTENT_SKELETONS 对应骨架钉进 system 尾部（三段式补资料示例 / 解读原话+一句可发回复 / 时段行程单，三条首句与结构互不相同），≤768px 维持 P343 被动提示行；新增 frontend/test/starter-intent.test.ts（挂载实测三 intake 形态、预填文案两两不同、请求体 intent 各值各异、手打无 intent）与 backend/test/starter-intent.test.ts（bigram-Jaccard <0.8、首句两两不同、400 口径、第二轮不再钉骨架）；193→195 文件 1539 例全绿，ci-deploy 通过（health 200 + smoke "OK"）
 2026-11-19 01:02 | P346 | 折叠阈值统一 400 字 + 「展开剩余 N 字」 + 底部渐隐（补测并复核）
 2026-11-19 01:30 | P347 | 搜索空态三行化：主文案 / 说明 / 独立「清除筛选」按钮（≥88px、间距≥8px）
+2026-11-19 02:40 | P348 | 底部工具条统一 16px 内边距与 48px 高度，「回答适中」与发送键同基线

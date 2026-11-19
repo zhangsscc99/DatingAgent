@@ -609,11 +609,13 @@ describe('P337 · the composer tool row is one control family', () => {
     expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(4);
   });
 
-  it('the three tool controls share one border-radius', () => {
-    const radii = TOOL_SELECTORS.map(toolRadius);
-    expect(new Set(radii).size).toBe(1);
+  it('the icon keys share one border-radius; the cycler wears the app chip pill (P348)', () => {
+    const iconRadii = ['.input-hint-btn', '.input-bar .input-send'].map(
+      toolRadius,
+    );
+    expect(new Set(iconRadii).size).toBe(1);
     // …and the shared token resolves to a real px value in :root.
-    const varRef = /^var\((--[a-z-]+)\)$/.exec(radii[0]);
+    const varRef = /^var\((--[a-z-]+)\)$/.exec(iconRadii[0]);
     const rootBody = /:root\s*\{([^}]*)\}/.exec(indexCss);
     expect(rootBody).toBeTruthy();
     if (varRef) {
@@ -623,6 +625,9 @@ describe('P337 · the composer tool row is one control family', () => {
       expect(px, `${varRef[1]} resolves in :root`).toBeTruthy();
       expect(Number(px![1])).toBeGreaterThan(0);
     }
+    // P348: 「回答适中」 is the app's capsule chip (same 999px radius as
+    // .memory-capsule / .starter-chip), not the square control radius.
+    expect(toolRadius('.reply-length-toggle')).toBe('999px');
   });
 
   it('mounted: rendered tool-row controls share one height — 390px and 500px', async () => {

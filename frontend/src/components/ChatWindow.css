@@ -415,12 +415,13 @@
     color: var(--text-secondary);
   }
 
-  /* P309 — the send key must land at the bottom-right corner of the bar,
-     so the horizontal inset shrinks to 8px: .input-tools (now a full-width
-     row in InputBar.css) can push it flush right, and the row still covers
-     ≥95% of the bar's width at 390px (374/390). */
+  /* P309/P348 — the send key stays pinned to the bottom-right corner by
+     .input-tools' full-width row + margin-left:auto, but the bar keeps
+     the page's 16px gutter (the same inset .messages reserves above) —
+     the old 8px edge-hug left 「回答适中」 hard against the bezel and the
+     composer column narrower than the bubble column it sits under. */
   .input-bar {
-    padding: 12px 8px;
+    padding: 12px 16px;
   }
 
   /* P260 — the 「完善资料」 chip measured 70×24; raise it to the ≥36px

@@ -227,33 +227,41 @@
   flex-shrink: 0;
 }
 
-/* P205: reply-length cycler in the composer tool row — same height/border
-   treatment as the shortcut hint button so the row keeps its shape; a
-   non-default 档位 tints the chip so the active preference reads at a glance. */
+/* P205/P348: reply-length cycler in the composer tool row — the app's
+   capsule treatment (.memory-capsule / .starter-chip: 999px pill on the
+   --bg field fill, --text-secondary label, accent-soft hover) so it reads
+   as a designed chip next to the send key, not a bare system button; a
+   non-default 档位 keeps the accent tint so the active preference reads
+   at a glance. Same 44px row height keeps the row on one baseline. */
 .reply-length-toggle {
   height: 44px;
-  padding: 0 10px;
+  padding: 0 14px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--muted, #8a8a92);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
   flex-shrink: 0;
   cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
 .reply-length-toggle:hover {
   color: var(--text);
   border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .reply-length-toggle[data-length='concise'],
 .reply-length-toggle[data-length='detailed'] {
   color: var(--accent);
   border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .reply-length-toggle:focus-visible {
@@ -364,7 +372,7 @@
 
   .reply-length-toggle {
     height: 48px;
-    padding: 0 8px;
+    padding: 0 14px;
   }
 }
 

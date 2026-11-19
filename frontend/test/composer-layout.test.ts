@@ -16,9 +16,11 @@ import { installFakeDom, type FakeDom } from './helpers/fakeDom';
  * corner where a thumb expects it. The fix is pure CSS, mobile-only:
  * .input-tools takes a full-width row of .input-column (flex-basis: 100%)
  * and .input-send carries margin-left:auto so it pins to the bar's right
- * edge; the ≤768px .input-bar padding drops to `12px 8px` (ChatWindow.css)
- * so the key lands ≤8px from the edge while the row covers ≥95% of the
- * bar's width (374/390 = 95.9%). Desktop rules are untouched.
+ * edge; the ≤768px .input-bar padding is `12px 16px` (ChatWindow.css) —
+ * P348 restored the page's 16px gutter (the same inset .messages uses) so
+ * the key lands ≤16px from the edge, flush with the bubble column above,
+ * while the row covers ≥90% of the bar's width (358/390 = 91.8%).
+ * Desktop rules are untouched.
  *
  * No DOM renderer ships with this repo — the fake DOM reports zero
  * getBoundingClientRect()s — so the rect relationships are asserted both
@@ -123,11 +125,12 @@ describe('P309 · mobile composer geometry (≤768px)', () => {
     ).toContain('margin-left: 0');
   });
 
-  it('send.right lands ≤8px from the .input-bar right edge at 390px', () => {
+  it('send.right lands within the 16px page gutter at 390px (P348)', () => {
     // Resolved geometry: send.right = column right = bar right − padding-right.
-    expect(barPadRight).toBeLessThanOrEqual(8);
+    expect(barPadRight).toBeGreaterThanOrEqual(12);
+    expect(barPadRight).toBeLessThanOrEqual(16);
     const sendRight = BAR_WIDTH - barPadRight;
-    expect(Math.abs(sendRight - BAR_WIDTH)).toBeLessThanOrEqual(8);
+    expect(Math.abs(sendRight - BAR_WIDTH)).toBeLessThanOrEqual(16);
     // …and its centre x sits past two-thirds of the viewport.
     const sendWidth = declPxValues(
       ruleBody(mobileInput, '.input-bar .input-send'),
@@ -136,9 +139,9 @@ describe('P309 · mobile composer geometry (≤768px)', () => {
     expect(sendRight - sendWidth / 2).toBeGreaterThan((BAR_WIDTH * 2) / 3);
   });
 
-  it('the tool row uses ≥95% of the .input-bar width at 390px', () => {
+  it('the tool row uses ≥90% of the .input-bar width at 390px', () => {
     const rowWidth = BAR_WIDTH - barPadLeft - barPadRight;
-    expect(rowWidth / BAR_WIDTH).toBeGreaterThanOrEqual(0.95);
+    expect(rowWidth / BAR_WIDTH).toBeGreaterThanOrEqual(0.9);
   });
 
   it('touch targets stay ≥40px: send, hint and the length chip', () => {
@@ -212,7 +215,7 @@ describe('P309 · rect relations in the mounted composer', () => {
     vi.unstubAllGlobals();
   });
 
-  it('send.right ≤ bar.right + 8, chip centre in the left half, row ≥95%', async () => {
+  it('send.right ≤ bar.right + 16, chip centre in the left half, row ≥90%', async () => {
     dom = installFakeDom();
     const { createRoot } = await import('react-dom/client');
     const container = dom.document.createElement('div');
@@ -252,11 +255,11 @@ describe('P309 · rect relations in the mounted composer', () => {
     const sendRect = send!.getBoundingClientRect();
     const toolsRect = tools!.getBoundingClientRect();
     const chipRect = chip!.getBoundingClientRect();
-    expect(Math.abs(sendRect.right - barRect.right)).toBeLessThanOrEqual(8);
+    expect(Math.abs(sendRect.right - barRect.right)).toBeLessThanOrEqual(16);
     expect(chipRect.left + chipRect.width / 2).toBeLessThanOrEqual(
       barRect.left + barRect.width / 2,
     );
-    expect(toolsRect.width).toBeGreaterThanOrEqual(barRect.width * 0.95);
+    expect(toolsRect.width).toBeGreaterThanOrEqual(barRect.width * 0.9);
 
     await act(async () => {
       root?.unmount();
