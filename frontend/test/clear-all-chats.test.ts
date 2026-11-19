@@ -28,15 +28,22 @@ const msg = (content: string): ChatMessage => ({ id: 'u1', role: 'user', content
 
 describe('P155 · clear all history chats', () => {
   describe('source guards', () => {
-    it('renders a labelled dim clear-all button in the 最近对话 header, not per row', () => {
+    it('renders a labelled clear-all button at the END of the 最近对话 list, not per row', () => {
       const sidebar = read('components/Sidebar.tsx');
       const header = sidebar.indexOf('recent-chats-header');
-      const button = sidebar.indexOf('recent-chat-clear-all');
       const filter = sidebar.indexOf('recent-chat-filter');
+      const listEnd = sidebar.indexOf('</ul>');
+      const button = sidebar.indexOf('recent-chat-clear-all');
+      const trashRow = sidebar.indexOf('recent-chat-trash');
       expect(header).toBeGreaterThan(-1);
-      // The button sits inside the section header, before the filter input.
-      expect(button).toBeGreaterThan(header);
-      expect(button).toBeLessThan(filter);
+      expect(listEnd).toBeGreaterThan(-1);
+      // P389: the button left the heading row — it now renders AFTER the
+      // list closes (below the last chat row), before the 回收站 entry, so
+      // its top can never sit beside the section title again.
+      expect(filter).toBeGreaterThan(header);
+      expect(listEnd).toBeGreaterThan(filter);
+      expect(button).toBeGreaterThan(listEnd);
+      expect(button).toBeLessThan(trashRow);
       // P267: the label is the shared CLEAR_ALL_LABEL constant.
       expect(sidebar).toContain('aria-label={CLEAR_ALL_LABEL}');
       expect(sidebar).toContain('{CLEAR_ALL_LABEL}');
@@ -57,7 +64,7 @@ describe('P155 · clear all history chats', () => {
       expect(sidebar).toMatch(/shouldShowClearAll\(recentSessions\)\s*&&/);
       const btn = sidebar.slice(
         sidebar.indexOf('recent-chat-clear-all'),
-        sidebar.indexOf('recent-chat-filter'),
+        sidebar.indexOf('recent-chat-trash'),
       );
       expect(btn).toContain('disabled={busy}');
       expect(btn).toContain('onClearAllChats?.()');

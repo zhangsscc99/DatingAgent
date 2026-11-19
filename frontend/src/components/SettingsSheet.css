@@ -116,9 +116,11 @@
   cursor: default;
 }
 
-.settings-data-btn.danger {
-  color: var(--danger);
-}
+/* P389 — the danger colour is no longer declared here: the button carries
+   data-tone="danger" and reads the shared button[data-tone='danger'] rule
+   in index.css, one source of truth for every destructive-action control
+   (the sidebar's 清空全部对话 included). The .danger class stays on the
+   element for parity with existing guards. */
 
 .settings-data-btn:focus-visible {
   outline: 2px solid var(--accent);

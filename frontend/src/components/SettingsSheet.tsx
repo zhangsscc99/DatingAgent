@@ -220,6 +220,7 @@ export default function SettingsSheet({
             <button
               type="button"
               className="settings-data-btn danger"
+              data-tone="danger"
               onClick={hasSessions ? onClearAll : undefined}
               disabled={busy || !hasSessions}
               aria-disabled={busy || !hasSessions || undefined}

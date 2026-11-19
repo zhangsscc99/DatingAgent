@@ -191,6 +191,16 @@ body {
   outline-offset: 2px;
 }
 
+/* P389 — the ONE danger-action tone: every control carrying
+   data-tone="danger" resolves its text/glyph colour from the same --danger
+   token, so the sidebar's 清空全部对话 and the settings sheet's same action
+   share a single source of truth and can never drift into two danger
+   languages again. The `button` tag in the selector keeps the utility ahead
+   of each component's own base colour rule without !important. */
+button[data-tone='danger'] {
+  color: var(--danger);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

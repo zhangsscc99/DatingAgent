@@ -458,24 +458,6 @@ export default function Sidebar({
         <section className="sidebar-section recent-chats" aria-label="最近对话">
           <div className="recent-chats-header">
             <h3>最近对话</h3>
-            {/* P270: with an empty history the button would open a「清空 0 段
-                对话」no-op confirm — hide it until a session exists again. */}
-            {shouldShowClearAll(recentSessions) && (
-              <button
-                type="button"
-                className="recent-chat-clear-all"
-                // P228: App owns the in-app confirm dialog; this only asks.
-                onClick={() => onClearAllChats?.()}
-                disabled={busy}
-                aria-label={CLEAR_ALL_LABEL}
-                // P378: the tooltip names the destination — cleared
-                // conversations land in the 回收站 like a single delete.
-                title={CLEAR_ALL_TRASH_TITLE}
-              >
-                <SidebarIcon iconKey="trash" size={12} />
-                {CLEAR_ALL_LABEL}
-              </button>
-            )}
           </div>
           {/* P312: an empty list has nothing to filter — the box mounts
               again with the first conversation. */}
@@ -711,6 +693,29 @@ export default function Sidebar({
                 </Fragment>
               ))}
             </ul>
+          )}
+          {/* P389: 清空全部对话 lives at the END of the 最近对话 list —
+              it used to share the heading row, one stray tap away from the
+              section title. P270's zero-session gate still hides it when
+              there is nothing to clear, and the click only asks App to open
+              the shared ConfirmDialog (P228) — never a second confirm
+              implementation. */}
+          {shouldShowClearAll(recentSessions) && (
+            <button
+              type="button"
+              className="recent-chat-clear-all"
+              data-tone="danger"
+              // P228: App owns the in-app confirm dialog; this only asks.
+              onClick={() => onClearAllChats?.()}
+              disabled={busy}
+              aria-label={CLEAR_ALL_LABEL}
+              // P378: the tooltip names the destination — cleared
+              // conversations land in the 回收站 like a single delete.
+              title={CLEAR_ALL_TRASH_TITLE}
+            >
+              <SidebarIcon iconKey="trash" />
+              <span className="sidebar-row-label">{CLEAR_ALL_LABEL}</span>
+            </button>
           )}
           {/* P265: the way back from a delete — visible whenever either list
               holds something, above the eviction notice; a totally empty

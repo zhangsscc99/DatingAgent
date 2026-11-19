@@ -162,9 +162,11 @@ describe('P369 · sidebar filter + clear-all machine assertions', () => {
     it('the 清空全部对话 button only requests the clear — never clears inline', () => {
       expect(sidebar).not.toContain('clearAllChatSessions');
       expect(sidebar).not.toContain('confirm(');
+      // P389: the button now closes the session list — it sits between
+      // the </ul> and the 回收站 row, no longer beside the heading.
       const btn = sidebar.slice(
         sidebar.indexOf('recent-chat-clear-all'),
-        sidebar.indexOf('recent-chat-filter'),
+        sidebar.indexOf('recent-chat-trash'),
       );
       expect(btn).toContain('onClearAllChats?.()');
       expect(btn).toContain('disabled={busy}');

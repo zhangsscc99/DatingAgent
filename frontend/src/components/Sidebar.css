@@ -181,29 +181,35 @@
   margin-bottom: 0;
 }
 
-/* P378 — 清空全部对话 graduates from bare text to a real secondary action:
-   a soft-fill pill carrying the trash glyph (its tooltip names the 回收站
-   destination); hover warms it toward the danger tone so the destructive
-   weight is discoverable without competing with the brand CTA. */
+/* P389 — 清空全部对话 leaves the 最近对话 heading row for the END of the
+   session list, and joins the settings sheet's same action under ONE danger
+   language: the shared button[data-tone="danger"] rule in index.css
+   supplies the --danger text colour (the trash glyph rides currentColor)
+   over a quiet --danger-soft wash — a secondary ghost form, unmistakably
+   destructive but never a filled red block. The row anatomy (full width,
+   icon + label) matches the list rows it now sits under, and the extra
+   distance from the heading removes the old one-tap mis-hit. */
 .recent-chat-clear-all {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: var(--surface-hover);
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: var(--danger-soft);
   border: none;
   border-radius: var(--radius);
-  color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
   cursor: pointer;
   font-family: inherit;
+  text-align: left;
   transition: background 0.15s, color 0.15s;
 }
 
 .recent-chat-clear-all:hover:not(:disabled) {
-  background: var(--danger-soft);
-  color: var(--danger);
+  /* Hover deepens the translucent wash — still never a solid fill. */
+  background: var(--danger-border);
 }
 
 .recent-chat-clear-all:focus-visible {
@@ -996,8 +1002,9 @@
     color: var(--text-secondary);
   }
 
-  .sidebar-section h3,
-  .recent-chat-clear-all {
+  /* P389: the clear-all row keeps its shared danger tone on phones too —
+     the old secondary-grey override would have re-forked the two surfaces. */
+  .sidebar-section h3 {
     color: var(--text-secondary);
   }
 
