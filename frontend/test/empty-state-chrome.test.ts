@@ -207,11 +207,15 @@ describe('P312 · empty-state chrome', () => {
     const hero = welcome!.querySelector('[data-testid="hero-primary-cta"]');
     expect(hero, label).not.toBeNull();
     expect(hero!.tagName).toBe('BUTTON');
-    const hint = welcome!.querySelector('p.welcome-hint');
+    // P388: the hint moved out of .welcome to a normal-flow strip right
+    // above the composer it names — query document-wide, and pin that it
+    // no longer lives inside the hero.
+    const hint = qs('p.welcome-hint');
     if (narrow) {
       expect(hint).toBeNull();
     } else {
       expect(hint).not.toBeNull();
+      expect(hint!.closest('.welcome')).toBeNull();
       expect(hint!.textContent).toContain('输入框');
     }
   };

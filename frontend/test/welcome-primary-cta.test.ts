@@ -107,9 +107,11 @@ describe('P290/P312 · one primary CTA on the first screen — the composer send
     // The hint is a paragraph; the shared hero button is the one welcome
     // element allowed to reach the composer — and only to focus it,
     // never to send.
+    // P388: the hint moved out of the hero to directly above the
+    // composer, so the first-screen block runs to the <InputBar> mount.
     const welcomeBlock = chatWindowTsx.slice(
       chatWindowTsx.indexOf('className="welcome'),
-      chatWindowTsx.indexOf('renderedMessages.map'),
+      chatWindowTsx.indexOf('<InputBar\n'),
     );
     expect(welcomeBlock).toContain('<p className="welcome-hint">');
     expect(welcomeBlock).toContain('data-testid="hero-primary-cta"');
@@ -195,7 +197,7 @@ describe('P290 · every other first-screen action is secondary', () => {
   });
 
   it('the welcome hint reads as muted guidance, not a control', () => {
-    const rule = ruleBody(chatWindowCss, '.welcome > p.welcome-hint');
+    const rule = ruleBody(chatWindowCss, '.chat-window > .welcome-hint');
     expect(rule).not.toBe('');
     // Passive copy: no accent, no border, no cursor affordance.
     expect(rule).not.toContain('var(--accent)');

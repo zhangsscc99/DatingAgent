@@ -28,9 +28,11 @@ import { STARTER_ENTRIES } from '../src/lib/starterEntries';
  *  2. 390×844 — the mobile single-line description is generated from the
  *     same array (all four names, same order); the drawer lists the same
  *     four buttons.
- *  3. 1440×900 — four starter chips equal the four drawer buttons in
- *     count and copy, in order; the intent-less fourth chip still does
- *     real work (prefills the composer, never a dead option).
+ *  3. 1440×900 — the four starter chips are the ONLY copy of the four
+ *     names: P388 removed the desktop drawer's identical 快捷入口 section
+ *     (two visible entries per name was the measured defect); the
+ *     intent-less fourth chip still does real work (prefills the
+ *     composer, never a dead option).
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -171,15 +173,16 @@ describe('P355 · welcome starters and 快捷入口 share one source', () => {
     await unmountApp();
   });
 
-  it('1440×900: the first screen enumerates exactly the drawer entries', async () => {
+  it('1440×900: the centre chips are the single copy — the 快捷入口 section stays off the desktop aside (P388)', async () => {
     await mountApp(1440);
     const chips = qsa('.starter-chip');
     expect(chips.map((b) => b.getAttribute('aria-label'))).toEqual(LABELS);
-    const quick = qsa('.quick-btn');
-    expect(quick).toHaveLength(chips.length);
-    expect(quick.map((b) => b.getAttribute('aria-label'))).toEqual(
-      chips.map((b) => `快捷提问：${b.getAttribute('aria-label')}`),
-    );
+    // P388: the persistent aside's identical rows were the second visible
+    // entry for every name — the section does not mount at ≥769px at all
+    // (real conditional rendering, not hidden DOM). The mobile drawer
+    // keeps it, where the hero only renders non-interactive pills.
+    expect(qsa('.quick-btn')).toHaveLength(0);
+    expect(qs('[aria-label="快捷入口"]')).toBeNull();
 
     // The fourth chip is not a dead option: no intake branch, so it
     // prefills the composer with its own prompt instead.

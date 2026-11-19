@@ -722,7 +722,10 @@ describe('P378 · sidebar chrome density — borders, inset filter, one clear-al
               el.classList.contains('tool-entry') ||
               el.classList.contains('recent-chat-trash'),
           );
-        expect(rows.length).toBeGreaterThanOrEqual(10);
+        // P388: ≥769px the aside's 快捷入口 section doesn't mount (the
+        // centre chips own the desktop copy), so only the five tool rows
+        // and the 回收站 row remain of this set.
+        expect(rows.length).toBeGreaterThanOrEqual(vp.width <= 768 ? 10 : 6);
         for (const el of rows) {
           expect(
             borderBox(el, vp.width).style,

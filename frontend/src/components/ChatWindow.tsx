@@ -850,16 +850,12 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 ))}
               </div>
             )}
-            {/* P312: the composer owns the single start entry — the old
-                hero button only duplicated the textarea's job, so what
-                remains here is passive guidance, not a control.
-                P374: that guidance line is desktop copy now — on the
-                compact screen the primary button below does the pointing
-                and the first screen's auxiliary-copy budget is two muted
-                lines (the subtitle + the starter pills). */}
-            {!compactFeatures && (
-              <p className="welcome-hint">{startHint}</p>
-            )}
+            {/* P388: the 「在下方输入框…」 guidance line used to sit here —
+                the ~290px hero→composer gap had it pointing off-screen.
+                It now renders directly above the composer itself, still
+                desktop-only (the compact screen's primary button below
+                does the pointing and the first screen's auxiliary-copy
+                budget is two muted lines). */}
             {/* P374: the compact first screen gets ONE obvious action — a
                 real primary button that focuses #chat-input and sends
                 nothing. The three example prompts stay on as a secondary,
@@ -1128,6 +1124,14 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
             <span aria-hidden="true">×</span>
           </button>
         </div>
+      )}
+      {/* P388: the 「在下方输入框…」 hint moved out of the hero to a
+          normal-flow strip directly above the composer it names — kept,
+          but now adjacent to its target instead of pointing off-screen.
+          Same visibility conditions it had inside .welcome (desktop
+          empty state only). */}
+      {heroVisible && !compactFeatures && (
+        <p className="welcome-hint">{startHint}</p>
       )}
       <InputBar
         ref={inputRef}

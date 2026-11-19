@@ -801,6 +801,15 @@ export default function Sidebar({
           )
         )}
 
+        {/* P388: ≥769px the welcome hero already enumerates the same four
+            STARTER_ENTRIES as tappable .starter-chip capsules — mounting
+            the identical rows here gave every name TWO visible entries on
+            the desktop first screen (walk-1795109419/walk-1795115528), so
+            the section is compact-only like the profile card above. At
+            ≤768px the hero's chips collapse to non-interactive pills
+            (P343), so the drawer keeps these rows as the phone's one
+            tappable starter path. */}
+        {!wideViewport && (
         <section className="sidebar-section" aria-label="快捷入口">
           <h3>快捷入口</h3>
           <div className="quick-prompts">
@@ -822,6 +831,7 @@ export default function Sidebar({
             ))}
           </div>
         </section>
+        )}
 
         <section className="sidebar-section" aria-label="进阶工具">
           {/* P378: the whole block folds into a disclosure group, collapsed

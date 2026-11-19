@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { afterAll, describe, expect, it, vi } from 'vitest';
-import { createElement, act } from 'react';
+import { createElement, act, Fragment } from 'react';
 import type { Root } from 'react-dom/client';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -12,6 +12,7 @@ import {
   type FakeElement,
 } from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
+import Sidebar from '../src/components/Sidebar';
 import { HERO_EXAMPLE_PROMPTS, HERO_PRIMARY_LABEL } from '../src/lib/heroCta';
 import { COARSE_POINTER_QUERY } from '../src/lib/heroHint';
 import { STARTER_ENTRIES } from '../src/lib/starterEntries';
@@ -58,6 +59,10 @@ const chatWindowCss = readFileSync(
 );
 const inputBarCss = readFileSync(
   join(SRC, 'components', 'InputBar.css'),
+  'utf8',
+);
+const sidebarCss = readFileSync(
+  join(SRC, 'components', 'Sidebar.css'),
   'utf8',
 );
 
@@ -687,5 +692,220 @@ describe('P380 · the same primary CTA leads the desktop empty state (1440×900)
     // Same disabled-visual contract on the empty send key.
     expect(qs('.input-send')!.disabled).toBe(true);
     await unmount();
+  });
+});
+
+/**
+ * P388 — measured at 1440×900 (docs/runs/walk-1795109419-d1.png, re-measured
+ * walk-1795115528-d1.png): every starter name rendered TWICE — the
+ * sidebar's 快捷入口 rows plus the centre .starter-chip capsules — the
+ * hero's foot sat 288px above the composer, and the
+ * 「在下方输入框写下你的情况」hint pointed off-screen from mid-hero.
+ *
+ * Contract asserted here (the backlog's verify clause):
+ *  1. At 1440×900 each of the four STARTER_ENTRIES names resolves exactly
+ *     ONE visible entry — the centre chips own the desktop copy; the
+ *     aside's identical section is conditionally not rendered (never a
+ *     hidden duplicate a :visible query could still count).
+ *  2. The hero's foot lands ≤160px above the composer at BOTH
+ *     walkthrough sizes — the P380 bookend model plus the real fix:
+ *     `.welcome`'s vertical auto margins, which had been eating half the
+ *     scrollport's free space below the block, are pinned to 0.
+ *  3. The hint paragraph sits directly above the composer — outside
+ *     .welcome — and stays desktop-only.
+ *  4. At 390×844 each name still resolves exactly one visible entry —
+ *     the non-interactive pills; the closed drawer is aria-hidden +
+ *     inert in the DOM and visibility:hidden in the stylesheet.
+ *
+ * Same fake-DOM convention as above: the "visible-hit" count is the
+ * render-level expression a real :visible query evaluates.
+ */
+describe('P388 · one visible entry per starter name; hero foot ≤160px above composer', () => {
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qs = (sel: string) =>
+    dom.document.querySelector(sel) as FakeElement | null;
+  const qsa = (sel: string) => dom.document.querySelectorAll(sel);
+
+  /** The real first screen: the aside plus the empty ChatWindow. The
+   *  mobile case mounts the drawer CLOSED — the state a 390×844
+   *  walkthrough measures. */
+  const mountScreen = async (widthPx: number, mobile: boolean) => {
+    dom = installFakeDom();
+    // Width-aware stub: the sidebar's ≥769px gate (min-width) and the
+    // hero's ≤768px gate (max-width) both resolve against `widthPx`.
+    const mq = (q: string) => {
+      const maxW = /max-width:\s*(\d+)px/.exec(q);
+      const minW = /min-width:\s*(\d+)px/.exec(q);
+      const matches =
+        q === COARSE_POINTER_QUERY
+          ? mobile
+          : (maxW || minW) !== null &&
+            (maxW ? widthPx <= Number(maxW[1]) : true) &&
+            (minW ? widthPx >= Number(minW[1]) : true);
+      return {
+        matches,
+        media: q,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      };
+    };
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    vi.stubGlobal('matchMedia', mq);
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(
+          Fragment,
+          null,
+          createElement(Sidebar, {
+            tools: [],
+            isMobile: mobile,
+            open: false,
+            onQuickPrompt: () => {},
+            onNewChat: () => {},
+          }),
+          createElement(ChatWindow, {
+            messages: [] as ChatMessage[],
+            loading: false,
+            onSend: () => {},
+            onSetupProfile: () => {},
+          }),
+        ),
+      );
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const unmount = async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    dom.document.body.textContent = '';
+  };
+
+  /** Elements a :visible-style count can hit for a starter name:
+   *  interactive entries plus the compact pills, minus anything parked
+   *  inside an inert / aria-hidden / sr-only subtree (the closed drawer
+   *  carries all of them plus `visibility:hidden` in the sheet). */
+  const visibleHits = (label: string) =>
+    qsa('button, a[href], [role="button"], .starter-pill').filter(
+      (el) =>
+        !el.closest('[inert]') &&
+        !el.closest('[aria-hidden="true"]') &&
+        !el.closest('.sr-only') &&
+        (el.textContent.trim().includes(label) ||
+          (el.getAttribute('aria-label') ?? '').includes(label)),
+    );
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('1440×900: each starter name resolves exactly ONE visible entry — the centre chips own the copy', async () => {
+    await mountScreen(1440, false);
+    // The duplicated surface is gone from the DOM entirely — real
+    // conditional rendering, not a hidden element a :visible query
+    // could still trip over.
+    expect(qsa('.quick-btn')).toHaveLength(0);
+    expect(qs('[aria-label="快捷入口"]')).toBeNull();
+    expect(qsa('.starter-chip')).toHaveLength(STARTER_ENTRIES.length);
+    for (const entry of STARTER_ENTRIES) {
+      const hits = visibleHits(entry.label);
+      expect(
+        hits.length,
+        `${entry.label} hits: ${hits.map((el) => el.className).join(' | ')}`,
+      ).toBe(1);
+      expect(hits[0].classList.contains('starter-chip')).toBe(true);
+    }
+    await unmount();
+  });
+
+  it('1440×900: hero bottom → composer top resolves ≤160px — the vertical auto margins are pinned to 0', () => {
+    // The measured 288px gap came from `.welcome`'s `margin: auto`
+    // resolving on the column-flex scrollport's MAIN axis too: the free
+    // space split evenly above and below the block. The vertical pair is
+    // pinned to 0, so ::before owns all of it and the foot→bar distance
+    // is just the sentinel gaps + the capped ::after + the scrollpad.
+    const welcomeRule = ruleBody(topLevel(chatWindowCss), '.welcome');
+    expect(welcomeRule).toContain('margin-top: 0');
+    expect(welcomeRule).toContain('margin-bottom: 0');
+    const afterRule = ruleBody(
+      mediaBlock(chatWindowCss, '(min-width: 769px)'),
+      '.messages-hero::after',
+    );
+    const basis = /flex\s*:\s*0\s+1\s+([0-9.]+)px/.exec(afterRule)?.[1];
+    expect(basis, '::after keeps a capped basis').toBeTruthy();
+    const rowGap = declPxValues(
+      ruleBody(topLevel(chatWindowCss), '.messages'),
+      'gap',
+    )[0];
+    const pad = declPxValues(
+      ruleBody(topLevel(chatWindowCss), '.messages'),
+      'padding',
+    );
+    expect(Number(basis) + rowGap * 2 + pad[0]).toBeLessThanOrEqual(160);
+  });
+
+  it('the「在下方输入框…」hint renders directly above the composer, never inside .welcome', async () => {
+    await mountScreen(1440, false);
+    const hint = qs('p.welcome-hint');
+    expect(hint).not.toBeNull();
+    expect(hint!.textContent).toContain('在下方输入框写下你的情况');
+    // Adjacent to its target: a direct child of .chat-window, immediately
+    // ahead of the composer — not mid-hero pointing off-screen.
+    expect(hint!.closest('.welcome')).toBeNull();
+    expect(hint!.parentElement!.classList.contains('chat-window')).toBe(
+      true,
+    );
+    const siblings = hint!.parentElement!.children;
+    const next = siblings[siblings.indexOf(hint!) + 1];
+    expect(next?.classList.contains('input-bar')).toBe(true);
+    await unmount();
+  });
+
+  it('390×844: each starter name still resolves exactly ONE visible entry — the pills; the closed drawer contributes nothing', async () => {
+    await mountScreen(390, true);
+    for (const entry of STARTER_ENTRIES) {
+      const hits = visibleHits(entry.label);
+      expect(
+        hits.length,
+        `${entry.label} hits: ${hits.map((el) => el.className).join(' | ')}`,
+      ).toBe(1);
+      expect(hits[0].classList.contains('starter-pill')).toBe(true);
+    }
+    // Why the drawer rows can't be counted: closed ⇒ aria-hidden + inert
+    // in the DOM and visibility:hidden + off-canvas in the stylesheet.
+    // The rows still mount for when the drawer opens — the pills are
+    // non-interactive, so the drawer stays the phone's tappable path.
+    const aside = qs('.sidebar')!;
+    expect(aside.getAttribute('aria-hidden')).toBe('true');
+    expect(aside.hasAttribute('inert')).toBe(true);
+    expect(qsa('.quick-btn')).toHaveLength(STARTER_ENTRIES.length);
+    const drawerRule = ruleBody(
+      mediaBlock(sidebarCss, '(max-width: 768px)'),
+      '.sidebar.sidebar-drawer',
+    );
+    expect(drawerRule).toContain('visibility: hidden');
+    await unmount();
+  });
+
+  it('390×844: the hero fills the scrollport — its foot sits one mobile pad above the composer', () => {
+    // .messages-hero > .welcome is flex:1 0 auto, so the block's bottom
+    // edge is the scrollport's content bottom; composer top = port edge
+    // + the port's bottom padding — 16px, far inside the budget.
+    const heroRule = ruleBody(mobileChat, '.messages-hero > .welcome');
+    expect(heroRule).toContain('flex: 1 0 auto');
+    const pad = declPxValues(ruleBody(mobileChat, '.messages'), 'padding');
+    expect(pad[pad.length - 1]).toBeLessThanOrEqual(160);
   });
 });

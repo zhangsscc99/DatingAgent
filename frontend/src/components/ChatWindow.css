@@ -323,6 +323,14 @@
      so the 520px fallback keeps the mobile card unchanged. */
   max-width: var(--column-max, 520px);
   margin: auto;
+  /* P388: `margin: auto` inside the column-flex scrollport resolves on
+     the MAIN axis too — the free space split evenly above and below the
+     block, and the hero's foot landed ~290px above the composer despite
+     the capped ::after bookend. Zeroing the vertical pair hands all of
+     it to ::before, so the foot stays within the ≤160px contract while
+     the horizontal auto keeps centring the column. */
+  margin-top: 0;
+  margin-bottom: 0;
   text-align: center;
   padding: 40px 20px;
 }
@@ -361,12 +369,19 @@
   color: var(--accent);
 }
 
-/* P312: the brand action moved to the composer's send key — what stays
-   in the welcome block is passive guidance pointing at it, same muted
-   register as the subtitle. */
-.welcome > p.welcome-hint {
-  margin: 0 auto 14px;
-  font-size: 13px;
+/* P312: the brand action moved to the composer's send key — the hint
+   pointing at it is passive copy in the same muted register.
+   P388: the line moved out of the hero to a normal-flow strip directly
+   above the composer it names — the ~290px hero→composer gap had it
+   pointing off-screen. */
+.chat-window > .welcome-hint {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 16px 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
 }
 
 /* P374 — the compact first screen's ONE explicit primary action: a real
