@@ -17,7 +17,7 @@ import type { ChatMessage } from '../src/types';
 
 /**
  * P319 — sidebar filter results: the keyword a row matched on used to
- * render as plain text (no highlight at all), the 「找到 N 段对话」 count
+ * render as plain text (no highlight at all), the 「找到 N 个对话」 count
  * was an sr-only announcement (visual weight zero), and the search box on
  * focus painted a pink border under a pink outline — two stacked accent
  * rings.
@@ -254,7 +254,7 @@ describe('P319 · filter hits render as <mark>', () => {
     });
   });
 
-  it('the match count is a plain-text status line reading 找到 2 段对话 · 1 条消息', async () => {
+  it('the match count is a plain-text status line reading 找到 2 个对话 · 1 条消息', async () => {
     const { dom, root } = await mountSidebar();
     await typeFilter(dom, '看展');
 
@@ -263,7 +263,7 @@ describe('P319 · filter hits render as <mark>', () => {
     expect(count!.tagName).toBe('SPAN');
     expect(count!.tagName).not.toBe('BUTTON');
     expect(count!.getAttribute('role')).toBe('status');
-    expect(count!.textContent).toBe('找到 2 段对话 · 1 条消息');
+    expect(count!.textContent).toBe('找到 2 个对话 · 1 条消息');
 
     await act(async () => {
       (root as Root).unmount();
@@ -271,7 +271,7 @@ describe('P319 · filter hits render as <mark>', () => {
   });
 });
 
-describe('P333 · 找到 N 段对话 count sits above the result list', () => {
+describe('P333 · 找到 N 个对话 count sits above the result list', () => {
   it('renders the single count element after the filter input and before the first result card', async () => {
     const { dom, root } = await mountSidebar();
     await typeFilter(dom, '看展');
@@ -279,7 +279,7 @@ describe('P333 · 找到 N 段对话 count sits above the result list', () => {
     const counts = dom.document.querySelectorAll('.recent-chat-filter-count');
     expect(counts, 'exactly one count element').toHaveLength(1);
     const count = counts[0];
-    expect(count.textContent).toMatch(/^找到 \d+ 段对话 · \d+ 条消息$/);
+    expect(count.textContent).toMatch(/^找到 \d+ 个对话 · \d+ 条消息$/);
     expect(
       count.getAttribute('role') === 'status' ||
         count.getAttribute('aria-live'),
@@ -305,7 +305,7 @@ describe('P333 · 找到 N 段对话 count sits above the result list', () => {
   });
 });
 
-describe('P319 · 找到 N 段对话 count typography', () => {
+describe('P319 · 找到 N 个对话 count typography', () => {
   const body = ruleBody(sidebarCss, '.recent-chat-filter-count');
 
   it('declares font-size >= 12px', () => {
@@ -369,7 +369,7 @@ describe('P354 · real filter path centres the hit in a marked window', () => {
     ).toBe(true);
 
     const count = dom.document.querySelector('.recent-chat-filter-count');
-    expect(count!.textContent).toBe('找到 1 段对话 · 1 条消息');
+    expect(count!.textContent).toBe('找到 1 个对话 · 1 条消息');
 
     await act(async () => {
       (root as Root).unmount();
@@ -724,15 +724,15 @@ describe('P372/P377 · <mark> is visually distinguishable and the count uses one
     });
   }
 
-  it('the count line reads 找到 N 段对话 · M 条消息 — and the card chip uses the same 条消息 unit, never 个对话', async () => {
+  it('the count line reads 找到 N 个对话 · M 条消息 — and the card chip uses the same 条消息 unit, never 段对话', async () => {
     const { dom, root } = await mountSidebar();
     await typeFilter(dom, '看展');
 
     const count = dom.document.querySelector('.recent-chat-filter-count');
     expect(count, 'count element').toBeTruthy();
-    expect(count!.textContent).toMatch(/找到 \d+ 段对话/);
+    expect(count!.textContent).toMatch(/找到 \d+ 个对话/);
     expect(count!.textContent).toMatch(/\d+ 条消息/);
-    expect(count!.textContent).not.toContain('个对话');
+    expect(count!.textContent).not.toContain('段对话');
 
     // The same unit inside the result card — no bare 条 chip left.
     const cardCount = dom.document.querySelector('.recent-chat-count');
@@ -856,6 +856,102 @@ describe('P377 · in-box clear button + aligned row action icons', () => {
     for (const sel of ['.recent-chat-rename', '.recent-chat-delete']) {
       expect(ruleBody(sidebarCss, sel)).toMatch(/align-self:\s*center/);
     }
+
+    await act(async () => {
+      (root as Root).unmount();
+    });
+  });
+});
+
+describe('P395 · the filter reads as a field again and the count is back to 个对话', () => {
+  for (const vp of VIEWPORTS) {
+    it(`${vp.label}: the input carries a filled surface ≥0.05 luminance away from the sidebar and a non-zero radius, still borderless and shadowless`, async () => {
+      const { dom, root } = await mountSidebar(SESSIONS, vp.width);
+      installRealGetComputedStyle(dom, vp.width);
+
+      const input = dom.document.querySelector('input.recent-chat-filter');
+      const sidebar = dom.document.querySelector('.sidebar');
+      expect(input, 'filter input').toBeTruthy();
+      expect(sidebar, 'sidebar').toBeTruthy();
+      const inputStyle = getComputedStyle(input as unknown as HTMLElement);
+      const sidebarStyle = getComputedStyle(
+        sidebar as unknown as HTMLElement,
+      );
+
+      const inputLum = luminanceOf(inputStyle.backgroundColor);
+      const sidebarLum = luminanceOf(sidebarStyle.backgroundColor);
+      expect(
+        inputLum,
+        `filter bg ${inputStyle.backgroundColor}`,
+      ).not.toBeNull();
+      expect(
+        sidebarLum,
+        `sidebar bg ${sidebarStyle.backgroundColor}`,
+      ).not.toBeNull();
+      expect(
+        Math.abs(inputLum! - sidebarLum!),
+        `filter ${inputStyle.backgroundColor} vs sidebar ${sidebarStyle.backgroundColor}`,
+      ).toBeGreaterThanOrEqual(0.05);
+
+      expect(inputStyle.borderRadius).not.toBe('0px');
+      expect(
+        parseFloat(inputStyle.borderRadius),
+        `radius ${inputStyle.borderRadius}`,
+      ).toBeGreaterThan(0);
+
+      // The P384 inset contract still holds: no outer border, no shadow.
+      const body = ruleBody(sidebarCss, '.recent-chat-filter');
+      expect(body).toMatch(/border:\s*none/);
+      expect(boxShadowLayers(body)).toBe(0);
+
+      await act(async () => {
+        (root as Root).unmount();
+      });
+    });
+
+    it(`${vp.label}: the in-box clear × is a ≥28×28 circular chip on a light base`, async () => {
+      const { dom, root } = await mountSidebar(SESSIONS, vp.width);
+      installRealGetComputedStyle(dom, vp.width);
+      await typeFilter(dom, '看展');
+
+      const clear = dom.document.querySelector(
+        'button.recent-chat-filter-clear',
+      );
+      expect(clear, 'in-box clear button').toBeTruthy();
+      const style = getComputedStyle(clear as unknown as HTMLElement);
+      expect(
+        parseFloat(style.width),
+        `width ${style.width}`,
+      ).toBeGreaterThanOrEqual(28);
+      expect(
+        parseFloat(style.height),
+        `height ${style.height}`,
+      ).toBeGreaterThanOrEqual(28);
+
+      // A round chip on a declared base — no longer the bare header-style ×.
+      const body = ruleBody(sidebarCss, '.recent-chat-filter-clear');
+      expect(body).toMatch(/background:\s*var\(--[a-z-]+\)/);
+      const radius = parseFloat(style.borderRadius);
+      expect(
+        radius >= Math.min(parseFloat(style.width), parseFloat(style.height)) / 2 ||
+          /%/.test(style.borderRadius),
+        `radius ${style.borderRadius}`,
+      ).toBe(true);
+
+      await act(async () => {
+        (root as Root).unmount();
+      });
+    });
+  }
+
+  it('the count line matches /找到 \\d+ 个对话/ and never falls back to 段对话', async () => {
+    const { dom, root } = await mountSidebar();
+    await typeFilter(dom, '看展');
+
+    const count = dom.document.querySelector('.recent-chat-filter-count');
+    expect(count, 'count element').toBeTruthy();
+    expect(count!.textContent).toMatch(/找到 \d+ 个对话/);
+    expect(count!.textContent).not.toContain('段对话');
 
     await act(async () => {
       (root as Root).unmount();

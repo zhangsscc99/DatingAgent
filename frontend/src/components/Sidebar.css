@@ -231,24 +231,27 @@
   margin-bottom: 8px;
 }
 
-/* P378 — the field is now inset, not a浅灰圆角条: no border, no radius, no
-   box-shadow; a left magnifier (absolute inside the positioned wrap) and a
-   1px hairline painted as a background gradient carry the "search field"
-   affordance. The hairline is a background-image, deliberately not a
-   border — the density budget counts real borders. */
+/* P378 — the field is inset: no border, no box-shadow; a left magnifier
+   (absolute inside the positioned wrap) and a 1px hairline painted as a
+   background gradient carry the "search field" affordance. The hairline is
+   a background-image, deliberately not a border — the density budget
+   counts real borders.
+   P395 — inset alone read as a bare underlined row, not an input; the same
+   --surface-hover fill the neighbouring rows use plus a 10px radius give
+   it back its field shape without adding an outline. */
 .recent-chat-filter {
   width: 100%;
   box-sizing: border-box;
   /* Right padding reserves the × button's slot, left padding the
      magnifier's — typed text never slides underneath either. */
   padding: 8px 36px 8px 26px;
-  background-color: transparent;
+  background-color: var(--surface-hover);
   background-image: linear-gradient(var(--border), var(--border));
   background-size: 100% 1px;
   background-position: left bottom;
   background-repeat: no-repeat;
   border: none;
-  border-radius: 0;
+  border-radius: 10px;
   color: var(--text);
   font-size: 12px;
   font-family: inherit;
@@ -271,7 +274,10 @@
 }
 
 /* P377 — in-box one-tap clear: ≥32×32 touch target parked at the input's
-   right edge, shown only while the box holds a query. */
+   right edge, shown only while the box holds a query.
+   P395 — the bare × matched the header close and row delete glyphs; a
+   circular --surface chip on the field's --surface-hover fill marks it as
+   the field's own control. */
 .recent-chat-filter-clear {
   position: absolute;
   top: 50%;
@@ -283,9 +289,9 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  background: transparent;
+  background: var(--surface);
   border: none;
-  border-radius: var(--radius);
+  border-radius: 50%;
   color: var(--text-muted);
   font-size: 15px;
   line-height: 1;

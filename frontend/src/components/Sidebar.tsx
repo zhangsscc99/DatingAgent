@@ -531,7 +531,7 @@ export default function Sidebar({
               result list so the count is read before the hits, not after. */}
           <span className="recent-chat-filter-count" role="status" aria-live="polite">
             {filterQuery.trim() && visibleSessions.length > 0
-              ? `找到 ${visibleSessions.length} 段对话 · ${visibleSessions.reduce((n, s) => n + (Array.isArray(s.messages) ? s.messages.length : 0), 0)} 条消息`
+              ? `找到 ${visibleSessions.length} 个对话 · ${visibleSessions.reduce((n, s) => n + (Array.isArray(s.messages) ? s.messages.length : 0), 0)} 条消息`
               : ''}
           </span>
           {/* P247: a cleared/fresh history used to vanish the whole section —
