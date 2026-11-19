@@ -248,7 +248,14 @@
   white-space: nowrap;
   flex-shrink: 0;
   cursor: pointer;
+  gap: 6px;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+/* P385: the cycler is a picker trigger — the chevron marks the dropdown
+   semantics (aria-haspopup="listbox" on the button) at every width. */
+.reply-length-chevron {
+  flex-shrink: 0;
 }
 
 .reply-length-toggle:hover {

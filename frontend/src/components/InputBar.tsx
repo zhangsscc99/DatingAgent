@@ -402,15 +402,34 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
             settings sheet uses; 默认 keeps the request body byte-identical
             to before (no hint injected). */}
         {onReplyLengthChange && !(spotlight && compactViewport) && (
+          /* P385: the pill reads as a flat label chip — it is really an
+             option picker, so it carries the dropdown affordance on both
+             layouts: a chevron child plus the listbox popup semantics. */
           <button
             type="button"
             className="reply-length-toggle"
             data-length={replyLength}
             onClick={() => onReplyLengthChange(nextReplyLengthPreference(replyLength))}
             aria-label={replyLengthToggleAriaLabel(replyLength)}
+            aria-haspopup="listbox"
+            aria-expanded={false}
             title={replyLengthToggleAriaLabel(replyLength)}
           >
             {replyLengthLabel(replyLength)}
+            <svg
+              className="reply-length-chevron"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </button>
         )}
         {/* P336: the shortcut-hint button documents physical-keyboard

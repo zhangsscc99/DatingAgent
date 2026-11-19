@@ -39,7 +39,11 @@ const PARAM_WORDS = ['默认', '精简', '详细'];
 const toggleInnerText = (html: string) => {
   const start = html.indexOf('reply-length-toggle');
   const openEnd = html.indexOf('>', start);
-  return html.slice(openEnd + 1, html.indexOf('</button>', openEnd));
+  return html
+    .slice(openEnd + 1, html.indexOf('</button>', openEnd))
+    // P385: the pill now carries a chevron child — the visible *text* is
+    // still just the intent label, so measure text nodes only.
+    .replace(/<[^>]*>/g, '');
 };
 
 function renderBar(replyLength: ReplyLengthPreference) {
