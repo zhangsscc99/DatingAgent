@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { installFakeDom, type FakeDom, type FakeElement } from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
 import Sidebar from '../src/components/Sidebar';
+import { STARTER_ENTRIES } from '../src/lib/starterEntries';
 import type { ChatMessage } from '../src/types';
 
 /**
@@ -275,14 +276,15 @@ describe('P336 · one real primary CTA on the empty first screen (390×844)', ()
       controls.length,
       `first-screen controls: ${labels.join(' | ')}`,
     ).toBeLessThanOrEqual(4);
-    // P343: the three starter chips demoted to a single muted,
-    // non-interactive hint line — the labels survive as plain text.
+    // P343: the starter chips demoted to a single muted, non-interactive
+    // hint line — the labels survive as plain text. P355: the line is
+    // generated from the same STARTER_ENTRIES the drawer renders.
     const line = qs('.starter-chips-line');
     expect(line).not.toBeNull();
     expect(line!.tagName).toBe('P');
     expect(line!.querySelector('button, a[href], [role="button"]')).toBeNull();
-    for (const label of ['资料优化', '聊天指导', '约会规划']) {
-      expect(line!.textContent).toContain(label);
+    for (const entry of STARTER_ENTRIES) {
+      expect(line!.textContent).toContain(entry.label);
     }
     expect(qsa('.starter-chip')).toHaveLength(0);
     // …and the「完善资料」entry stays a working footer-level link — a

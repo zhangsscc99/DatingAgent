@@ -47,9 +47,13 @@ describe('P199 · sidebar has no emoji icons', () => {
   });
 
   it('keeps the quick-entry item count and order unchanged', () => {
-    const quickBlock = sidebar.slice(
-      sidebar.indexOf('const QUICK_PROMPTS'),
-      sidebar.indexOf('] as const;'),
+    // P355: the entries now live in the shared STARTER_ENTRIES — the same
+    // array the welcome block renders — and it stays emoji-free too.
+    const entries = read('lib/starterEntries.ts');
+    expect(EMOJI.test(entries)).toBe(false);
+    const quickBlock = entries.slice(
+      entries.indexOf('const STARTER_ENTRIES'),
+      entries.indexOf('];'),
     );
     const labels = [...quickBlock.matchAll(/label: '([^']+)'/g)].map(
       (m) => m[1],

@@ -48,7 +48,7 @@ import {
   loadScrollAnchor,
   saveScrollAnchor,
 } from '../lib/scrollAnchor';
-import { STARTERS } from '../lib/starterIntents';
+import { STARTER_ENTRIES } from '../lib/starterEntries';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
 import type { ReplyLengthPreference } from '../lib/replyLength';
@@ -70,8 +70,13 @@ const MEMORY_UNDO_MS = 6000;
 
 // P345: the F20 starter capsules no longer prefill a canned sentence —
 // that made them dead options (a prefilled prompt is identical to typing
-// it). Each chip now opens its own intake (STARTERS in starterIntents.ts)
-// which collects the branch's real inputs and assembles the first message.
+// it). Each chip now opens its own intake (the intent-carrying rows of
+// STARTER_ENTRIES) which collects the branch's real inputs and assembles
+// the first message.
+// P355: the chip list is the shared STARTER_ENTRIES — the same four
+// entries the sidebar「快捷入口」renders, same order, same labels. An
+// entry with no intake branch still does real work: its prompt prefills
+// the composer (the P316 drawer path), it is never a dead option.
 
 type FeatureIconKey = 'wrench' | 'chat' | 'chart';
 
@@ -780,31 +785,48 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 hero button only duplicated the textarea's job, so what
                 remains here is passive guidance, not a control. */}
             <p className="welcome-hint">{startHint}</p>
-            {/* P343: ≤768px demotes the three starter chips to one muted,
+            {/* P343: ≤768px demotes the starter chips to one muted,
                 non-interactive hint line — text, not button-chrome — so
                 the composer's send key stays the first screen's only real
-                action. The tappable chips keep working ≥769px. */}
+                action. The tappable chips keep working ≥769px.
+                P355: both forms enumerate the shared STARTER_ENTRIES — the
+                same four entries the sidebar「快捷入口」lists, joined here
+                in the same order, never a second hardcoded list. */}
             {compactFeatures ? (
               <p className="starter-chips-line">
-                也可以直接问：{STARTERS.map((s) => s.label).join(' · ')}
+                也可以直接问：{STARTER_ENTRIES.map((s) => s.label).join(' · ')}
               </p>
             ) : (
               <div className="starter-chips" role="group" aria-label="开始话题">
-                {STARTERS.map((s) => (
-                  <button
-                    key={s.intent}
-                    type="button"
-                    className="starter-chip secondary"
-                    aria-label={s.label}
-                    aria-expanded={activeStarter === s.intent}
-                    data-active={activeStarter === s.intent ? 'true' : undefined}
-                    onClick={() =>
-                      setActiveStarter((cur) => (cur === s.intent ? null : s.intent))
-                    }
-                  >
-                    {s.label}
-                  </button>
-                ))}
+                {STARTER_ENTRIES.map((s) => {
+                  const expands = s.intent !== undefined;
+                  const active = expands && activeStarter === s.intent;
+                  return (
+                    <button
+                      key={s.label}
+                      type="button"
+                      className="starter-chip secondary"
+                      aria-label={s.label}
+                      aria-expanded={expands ? active : undefined}
+                      data-active={active ? 'true' : undefined}
+                      onClick={() => {
+                        const intent = s.intent;
+                        if (intent) {
+                          setActiveStarter((cur) =>
+                            cur === intent ? null : intent,
+                          );
+                        } else {
+                          // P355: no intake branch — the entry's own prompt
+                          // prefills the composer (never a dead option).
+                          setActiveStarter(null);
+                          inputRef.current?.prefill(s.prompt);
+                        }
+                      }}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
               </div>
             )}
             {/* P345: the branch's intake sits under the chips — each

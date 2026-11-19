@@ -1,7 +1,8 @@
 import type { ChatIntent } from '../types';
+import { STARTER_ENTRIES } from './starterEntries';
 
 /**
- * P345 — the three welcome starter capsules as structural branches. A chip
+ * P345 — the welcome starter capsules as structural branches. A chip
  * no longer prefills a fixed sentence (that was a dead option — identical
  * to just typing it); it opens a per-intent intake that collects the
  * inputs that branch actually needs, then assembles a real first message
@@ -10,29 +11,32 @@ import type { ChatIntent } from '../types';
 
 export interface StarterDef {
   intent: ChatIntent;
-  /** Chip label — unchanged from the old capsules. */
+  /** Chip label — from the shared STARTER_ENTRIES row. */
   label: string;
   /** The intake's guiding question. */
   question: string;
 }
 
-export const STARTERS: readonly StarterDef[] = [
-  {
-    intent: 'profile',
-    label: '资料优化',
-    question: '资料里目前最缺哪一块？',
-  },
-  {
-    intent: 'chat-coach',
-    label: '聊天指导',
-    question: '把她最近发来的原话贴上来',
-  },
-  {
-    intent: 'date-plan',
-    label: '约会规划',
-    question: '在哪座城市、预算多少、第几次见面？',
-  },
-];
+/** P345: every starter intent's intake has exactly one guiding question. */
+const INTAKE_QUESTIONS: Record<ChatIntent, string> = {
+  profile: '资料里目前最缺哪一块？',
+  'chat-coach': '把她最近发来的原话贴上来',
+  'date-plan': '在哪座城市、预算多少、第几次见面？',
+};
+
+// P355: labels/order come from the shared STARTER_ENTRIES row so the
+// first screen and the drawer can never hold a second hardcoded copy.
+export const STARTERS: readonly StarterDef[] = STARTER_ENTRIES.flatMap((e) =>
+  e.intent
+    ? [
+        {
+          intent: e.intent,
+          label: e.label,
+          question: INTAKE_QUESTIONS[e.intent],
+        },
+      ]
+    : [],
+);
 
 /** 资料优化 intake: which part of the profile is missing. */
 export const PROFILE_PARTS = ['照片', '自我介绍', '开场白'] as const;

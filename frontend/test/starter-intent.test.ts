@@ -19,12 +19,14 @@ import {
 import type { ChatIntent } from '../src/types';
 
 /**
- * P345 — the three welcome starter capsules used to be dead options: each
+ * P345 — the welcome starter capsules used to be dead options: each
  * click just prefilled a fixed sentence, so picking one was identical to
  * typing it (and the request carried no signal at all). They are now
  * structural branches — a chip opens its own intake (缺哪项资料 / 她的
  * 原话 / 城市·预算·第几次), assembles a per-branch first message into the
  * composer, and the send carries that branch's `intent` on /api/chat.
+ * P355: the chips render the shared STARTER_ENTRIES labels (the drawer
+ * copy), so the scenario labels below are the sentence-shaped ones.
  *
  * Mounted-App assertions on the fake DOM (same harness as
  * sidebar-tool-entries.test.ts): three different intake shapes, three
@@ -47,7 +49,7 @@ interface Helpers {
 
 const SCENARIOS: Scenario[] = [
   {
-    label: '资料优化',
+    label: '帮我优化资料',
     intent: 'profile',
     fill: async (panel, { click }) => {
       const option = panel
@@ -58,7 +60,7 @@ const SCENARIOS: Scenario[] = [
     expectInDraft: '自我介绍',
   },
   {
-    label: '聊天指导',
+    label: '她这样回我怎么接',
     intent: 'chat-coach',
     fill: async (panel, { type }) => {
       await type(panel.querySelector('.starter-intake-textarea'), '嗯，随便你吧');
@@ -66,7 +68,7 @@ const SCENARIOS: Scenario[] = [
     expectInDraft: '嗯，随便你吧',
   },
   {
-    label: '约会规划',
+    label: '帮我规划第一次约会',
     intent: 'date-plan',
     fill: async (panel, { type }) => {
       const city = panel
@@ -224,7 +226,8 @@ describe('P345 · starter capsules are structural branches (mounted App)', () =>
     install();
     await mountApp();
     const chips = dom.document.querySelectorAll('.starter-chip');
-    expect(chips).toHaveLength(3);
+    // P355: four chips — the whole shared STARTER_ENTRIES list renders.
+    expect(chips).toHaveLength(4);
 
     const shapeOf = async (label: string) => {
       await click(chips.find((b) => b.getAttribute('aria-label') === label));
@@ -238,9 +241,9 @@ describe('P345 · starter capsules are structural branches (mounted App)', () =>
       return shape;
     };
 
-    const profile = await shapeOf('资料优化');
-    const coach = await shapeOf('聊天指导');
-    const date = await shapeOf('约会规划');
+    const profile = await shapeOf('帮我优化资料');
+    const coach = await shapeOf('她这样回我怎么接');
+    const date = await shapeOf('帮我规划第一次约会');
 
     expect(profile.options).toBeGreaterThanOrEqual(3);
     expect(profile.textarea).toBe(false);

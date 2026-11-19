@@ -26,6 +26,8 @@ import TrashSheet from './TrashSheet';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { toolDisplayName } from '../lib/toolLabels';
 import { toolPromptFor } from '../lib/toolPrompts';
+import { STARTER_ENTRIES } from '../lib/starterEntries';
+import type { StarterIconKey } from '../lib/starterEntries';
 import type { ToolInfo, UserProfile } from '../types';
 import './Sidebar.css';
 
@@ -134,11 +136,9 @@ export function groupSessionsByDay(
   );
 }
 
-type QuickIconKey = 'profile' | 'chat' | 'calendar' | 'heart';
-
 // P199: restrained inline SVGs (currentColor stroke) replace the emoji glyphs;
 // the text label still carries the meaning, so every icon is aria-hidden.
-const QUICK_ICON_PATHS: Record<QuickIconKey, string[]> = {
+const QUICK_ICON_PATHS: Record<StarterIconKey, string[]> = {
   profile: ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'],
   chat: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
   calendar: [
@@ -152,7 +152,7 @@ const QUICK_ICON_PATHS: Record<QuickIconKey, string[]> = {
   ],
 };
 
-function SidebarIcon({ iconKey }: { iconKey: QuickIconKey }) {
+function SidebarIcon({ iconKey }: { iconKey: StarterIconKey }) {
   return (
     <svg
       className="sidebar-icon"
@@ -173,14 +173,9 @@ function SidebarIcon({ iconKey }: { iconKey: QuickIconKey }) {
   );
 }
 
-// P220: quick-entry labels are intent-shaped sentences so they can never be
-// mistaken for the 进阶工具 capability names listed below.
-const QUICK_PROMPTS = [
-  { iconKey: 'profile', label: '帮我优化资料', prompt: '帮我看看交友资料怎么写更有吸引力' },
-  { iconKey: 'chat', label: '她这样回我怎么接', prompt: '对方说「周末有什么安排」，我该怎么回复？' },
-  { iconKey: 'calendar', label: '帮我规划第一次约会', prompt: '帮我规划一次轻松自然的第一次约会' },
-  { iconKey: 'heart', label: '我们合不合适', prompt: '我偏内向慢热，对方很外向，分析一下合不合适' },
-] as const;
+// P355: the 快捷入口 rows render STARTER_ENTRIES from lib/starterEntries.ts —
+// the one array the first screen shares, so the drawer and the welcome block
+// can never hold two different entry lists again.
 
 // P220: when /api/tools has not loaded yet, the 工具 list falls back to the
 // real capability names — never to the quick-prompt labels, which would
@@ -693,7 +688,7 @@ export default function Sidebar({
         <section className="sidebar-section" aria-label="快捷入口">
           <h3>快捷入口</h3>
           <div className="quick-prompts">
-            {QUICK_PROMPTS.map((p) => (
+            {STARTER_ENTRIES.map((p) => (
               <button
                 key={p.label}
                 className="quick-btn"

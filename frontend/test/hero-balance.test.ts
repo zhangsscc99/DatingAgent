@@ -12,6 +12,7 @@ import {
   type FakeElement,
 } from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
+import { STARTER_ENTRIES } from '../src/lib/starterEntries';
 import type { ChatMessage } from '../src/types';
 
 /**
@@ -397,15 +398,16 @@ describe('P343 · the first screen keeps ≤4 clickables and one primary', () =>
     vi.unstubAllGlobals();
   });
 
-  it('the three starter chips collapse into one muted non-interactive hint line', async () => {
+  it('the starter chips collapse into one muted non-interactive hint line', async () => {
     await mount(VIEWPORT_W);
     expect(qsa('.starter-chip')).toHaveLength(0);
     expect(qs('.starter-chips')).toBeNull();
     const line = qs('.starter-chips-line');
     expect(line).not.toBeNull();
     expect(line!.tagName).toBe('P');
-    for (const label of ['资料优化', '聊天指导', '约会规划']) {
-      expect(line!.textContent).toContain(label);
+    // P355: the joined line lists the same shared entries the drawer holds.
+    for (const entry of STARTER_ENTRIES) {
+      expect(line!.textContent).toContain(entry.label);
     }
     // Passive copy — not itself a control, and it wraps no control.
     expect(line!.querySelector('button, a[href], [role="button"]')).toBeNull();
@@ -574,7 +576,8 @@ describe('P343 · desktop ≥769px keeps the full welcome block', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    expect(qsa('.starter-chip')).toHaveLength(3);
+    // P355: four chips — every shared STARTER_ENTRIES row is tappable.
+    expect(qsa('.starter-chip')).toHaveLength(STARTER_ENTRIES.length);
     expect(qs('.starter-chips-line')).toBeNull();
     const cta = qs('.welcome-cta');
     expect(cta).not.toBeNull();

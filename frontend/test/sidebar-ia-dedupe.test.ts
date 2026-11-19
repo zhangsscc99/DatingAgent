@@ -18,20 +18,32 @@ import { describe, expect, it } from 'vitest';
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const sidebar = readFileSync(join(SRC, 'components/Sidebar.tsx'), 'utf8');
+// P355: the quick entries moved to the shared STARTER_ENTRIES — the one
+// array the welcome block also renders.
+const starterEntries = readFileSync(
+  join(SRC, 'lib/starterEntries.ts'),
+  'utf8',
+);
 
-function blockOf(startMarker: string, endMarker: string): string {
-  const start = sidebar.indexOf(startMarker);
+function blockOf(
+  src: string,
+  startMarker: string,
+  endMarker: string,
+): string {
+  const start = src.indexOf(startMarker);
   expect(start).toBeGreaterThanOrEqual(0);
-  const end = sidebar.indexOf(endMarker, start);
+  const end = src.indexOf(endMarker, start);
   expect(end).toBeGreaterThan(start);
-  return sidebar.slice(start, end);
+  return src.slice(start, end);
 }
 
 const labelsIn = (block: string) =>
   [...block.matchAll(/label: '([^']+)'/g)].map((m) => m[1]);
 
-const quickLabels = labelsIn(blockOf('const QUICK_PROMPTS', '] as const;'));
-const toolLabels = labelsIn(blockOf('const TOOL_FALLBACK', '];'));
+const quickLabels = labelsIn(
+  blockOf(starterEntries, 'const STARTER_ENTRIES', '];'),
+);
+const toolLabels = labelsIn(blockOf(sidebar, 'const TOOL_FALLBACK', '];'));
 
 describe('P220 · sidebar quick entries and tools never share a name', () => {
   it('keeps both groups rendered under their own headings', () => {
@@ -45,7 +57,7 @@ describe('P220 · sidebar quick entries and tools never share a name', () => {
   it('quick entries still offer all four prompts', () => {
     expect(quickLabels).toHaveLength(4);
     const prompts = [
-      ...blockOf('const QUICK_PROMPTS', '] as const;').matchAll(
+      ...blockOf(starterEntries, 'const STARTER_ENTRIES', '];').matchAll(
         /prompt: '([^']+)'/g,
       ),
     ].map((m) => m[1]);
@@ -75,8 +87,8 @@ describe('P220 · sidebar quick entries and tools never share a name', () => {
   });
 
   it('the tool list falls back to capability names, never quick labels', () => {
-    const listBlock = blockOf('className="tool-list"', '</ul>');
+    const listBlock = blockOf(sidebar, 'className="tool-list"', '</ul>');
     expect(listBlock).toContain('tools.length ? tools : TOOL_FALLBACK');
-    expect(listBlock).not.toContain('QUICK_PROMPTS');
+    expect(listBlock).not.toContain('STARTER_ENTRIES');
   });
 });
