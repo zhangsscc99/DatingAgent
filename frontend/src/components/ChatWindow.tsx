@@ -24,6 +24,11 @@ import {
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
 import { canGenerateReply, needsReply } from '../lib/pendingReply';
 import { isOnboardingComplete } from '../lib/profileStorage';
+import {
+  dismissProfileNudge,
+  isProfileNudgeDismissed,
+  shouldShowProfileNudge,
+} from '../lib/profileNudge';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
   MEMORY_RECEIPT_PREFIX,
@@ -297,22 +302,31 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // skipped the profile prompt (onboardingDone) never see it, and a saved
   // profile removes it outright. Read in render like getLastEvictionNotice
   // so an in-session 稍后再说 suppresses it immediately.
-  const [profileNudgeDismissed, setProfileNudgeDismissed] = useState(false);
-  const profileNudgeVisible =
-    !restoring &&
-    !profile?.name &&
-    !profileNudgeDismissed &&
-    // P308: the nudge and the memory capsule are mutually exclusive — when
-    // the capsule is resident the bottom 完善资料 hint stays down.
-    visibleRows.length === 0 &&
-    !isOnboardingComplete() &&
-    messages.some(
+  // P255/P349: the profile suggestion above the composer is one compact
+  // capsule (<=32px) offered after the first answer — never a card, never a
+  // second row. A dismissal is persisted (P349) so it does not come back on
+  // reload; users with a saved profile or a finished onboarding never see it.
+  const [profileNudgeDismissed, setProfileNudgeDismissedState] = useState(
+    () => isProfileNudgeDismissed(),
+  );
+  const setProfileNudgeDismissed = useCallback((value: boolean) => {
+    setProfileNudgeDismissedState(value);
+    if (value) dismissProfileNudge();
+  }, []);
+  const profileNudgeVisible = shouldShowProfileNudge({
+    restoring,
+    hasName: Boolean(profile?.name),
+    dismissed: profileNudgeDismissed,
+    rowsVisible: visibleRows.length,
+    onboardingDone: isOnboardingComplete(),
+    hasAnswer: messages.some(
       (m) =>
         m.role === 'assistant' &&
         !m.streaming &&
         !m.error &&
         m.content.length > 0,
-    );
+    ),
+  });
 
   // P19: client-side search over the rendered conversation.
   const [searchOpen, setSearchOpen] = useState(false);
@@ -881,9 +895,11 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
           it can never cover or intercept #chat-input. Not a modal, not a
           banner; opening the dialog or pressing × dismisses it for the
           session. */}
+      {/* P349: one capsule, capped at 32px, instead of the card that used to
+          compete with the send key. Shown once after the first answer; the
+          × (or opening the dialog) remembers the dismissal across reloads. */}
       {profileNudgeVisible && onSetupProfile && (
-        <div className="profile-nudge" role="status">
-          <span className="profile-nudge-text">想让我更懂你的处境？</span>
+        <div className="profile-nudge" role="status" data-nudge="capsule">
           <button
             type="button"
             className="profile-nudge-btn"
@@ -892,13 +908,13 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
               onSetupProfile();
             }}
           >
-            完善资料
+            想让我更懂你的处境？完善资料 →
           </button>
           <button
             type="button"
             className="profile-nudge-dismiss"
-            aria-label="先不用"
-            title="先不用"
+            aria-label="不再提示"
+            title="不再提示"
             onClick={() => setProfileNudgeDismissed(true)}
           >
             <span aria-hidden="true">×</span>

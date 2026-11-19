@@ -77,20 +77,27 @@ describe('P259 settings-path touch targets on narrow screens', () => {
     minHeightAtLeast36(body, '.settings-segment');
   });
 
-  it('profile-prompt dismiss .profile-nudge-dismiss is at least 36x36', () => {
-    const body = ruleBody(narrowBlock(chatWindowCss), '.profile-nudge-dismiss');
-    minHeightAtLeast36(body, '.profile-nudge-dismiss');
-    const w = body.match(/min-width:\s*(\d+)px/);
-    expect(w, '.profile-nudge-dismiss min-width >= 36px').toBeTruthy();
-    expect(Number(w![1])).toBeGreaterThanOrEqual(36);
+  it('profile suggestion is one <=32px capsule on narrow screens (P349)', () => {
+    const body = ruleBody(narrowBlock(chatWindowCss), '.profile-nudge');
+    const maxH = body.match(/max-height:\s*(\d+)px/);
+    expect(maxH, '.profile-nudge must cap its height').toBeTruthy();
+    expect(Number(maxH![1])).toBeLessThanOrEqual(32);
+    const h = body.match(/height:\s*(\d+)px/);
+    expect(h, '.profile-nudge must pin its height').toBeTruthy();
+    expect(Number(h![1])).toBeLessThanOrEqual(32);
   });
 
-  it('profile-prompt chip .profile-nudge-btn is at least 36px tall', () => {
-    const body = ruleBody(narrowBlock(chatWindowCss), '.profile-nudge-btn');
-    minHeightAtLeast36(body, '.profile-nudge-btn');
-    // keep the pill shape + label readable: still inline-flex centered
-    expect(body).toContain('display: inline-flex');
-    expect(body).toContain('align-items: center');
+  it('the capsule label and dismiss × stay inside the 32px capsule', () => {
+    const btn = ruleBody(narrowBlock(chatWindowCss), '.profile-nudge-btn');
+    // P349 supersedes the old 36px chip bump: the label is part of a capsule.
+    expect(btn).toContain('min-height: 0');
+    expect(btn).toContain('display: inline-flex');
+    expect(btn).toContain('align-items: center');
+    const dismiss = ruleBody(narrowBlock(chatWindowCss), '.profile-nudge-dismiss');
+    expect(dismiss).toContain('min-height: 0');
+    const h = dismiss.match(/height:\s*(\d+)px/);
+    expect(h).toBeTruthy();
+    expect(Number(h![1])).toBeLessThanOrEqual(32);
   });
 
   it('desktop rules are unchanged: base selectors keep their old sizes', () => {
@@ -103,13 +110,19 @@ describe('P259 settings-path touch targets on narrow screens', () => {
     const baseOpen = sidebarCss.match(/\.settings-open-btn\s*\{([^}]*)\}/);
     expect(baseOpen).toBeTruthy();
     expect(baseOpen![1]).not.toContain('min-height');
-    // base .profile-nudge-btn keeps its 70×24 desktop sizing (the media
-    // block sits earlier in the file, so drop it before matching).
+    // base .profile-nudge-btn is the capsule label: flat text inside the
+    // 32px pill (P349), still 12px type.
     const outsideMedia = chatWindowCss.replace(narrowBlock(chatWindowCss), '');
     const baseNudge = outsideMedia.match(/\.profile-nudge-btn\s*\{([^}]*)\}/);
     expect(baseNudge).toBeTruthy();
-    expect(baseNudge![1]).toContain('padding: 2px 10px');
+    expect(baseNudge![1]).toContain('padding: 0 4px');
     expect(baseNudge![1]).toContain('font-size: 12px');
     expect(baseNudge![1]).not.toContain('min-height');
+    // …and the capsule itself never exceeds P349's 32px ceiling.
+    const baseCapsule = outsideMedia.match(/\.profile-nudge\s*\{([^}]*)\}/);
+    expect(baseCapsule).toBeTruthy();
+    const capsuleMax = baseCapsule![1].match(/max-height:\s*(\d+)px/);
+    expect(capsuleMax).toBeTruthy();
+    expect(Number(capsuleMax![1])).toBeLessThanOrEqual(32);
   });
 });

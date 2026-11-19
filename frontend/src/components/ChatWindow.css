@@ -424,21 +424,27 @@
     padding: 12px 16px;
   }
 
-  /* P260 — the 「完善资料」 chip measured 70×24; raise it to the ≥36px
-     touch target without changing the pill shape or its 12px label.
-     inline-flex centering keeps the text vertically centered. */
-  .profile-nudge-btn {
-    min-height: 36px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+  /* P349 — the profile suggestion is a single 32px capsule (see the base
+     rule): on phones the inner label and × must stay inside that height,
+     so the older 36px touch-target bumps are history. The capsule keeps a
+     comfortable full-width tap area while never growing past 32px. */
+  .profile-nudge {
+    height: 32px;
+    max-height: 32px;
   }
 
-  /* P259 — the profile-prompt dismiss × measured 21×21; icon-only
-     buttons must be ≥36×36 on narrow screens. */
+  .profile-nudge-btn {
+    min-height: 0;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+  }
+
   .profile-nudge-dismiss {
-    min-width: 36px;
-    min-height: 36px;
+    min-width: 24px;
+    min-height: 0;
+    width: 24px;
+    height: 24px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -757,40 +763,49 @@
   text-align: center;
 }
 
-/* P255: one quiet inline line above the composer offering the profile
- * dialog after the first reply — same restrained styling as .offline-note
- * and .pending-reply-btn, normal flow so it never covers the input. */
+/* P255/P349: one quiet capsule above the composer offering the profile
+ * dialog after the first answer — normal flow, so it never covers the
+ * input, and capped at 32px so it cannot compete with the send key. */
 .profile-nudge {
   flex-shrink: 0;
-  display: flex;
+  align-self: center;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 4px 16px;
+  gap: 2px;
+  box-sizing: border-box;
+  height: 32px;
+  max-height: 32px;
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 2px auto 4px;
+  padding: 0 2px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
   color: var(--text-muted);
   font-size: 12px;
-  line-height: 18px;
+  line-height: 1;
 }
 
-/* P290: secondary styling — the nudge is a soft inline suggestion, not a
-   brand action; resting state stays in muted text like .pending-reply-btn. */
+/* P290/P349: the label itself is the button — no inner chip, so the whole
+   capsule stays one line high. */
 .profile-nudge-btn {
-  padding: 2px 10px;
+  min-width: 0;
+  padding: 0 4px;
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 20px;
+  border: none;
   color: var(--text-secondary);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.2;
   font-family: inherit;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: color 0.15s;
 }
 
 .profile-nudge-btn:hover {
-  background: var(--accent-soft);
-  border-color: var(--accent);
   color: var(--accent);
 }
 
@@ -801,12 +816,19 @@
 }
 
 .profile-nudge-dismiss {
-  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   background: transparent;
   border: none;
+  border-radius: 50%;
   color: var(--text-muted);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1;
   font-family: inherit;
   cursor: pointer;
 }

@@ -275,3 +275,4 @@
 2026-11-19 01:02 | P346 | 折叠阈值统一 400 字 + 「展开剩余 N 字」 + 底部渐隐（补测并复核）
 2026-11-19 01:30 | P347 | 搜索空态三行化：主文案 / 说明 / 独立「清除筛选」按钮（≥88px、间距≥8px）
 2026-11-19 02:40 | P348 | 底部工具条统一 16px 内边距与 48px 高度，「回答适中」与发送键同基线
+2026-11-19 04:5x | P349 | 完善资料推销卡降级为单颗 32px 胶囊（label+× 同高，不再整卡压输入条）：新增 lib/profileNudge.ts（shouldShowProfileNudge 纯判定 + localStorage 记住已关闭），ChatWindow 用胶囊渲染并持久化 dismiss，CSS 全局+≤768px 双段钉死 height/max-height 32px（P260 的 36px 触碰抬高按 P349 合同撤销），新增 frontend/test/upsell-in-chat.test.ts（6 例：判定纯函数/CSS 合同/单胶囊且控件全在胶囊内/三轮稳定/dismiss 持久化+重载不复现/存储异常不抛），settings-touch-targets 同步新契约；1559 例全绿，ci-deploy 通过（health ok + smoke "OK"），实测 390×844 与 1440×900 胶囊 32px、与输入条间距 4px、输入条上方 120px 内无第二颗可点「完善资料」
