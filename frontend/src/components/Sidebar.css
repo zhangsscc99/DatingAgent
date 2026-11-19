@@ -29,7 +29,11 @@
 
 .new-chat-btn {
   width: 100%;
-  padding: 10px 16px;
+  /* P361 — every sidebar entry resolves to the same box: 10px/12px padding,
+     a 44px floor and the shared --radius. The CTA keeps its brand fill; only
+     its geometry joins the control language. */
+  min-height: 44px;
+  padding: 10px 12px;
   background: var(--accent);
   color: var(--on-accent);
   border: none;
@@ -108,7 +112,10 @@
 .profile-setup-btn {
   display: block;
   width: 100%;
-  padding: 8px 12px;
+  /* P361: joins the shared entry box (10px/12px, 44px floor) — the shallow
+     accent-soft fill is the only thing distinguishing it now. */
+  min-height: 44px;
+  padding: 10px 12px;
   background: var(--accent-soft);
   border: 1px solid transparent;
   border-radius: var(--radius);
@@ -326,7 +333,8 @@
   align-items: flex-start;
   gap: 2px;
   width: 100%;
-  padding: 8px 10px;
+  min-height: 44px;
+  padding: 10px 12px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius);
@@ -522,7 +530,8 @@
   display: block;
   width: 100%;
   margin-top: 6px;
-  padding: 8px 10px;
+  min-height: 44px;
+  padding: 10px 12px;
   background: var(--surface-hover);
   border: 1px solid transparent;
   border-radius: var(--radius);
@@ -692,8 +701,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  margin: 0 0 10px -10px;
+  /* P361: the footer entry shares the row box (padding/radius) but keeps its
+     padding-driven height so the quiet text tone survives on desktop. */
+  padding: 10px 12px;
+  margin: 0 0 10px -12px;
   background: none;
   border: none;
   color: var(--text-secondary);
@@ -841,18 +852,20 @@
   }
 
   /* P259 — settings-path touch targets were 19–29px tall on phones;
-     every interactive control here must be ≥36px (P227's rule). */
+     every interactive control here must be ≥36px (P227's rule). P361 lifts
+     the drawer's own entries onto the shared 44px floor. */
   .settings-open-btn {
-    min-height: 36px;
+    min-height: 44px;
   }
 
   .recent-chat-clear-all {
     min-height: 36px;
   }
 
-  /* P265 — the 回收站 row follows the same ≥36px touch-target rule. */
+  /* P265 — the 回收站 row follows the same ≥36px touch-target rule; P361
+     puts it on the entry floor. */
   .recent-chat-trash {
-    min-height: 36px;
+    min-height: 44px;
   }
 }
 

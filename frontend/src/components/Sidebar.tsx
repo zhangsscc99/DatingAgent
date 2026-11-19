@@ -423,6 +423,7 @@ export default function Sidebar({
             .welcome-cta). The brand fill returns with the first session. */}
         <button
           className={`new-chat-btn${pristine ? ' secondary' : ''}`}
+          data-control="row"
           onClick={onNewChat}
           aria-label="开始新对话"
         >
@@ -583,6 +584,7 @@ export default function Sidebar({
                             <button
                               type="button"
                               className={`recent-chat-item${s.id === activeSessionId ? ' active' : ''}`}
+                              data-control="row"
                               onClick={() => onSelectChat?.(s.id)}
                               onKeyDown={handleSessionItemKeyDown}
                               disabled={busy}
@@ -657,6 +659,7 @@ export default function Sidebar({
             <button
               type="button"
               className="recent-chat-trash"
+              data-control="row"
               onClick={() => setTrashOpen(true)}
               aria-label={`回收站，${trashEntries.length} 段已删除对话`}
               title="回收站"
@@ -723,6 +726,7 @@ export default function Sidebar({
               <button
                 type="button"
                 className="profile-setup-btn"
+                data-control="row"
                 onClick={onEditProfile}
               >
                 完善资料，获得更个性化建议
@@ -832,6 +836,7 @@ export default function Sidebar({
         <button
           type="button"
           className="settings-open-btn"
+          data-control="row"
           aria-label="设置"
           title="设置"
           onClick={onOpenSettings}
