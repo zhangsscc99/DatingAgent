@@ -33,11 +33,13 @@ interface Props {
 export default function ToolBadge({ event }: Props) {
   const iconPaths = TOOL_ICON_PATHS[event.name] ?? FALLBACK_ICON_PATHS;
   const isRunning = event.status === 'running';
+  const isFailed = event.status === 'failed';
+  const statusText = isRunning ? '执行中' : isFailed ? '失败' : '完成';
 
   return (
     <div
       className={`tool-badge ${event.status}`}
-      title={isRunning ? `${event.label} — 执行中` : `${event.label} — 完成`}
+      title={`${event.label} — ${statusText}`}
     >
       <svg
         className="tool-icon"
@@ -56,9 +58,13 @@ export default function ToolBadge({ event }: Props) {
         ))}
       </svg>
       <span className="tool-label">{event.label}</span>
-      <span className="tool-status" role="img" aria-label={isRunning ? '执行中' : '完成'}>
+      <span className="tool-status" role="img" aria-label={statusText}>
         {isRunning ? (
           <span className="spinner" aria-hidden="true" />
+        ) : isFailed ? (
+          <span className="cross" aria-hidden="true">
+            ✕
+          </span>
         ) : (
           <span className="check" aria-hidden="true">
             ✓

@@ -116,7 +116,8 @@ describe('P210 · tool-phase progress copy', () => {
     expect(app).toContain("d.phase === 'summarizing' ? 'summarizing' : 'calling'");
     // tool_start no longer pushes a duplicate badge after an early announce.
     expect(app).toContain('toolEvents.find((t) => t.name === d.name)');
-    // The post-tool window is covered: tool_end marks allDone as summarizing.
-    expect(app).toContain("toolPhase = allDone ? 'summarizing' : 'calling'");
+    // The post-tool window is covered: tool_end marks all-settled (done or
+    // failed) as summarizing.
+    expect(app).toContain("toolPhase = allSettled ? 'summarizing' : 'calling'");
   });
 });

@@ -242,9 +242,19 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
      stays label-free on purpose — each tool name renders exactly once,
      inside the expandable record. */
   const toolEvents = !isUser ? (message.toolEvents ?? []) : [];
-  const toolRecordSummary = `已使用 ${toolEvents.length} 个工具 · ${
-    toolEvents.every((t) => t.status === 'done') ? '完成' : '执行中'
-  }`;
+  // P397: a failed call must never read 「已使用 N 个工具 · 完成」 — the
+  // summary reports the failure count instead; all-failed collapses to the
+  // plain 「N 个工具调用失败」 form.
+  const failedToolCount = toolEvents.filter((t) => t.status === 'failed').length;
+  const doneToolCount = toolEvents.filter((t) => t.status === 'done').length;
+  const toolRecordSummary =
+    failedToolCount > 0
+      ? doneToolCount > 0
+        ? `已使用 ${doneToolCount} 个工具 · ${failedToolCount} 个调用失败`
+        : `${failedToolCount} 个工具调用失败`
+      : `已使用 ${toolEvents.length} 个工具 · ${
+          toolEvents.every((t) => t.status === 'done') ? '完成' : '执行中'
+        }`;
 
   /* P331: the age label used to sit under the action pills as a third bottom
      line (body → buttons → time). It now rides inside .bubble-actions as the
@@ -275,7 +285,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
 
   return (
     <div
-      className={`bubble-row animate-in ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}`}
+      className={`bubble-row animate-in ${isUser ? 'user' : 'assistant'}`}
       data-message-id={message.id}
       role="group"
       aria-label={isUser ? '你的消息' : 'DatingAgent 的回复'}
@@ -410,7 +420,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
           </div>
         )}
         {message.error && message.errorDetail && (
-          <div className="bubble-error-detail">{message.errorDetail}</div>
+          <div className="bubble-failure-detail">{message.errorDetail}</div>
         )}
         {message.error && message.retryPrompt && onRetry && (
           <button

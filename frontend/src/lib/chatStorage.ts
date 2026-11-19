@@ -402,7 +402,13 @@ export function serializeMessages(messages: ChatMessage[]): ChatMessage[] {
           role,
           content,
           createdAt,
-          toolEvents: toolEvents?.map((t) => ({ ...t, status: 'done' as const })),
+          // P397: a failed call persists as failed — collapsing it to done
+          // would let a reload claim 「已使用 N 个工具 · 完成」 for a call
+          // that never produced a result; still-running reads as done.
+          toolEvents: toolEvents?.map((t) => ({
+            ...t,
+            status: t.status === 'failed' ? ('failed' as const) : ('done' as const),
+          })),
           ...(cleanMeta ? { meta: cleanMeta } : {}),
           ...(error ? { error: true as const, retryPrompt } : {}),
           ...(stopped ? { stopped: true as const } : {}),

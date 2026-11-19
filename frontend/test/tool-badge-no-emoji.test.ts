@@ -42,7 +42,10 @@ describe('P207 · tool badge has no emoji icons', () => {
 
   it('keeps the visible label, status semantics and check state', () => {
     expect(badge).toContain('{event.label}');
-    expect(badge).toContain(`aria-label={isRunning ? '执行中' : '完成'}`);
+    // P397: failed is a third settled state — running→执行中, failed→失败,
+    // done→完成.
+    expect(badge).toContain("isRunning ? '执行中' : isFailed ? '失败' : '完成'");
+    expect(badge).toContain('aria-label={statusText}');
     expect(badge).toContain('event.status');
     expect(badge).toContain('✓');
     expect(badge).toContain('className="spinner"');

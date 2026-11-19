@@ -118,7 +118,8 @@ export interface ReplyVersionSnapshot {
 export interface ToolEvent {
   name: string;
   label: string;
-  status: 'running' | 'done';
+  /** P397: 'failed' — the call could not produce a result (unavailable or thrown). */
+  status: 'running' | 'done' | 'failed';
   result?: unknown;
 }
 

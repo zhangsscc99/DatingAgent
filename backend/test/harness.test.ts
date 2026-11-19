@@ -102,7 +102,12 @@ describe('agent harness tool loop', () => {
 
     const error = events.find((e) => e.type === 'error');
     expect(error).toBeDefined();
-    expect((error!.data as { message: string }).message).toBe('Unknown tool: not_a_tool');
+    // P397: the surface is a localized line under a stable machine code —
+    // never the raw tool name or a raw exception.
+    const errorData = error!.data as { message: string; code: string };
+    expect(errorData.code).toBe('tool_unavailable');
+    expect(errorData.message).not.toContain('not_a_tool');
+    expect(errorData.message).not.toContain('Unknown tool');
     expect(events.some((e) => e.type === 'tool_start')).toBe(false);
     expect(events.at(-1)?.type).toBe('done');
     expect(events.some((e) => e.type === 'message')).toBe(true);

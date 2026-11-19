@@ -165,7 +165,17 @@ async function describeChatError(res: Response): Promise<string> {
 /** Result of one streamed reply; P26 uses it to restore a failed regeneration. */
 type StreamOutcome =
   | { status: 'ok'; content: string }
-  | { status: 'error'; errorText: string; serviceDown?: boolean }
+  | {
+      status: 'error';
+      errorText: string;
+      serviceDown?: boolean;
+      /**
+       * P397: the failure already owns an error bubble with its own 重试 —
+       * the global toast must not become a second surface (and a second
+       * 重试) for the same failure.
+       */
+      surfacedInBubble?: boolean;
+    }
   | { status: 'aborted' };
 
 function upsertAssistant(
@@ -659,22 +669,45 @@ export default function App() {
             }
 
             if (event.type === 'tool_end') {
-              const d = event.data as { name: string; result: unknown };
-              const idx = toolEvents.findIndex((t) => t.name === d.name && t.status === 'running');
-              if (idx >= 0) {
-                toolEvents[idx] = { ...toolEvents[idx], status: 'done', result: d.result };
+              const d = event.data as { name: string; result?: unknown; status?: string };
+              if (d.status === 'failed') {
+                // P397: a failed call settles its record entry — a running
+                // badge flips to failed; a call that was never announced
+                // (unregistered name) still gets a failed row so the record
+                // can report 「N 个工具调用失败」. An unmapped name renders
+                // the generic label, never the raw id.
+                const failIdx = toolEvents.findIndex(
+                  (t) => t.name === d.name && t.status === 'running',
+                );
+                if (failIdx >= 0) {
+                  toolEvents[failIdx] = { ...toolEvents[failIdx], status: 'failed' };
+                } else if (!toolEvents.some((t) => t.name === d.name)) {
+                  toolEvents.push({
+                    name: d.name,
+                    label: TOOL_LABELS[d.name] ?? '工具调用',
+                    status: 'failed',
+                  });
+                }
+                patchAssistant({ toolEvents: [...toolEvents] });
+              } else {
+                const idx = toolEvents.findIndex((t) => t.name === d.name && t.status === 'running');
+                if (idx >= 0) {
+                  toolEvents[idx] = { ...toolEvents[idx], status: 'done', result: d.result };
+                }
+                // P231/P397: failed is settled too — only still-running
+                // calls keep the wait copy on 'calling'; all settled means
+                // the result is being written up, so keep the tool name in
+                // the wait copy for that window too.
+                const allSettled = toolEvents.every((t) => t.status !== 'running');
+                toolPhase = allSettled ? 'summarizing' : 'calling';
+                streamPhase = allSettled ? 'generating' : 'tool';
+                patchAssistant({
+                  streamPhase,
+                  streaming: true,
+                  toolEvents: [...toolEvents],
+                  toolPhase,
+                });
               }
-              const allDone = toolEvents.every((t) => t.status === 'done');
-              // P231: all tools done means the result is being written up —
-              // keep the tool name in the wait copy for that window too.
-              toolPhase = allDone ? 'summarizing' : 'calling';
-              streamPhase = allDone ? 'generating' : 'tool';
-              patchAssistant({
-                streamPhase,
-                streaming: true,
-                toolEvents: [...toolEvents],
-                toolPhase,
-              });
             }
 
             // P189: token increments grow the bubble while the model writes;
@@ -692,6 +725,10 @@ export default function App() {
             }
 
             if (event.type === 'message') {
+              // P397: an authoritative reply after a mid-turn tool error
+              // means the turn recovered — the failure stays in the tool
+              // record only and never rewrites the bubble as an error.
+              streamError = null;
               const folded = foldReplyDraft(finalContent, event);
               if (folded !== null) {
                 finalContent = folded;
@@ -750,26 +787,35 @@ export default function App() {
         }
 
         if (streamError) {
+          // P397: the failure text lives on the bubble's error detail, never
+          // in content — an error line must not be persisted as the
+          // assistant's reply (and an empty content keeps it out of storage).
           const errorText = `出错了：${streamError}`;
           patchAssistant({
-            content: errorText,
+            content: '',
             streaming: false,
+            streamPhase: undefined,
+            toolPhase: undefined,
             error: true,
+            errorDetail: errorText,
             retryPrompt: prompt,
             toolEvents: toolEvents.length ? [...toolEvents] : undefined,
           });
-          return { status: 'error', errorText };
+          return { status: 'error', errorText, surfacedInBubble: true };
         }
         if (!finalContent) {
           const errorText = '暂无回复，请重试。';
           patchAssistant({
-            content: errorText,
+            content: '',
             streaming: false,
+            streamPhase: undefined,
+            toolPhase: undefined,
             error: true,
+            errorDetail: errorText,
             retryPrompt: prompt,
             toolEvents: toolEvents.length ? [...toolEvents] : undefined,
           });
-          return { status: 'error', errorText };
+          return { status: 'error', errorText, surfacedInBubble: true };
         }
         patchAssistant({
           content: finalContent,
@@ -811,12 +857,15 @@ export default function App() {
           status: httpStatus,
         });
         patchAssistant({
-          content: errorText,
+          content: '',
           streaming: false,
+          streamPhase: undefined,
+          toolPhase: undefined,
           error: true,
+          errorDetail: errorText,
           retryPrompt: prompt,
         });
-        return { status: 'error', errorText, serviceDown };
+        return { status: 'error', errorText, serviceDown, surfacedInBubble: true };
       }
     },
     [profile, sessionId, language, replyLength],
@@ -830,9 +879,17 @@ export default function App() {
     (outcome: StreamOutcome) => {
       if (outcome.status === 'aborted') return;
       setServiceDownBanner(outcome.status === 'error' && Boolean(outcome.serviceDown));
-      // P17: every failed turn surfaces a transient toast; a success resolves it.
-      if (outcome.status === 'error') toastCtl.show(outcome.errorText);
-      else toastCtl.dismiss();
+      // P17/P397: a failure that already owns an error bubble keeps the
+      // in-bubble 重试 as the single recovery affordance — the toast would
+      // be a second surface (and a second 重试) for the same failure, so it
+      // is suppressed and any stale one retired. A failure with no bubble
+      // still toasts.
+      if (outcome.status === 'error') {
+        if (outcome.surfacedInBubble) toastCtl.dismiss();
+        else toastCtl.show(outcome.errorText);
+      } else {
+        toastCtl.dismiss();
+      }
     },
     [toastCtl],
   );

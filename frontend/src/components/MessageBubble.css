@@ -168,10 +168,6 @@
   background: var(--danger-soft);
 }
 
-.bubble-row.error .bubble-content {
-  color: var(--danger);
-}
-
 .markdown-streaming {
   display: inline;
 }
@@ -470,8 +466,11 @@
   color: var(--text-muted);
 }
 
-/* P26: failure detail kept next to the restored reply after a failed regen. */
-.bubble-error-detail {
+/* P26: failure detail kept next to the restored reply after a failed regen.
+   P397: it now also carries the primary failure line (the bubble body stays
+   clean), so it keeps the danger tone on its own. The class name carries no
+   'error' — a failed turn must present exactly one error surface. */
+.bubble-failure-detail {
   margin-top: 8px;
   font-size: 12px;
   color: var(--danger);

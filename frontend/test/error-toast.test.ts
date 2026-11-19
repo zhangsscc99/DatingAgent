@@ -104,10 +104,14 @@ describe('P17 · toast wiring', () => {
     expect(toast).toContain('重试');
   });
 
-  it('drives the toast from every failed stream outcome', () => {
+  it('drives the toast only for failures with no bubble surface', () => {
     const app = read('App.tsx');
     expect(app).toContain('createErrorToast(setErrorToast)');
-    expect(app).toContain("outcome.status === 'error') toastCtl.show(outcome.errorText)");
+    // P397: a failure that already owns an error bubble keeps the in-bubble
+    // 重试 as the single recovery affordance — the toast shows only when
+    // the outcome did not surface in a bubble.
+    expect(app).toContain('outcome.surfacedInBubble');
+    expect(app).toContain('toastCtl.show(outcome.errorText)');
     // Timer teardown on unmount.
     expect(app).toContain('toastCtl.destroy()');
     // Retry still funnels through the shared last-failure path.

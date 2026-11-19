@@ -252,20 +252,28 @@ const TOOL_BUDGET_SPENT_DIRECTIVE =
   '工具结果已足够，请直接基于已获得的信息作答，不要再调用工具。';
 
 /**
+ * P397 — every tool failure (a name the registry does not know, or a
+ * handler that threw) surfaces to the client as this localized line under
+ * one stable machine code. The raw exception and the requested tool name
+ * never reach user-facing text.
+ */
+export const TOOL_UNAVAILABLE_MESSAGE = '工具暂时不可用，已跳过这一步';
+
+/**
  * P210: deterministic last resort — a run must never end on an empty
  * assistant bubble, so a budget-capped model that still returns no text
- * gets a reply built from the tool calls it already ran.
+ * gets a reply built from the tool calls it already ran. P397: only calls
+ * that actually produced a result are named — a failed call must not be
+ * claimed as 「拿到了相关信息」, and an unregistered name never echoes
+ * back at all.
  */
-function fallbackFromToolResults(messages: Message[]): string {
-  const names = new Set<string>();
-  for (const m of messages) {
-    if (m.role === 'tool' && m.toolName) names.add(m.toolName);
-  }
-  if (names.size === 0) {
+function fallbackFromToolResults(toolNames: readonly string[]): string {
+  const names = [...new Set(toolNames)];
+  if (names.length === 0) {
     return '抱歉，我暂时无法生成回复。请换个方式描述你的问题。';
   }
   return (
-    `我调用了 ${[...names].join('、')} 拿到了相关信息，但没能把它整理成通顺的回复。` +
+    `我调用了 ${names.join('、')} 拿到了相关信息，但没能把它整理成通顺的回复。` +
     '换个方式再问一次，或只说你最关心的一点，我直接回答。'
   );
 }
@@ -477,6 +485,10 @@ export class AgentHarness {
 
     // F21: metadata collected across the whole turn for the reply badge.
     const toolsUsed: string[] = [];
+    // P397: calls that actually returned a result — the empty-reply
+    // fallback names only these, so a failed call is never claimed as
+    // 「拿到了相关信息」 and an unregistered name never echoes back.
+    const toolsSucceeded: string[] = [];
     let tokens: number | undefined;
     // P210: total executed-tool-call budget for this run — counting calls,
     // not turns, so a multi-call response also spends it.
@@ -589,13 +601,30 @@ export class AgentHarness {
         // P210: a response can hold more calls than the remaining budget —
         // execute only what fits, so executions never exceed the cap.
         for (const call of response.toolCalls.slice(0, toolBudget - toolCallsExecuted)) {
-          toolsUsed.push(call.name);
           const tool = getTool(call.name);
           if (!tool) {
-            yield { type: 'error', data: { message: `Unknown tool: ${call.name}` } };
+            // P397 — a name the registry does not know (a hallucinated or
+            // removed tool) is an unavailable-tool condition, never reply
+            // text. The model is told the call failed so it answers from
+            // what it already has instead of looping on the same name;
+            // the client gets a failed record entry plus a structured
+            // error with a stable code — never the raw name.
+            toolCallsExecuted += 1;
+            messages.push({
+              role: 'tool',
+              content: JSON.stringify({ error: 'tool_unavailable' }),
+              toolCallId: call.id,
+              toolName: call.name,
+            });
+            yield { type: 'tool_end', data: { name: call.name, status: 'failed' } };
+            yield {
+              type: 'error',
+              data: { message: TOOL_UNAVAILABLE_MESSAGE, code: 'tool_unavailable' },
+            };
             continue;
           }
 
+          toolsUsed.push(call.name);
           toolCallsExecuted += 1;
           yield {
             type: 'tool_start',
@@ -639,6 +668,7 @@ export class AgentHarness {
             const outcome = await execution;
             if (!outcome.ok) throw outcome.error;
             const result = outcome.value;
+            toolsSucceeded.push(call.name);
             messages.push({
               role: 'tool',
               content: result,
@@ -650,15 +680,23 @@ export class AgentHarness {
               type: 'tool_end',
               data: { name: call.name, result: JSON.parse(result) },
             };
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
+          } catch {
+            // P397 — a thrown handler is the same unavailable-tool
+            // condition as an unknown name: the model gets a sanitized
+            // failure marker (no exception text for it to echo back), the
+            // record settles as failed, and the client error carries the
+            // stable code, not the raw message.
             messages.push({
               role: 'tool',
-              content: JSON.stringify({ error: msg }),
+              content: JSON.stringify({ error: 'tool_unavailable' }),
               toolCallId: call.id,
               toolName: call.name,
             });
-            yield { type: 'error', data: { message: msg } };
+            yield { type: 'tool_end', data: { name: call.name, status: 'failed' } };
+            yield {
+              type: 'error',
+              data: { message: TOOL_UNAVAILABLE_MESSAGE, code: 'tool_unavailable' },
+            };
           }
         }
         continue;
@@ -691,7 +729,7 @@ export class AgentHarness {
         : { text: cleanedContent, strategy: undefined };
       const finalContent = extracted.text.trim()
         ? extracted.text
-        : fallbackFromToolResults(messages);
+        : fallbackFromToolResults(toolsSucceeded);
       // A marker-only reply (empty body) carries no usable strategy.
       const replyStrategy = extracted.text.trim() ? extracted.strategy : undefined;
 
