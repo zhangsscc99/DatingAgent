@@ -49,7 +49,6 @@ import {
   restoreAnchorFor,
   saveScrollAnchor,
 } from '../lib/scrollAnchor';
-import { STARTER_ENTRIES } from '../lib/starterEntries';
 import type { ErrorToastState } from '../lib/errorToast';
 import type { RateLimitBudget } from '../lib/rateLimitStatus';
 import type { ReplyLengthPreference } from '../lib/replyLength';
@@ -76,11 +75,13 @@ const MEMORY_UNDO_MS = 6000;
 
 // P345: the F20 starter capsules no longer prefill a canned sentence —
 // that made them dead options (a prefilled prompt is identical to typing
-// it). Each chip now opens its own intake (the intent-carrying rows of
+// it). Each entry now opens its own intake (the intent-carrying rows of
 // STARTER_ENTRIES) which collects the branch's real inputs and assembles
 // the first message.
-// P355: the chip list is the shared STARTER_ENTRIES — the same four
-// entries the sidebar「快捷入口」renders, same order, same labels. An
+// P355/P394/P413: ChatWindow renders no starter list of its own — the
+// sidebar's 快捷入口 rows are the single copy of the shared
+// STARTER_ENTRIES at every width (desktop capsules removed by P394, the
+// compact pill row by P413), so this file never imports the array. An
 // entry with no intake branch still does real work: its prompt prefills
 // the composer (the P316 drawer path), it is never a dead option.
 
@@ -943,7 +944,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                     <button
                       key={prompt}
                       type="button"
-                      className="hero-cta-card"
+                      className="hero-cta-card example-card"
                       aria-label={`直接发送：${prompt}`}
                       disabled={loading}
                       onClick={() => handleSend(prompt)}
@@ -969,23 +970,12 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                 </div>
               )}
             </div>
-            {/* P343/P374: at ≤768px the four starters render as one muted,
-                non-interactive line of wrap-safe pills — the sidebar
-                drawer's 快捷入口 rows are the phone's tappable path.
-                P394: the desktop capsules are gone entirely — the same
-                four names lived TWICE on the first screen (aside rows +
-                this row), so the aside's 快捷入口 is now the single copy
-                at ≥769px too. */}
-            {compactFeatures && (
-              <p className="starter-chips-line">
-                <span className="starter-chips-lead">也可以直接问：</span>
-                {STARTER_ENTRIES.map((s) => (
-                  <span key={s.label} className="starter-pill">
-                    {s.label}
-                  </span>
-                ))}
-              </p>
-            )}
+            {/* P413: the「也可以直接问」pill row is gone from the phone
+                empty state — four starter-lookalike capsules beside the
+                three real send-cards was the measured 8-entry pileup
+                (they were semantically the same group). The sidebar
+                drawer's 快捷入口 stays the phone's starter path; desktop
+                was already deduped by P394. */}
             {/* P345/P394: the branch's intake sits in the hero — each
                 starter asks for its own inputs and assembles a first
                 message that prefills the composer with its intent armed.

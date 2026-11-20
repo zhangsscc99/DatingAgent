@@ -13,7 +13,6 @@ import {
 } from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
 import Sidebar from '../src/components/Sidebar';
-import { STARTER_ENTRIES } from '../src/lib/starterEntries';
 import { HERO_PRIMARY_LABEL } from '../src/lib/heroCta';
 import type { ChatMessage } from '../src/types';
 
@@ -283,16 +282,11 @@ describe('P336 · one real primary CTA on the empty first screen (390×844)', ()
       controls.length,
       `first-screen controls: ${labels.join(' | ')}`,
     ).toBeLessThanOrEqual(4);
-    // P343: the starter chips demoted to a single muted, non-interactive
-    // hint line — the labels survive as plain text. P355: the line is
-    // generated from the same STARTER_ENTRIES the drawer renders.
-    const line = qs('.starter-chips-line');
-    expect(line).not.toBeNull();
-    expect(line!.tagName).toBe('P');
-    expect(line!.querySelector('button, a[href], [role="button"]')).toBeNull();
-    for (const entry of STARTER_ENTRIES) {
-      expect(line!.textContent).toContain(entry.label);
-    }
+    // P413: the muted starter pill line duplicated the example cards —
+    // it no longer mounts on the phone empty state at all (the drawer's
+    // 快捷入口 stays the phone's starter path).
+    expect(qs('.starter-chips-line')).toBeNull();
+    expect(qsa('.starter-pill')).toHaveLength(0);
     expect(qsa('.starter-chip')).toHaveLength(0);
     // …and the「完善资料」entry stays a working footer-level link — a
     // role="link" span, outside the button/a[href] pool.
@@ -379,16 +373,16 @@ describe('P336 · one real primary CTA on the empty first screen (390×844)', ()
     expect(cta!.getAttribute('data-variant')).toBe('link');
     expect(cta!.hasAttribute('data-primary-cta')).toBe(false);
     expect(cta!.textContent).toContain('完善资料');
-    // Foot of the welcome block: it follows the hero actions and the
-    // starter pills — a footnote, not a control in the main flow.
+    // Foot of the welcome block: with the starter pill row gone (P413)
+    // it follows the hero actions directly — a footnote, not a control
+    // in the main flow.
     const welcome = qs('.welcome')!;
     const order = welcome.children.map((el) => el.className);
     const ctaIndex = order.findIndex((c) => c.includes('welcome-cta'));
-    const chipsIndex = order.findIndex((c) => c.includes('starter-chips'));
     const heroIndex = order.findIndex((c) => c.includes('hero-cta'));
     expect(heroIndex).toBeGreaterThanOrEqual(0);
-    expect(chipsIndex).toBeGreaterThan(heroIndex);
-    expect(ctaIndex).toBeGreaterThan(chipsIndex);
+    expect(order.some((c) => c.includes('starter-chips'))).toBe(false);
+    expect(ctaIndex).toBeGreaterThan(heroIndex);
     await unmount();
 
     // Rendered chrome: no border, no padding box, no fill — text only.
@@ -823,11 +817,11 @@ describe('P374 · one obvious primary action on the mobile first screen', () => 
   it('the first screen carries ≤2 lines of auxiliary gray copy', async () => {
     await mount(VIEWPORT_W);
     const welcome = qs('.welcome')!;
-    // Muted <p> blocks are the auxiliary copy: the subtitle plus the
-    // starter-pill line — nothing else survives the budget.
+    // Muted <p> blocks are the auxiliary copy — P413 removed the starter
+    // pill line, so the subtitle is now the ONLY muted line left.
     const muted = welcome.querySelectorAll('p');
     expect(muted.length).toBeLessThanOrEqual(2);
-    expect(muted.map((p) => p.className)).toEqual(['', 'starter-chips-line']);
+    expect(muted.map((p) => p.className)).toEqual(['']);
     expect(qs('.welcome-hint')).toBeNull();
     expect(qs('.hero-cta-lead')).toBeNull();
     expect(qs('.welcome-feature-line')).toBeNull();
@@ -836,7 +830,7 @@ describe('P374 · one obvious primary action on the mobile first screen', () => 
     await unmount();
   });
 
-  it('no text node overflows its container at 390 width — the hint is atomic nowrap pills', async () => {
+  it('no text node overflows its container at 390 width — the pill hint is gone (P413)', async () => {
     await mount(VIEWPORT_W);
     // The render-level expression a real-layout run evaluates; the fake
     // DOM reports 0/0 so the CSS contract below pins the real guarantee.
@@ -847,23 +841,16 @@ describe('P374 · one obvious primary action on the mobile first screen', () => 
         `.${el.className} scrollWidth>clientWidth`,
       ).toBeLessThanOrEqual(el.clientWidth);
     }
-    const line = qs('.starter-chips-line')!;
-    const pills = line.querySelectorAll('.starter-pill');
-    expect(pills).toHaveLength(STARTER_ENTRIES.length);
-    // Each pill is one complete label — never a ·-joined sentence — so a
-    // wrap can only move a whole label to the next line.
-    expect(pills.map((p) => p.textContent)).toEqual(
-      STARTER_ENTRIES.map((e) => e.label),
-    );
-    expect(line.textContent).not.toContain('·');
-    for (const pill of pills) {
-      expect(pill.scrollWidth).toBeLessThanOrEqual(pill.clientWidth);
-      expect(pill.tagName).not.toBe('BUTTON');
-    }
+    // P413: the「也可以直接问」pill row no longer mounts — it duplicated
+    // the example cards on the same screen.
+    expect(qs('.starter-chips-line')).toBeNull();
+    expect(qsa('.starter-pill')).toHaveLength(0);
     await unmount();
 
-    // The CSS contract: the row wraps freely while each pill is one
-    // nowrap unit capped at the line width and ellipsising inside itself.
+    // The leftover stylesheet rules keep their wrap-safe shape (same
+    // keep-the-rules convention as the retired .starter-chip sheet): the
+    // row wraps freely while each pill is one nowrap unit capped at the
+    // line width and ellipsising inside itself.
     const lineRule = ruleBody(chatWindowCss, '.starter-chips-line');
     expect(lineRule).toContain('flex-wrap: wrap');
     const pillRule = ruleBody(chatWindowCss, '.starter-pill');

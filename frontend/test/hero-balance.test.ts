@@ -12,7 +12,6 @@ import {
   type FakeElement,
 } from './helpers/fakeDom';
 import ChatWindow from '../src/components/ChatWindow';
-import { STARTER_ENTRIES } from '../src/lib/starterEntries';
 import { HERO_EXAMPLE_PROMPTS } from '../src/lib/heroCta';
 import type { ChatMessage } from '../src/types';
 
@@ -399,31 +398,14 @@ describe('P343 · the first screen keeps ≤4 clickables and one primary', () =>
     vi.unstubAllGlobals();
   });
 
-  it('the starter chips collapse into a muted non-interactive pill row', async () => {
+  it('the starter pill row is gone — the drawer owns the phone starter path (P413)', async () => {
     await mount(VIEWPORT_W);
     expect(qsa('.starter-chip')).toHaveLength(0);
     expect(qs('.starter-chips')).toBeNull();
-    const line = qs('.starter-chips-line');
-    expect(line).not.toBeNull();
-    expect(line!.tagName).toBe('P');
-    // P355: the line lists the same shared entries the drawer holds —
-    // P374: each as its own nowrap pill, never a ·-joined sentence.
-    const pills = line!.querySelectorAll('.starter-pill');
-    expect(pills.map((p) => p.textContent)).toEqual(
-      STARTER_ENTRIES.map((e) => e.label),
-    );
-    // Passive copy — not itself a control, and it wraps no control.
-    expect(line!.querySelector('button, a[href], [role="button"]')).toBeNull();
-    // Muted text that wraps between pills — no button chrome, no accent.
-    const rule = ruleBody(mobileChat, '.starter-chips-line');
-    expect(rule).toContain('color: var(--text-muted)');
-    expect(rule).not.toContain('var(--accent)');
-    expect(rule).toContain('flex-wrap: wrap');
-    expect(rule).not.toContain('border');
-    const pill = ruleBody(mobileChat, '.starter-pill');
-    expect(pill).toContain('white-space: nowrap');
-    expect(pill).toContain('max-width: 100%');
-    expect(pill).not.toContain('var(--accent)');
+    // P413: the non-interactive pill row was a lookalike duplicate of the
+    // example cards on the same screen — it no longer mounts at ≤768px.
+    expect(qs('.starter-chips-line')).toBeNull();
+    expect(qsa('.starter-pill')).toHaveLength(0);
     await unmount();
   });
 

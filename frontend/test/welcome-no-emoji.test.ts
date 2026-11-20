@@ -48,7 +48,9 @@ describe('P200 · welcome card and onboarding have no emoji decoration', () => {
     expect(welcomeBlock).not.toContain('约会前把安排想清楚');
     expect(welcomeBlock).toContain('className="hero-cta-primary"');
     expect(welcomeBlock).toContain('data-testid="hero-primary-cta"');
-    expect(welcomeBlock).toContain('STARTER_ENTRIES.map');
+    // P413: the starter pill row left the welcome block — the surviving
+    // secondary group maps the shared example prompts instead.
+    expect(welcomeBlock).toContain('HERO_EXAMPLE_PROMPTS.map');
   });
 
   it('keeps the restrained currentColor-stroke icon on the example cards', () => {

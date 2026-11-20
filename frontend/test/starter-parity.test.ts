@@ -23,11 +23,14 @@ import { STARTER_ENTRIES } from '../src/lib/starterEntries';
  *
  * The fix is single-source: both surfaces render STARTER_ENTRIES from
  * lib/starterEntries.ts. Asserted here:
- *  1. Source level — ChatWindow.tsx and Sidebar.tsx both consume the one
- *     shared array and hold NO second hardcoded copy of the labels/prompts.
- *  2. 390×844 — the mobile single-line description is generated from the
- *     same array (all four names, same order); the drawer lists the same
- *     four buttons.
+ *  1. Source level — Sidebar.tsx consumes the one shared array and NO
+ *     consumer holds a second hardcoded copy of the labels/prompts.
+ *     P413 removed ChatWindow's last render of the array (the compact
+ *     pill row — a lookalike duplicate of the example cards), so the
+ *     sidebar is now the single renderer.
+ *  2. 390×844 — the hero's non-interactive pill row is gone (P413); the
+ *     drawer's「快捷入口」is the phone's single starter path and still
+ *     lists all four buttons in the shared order.
  *  3. 1440×900 — the aside's 快捷入口 rows are the ONLY copy of the four
  *     names: P394 removed the hero's identical starter capsules (two
  *     visible entries per name was the measured defect); an intent-less
@@ -124,14 +127,17 @@ describe('P355 · welcome starters and 快捷入口 share one source', () => {
     vi.unstubAllGlobals();
   });
 
-  it('both surfaces render the shared constant — no second hardcoded list', () => {
+  it('the sidebar renders the shared constant — no second hardcoded list anywhere', () => {
     const chatWindow = read('components/ChatWindow.tsx');
     const sidebar = read('components/Sidebar.tsx');
     const starterIntents = read('lib/starterIntents.ts');
-    for (const src of [chatWindow, sidebar]) {
-      expect(src).toContain("from '../lib/starterEntries'");
-      expect(src).toContain('STARTER_ENTRIES.map(');
-    }
+    // P413: ChatWindow no longer renders the array at all — the compact
+    // pill row was the hero's last starter copy and it duplicated the
+    // example cards. The sidebar keeps the single render.
+    expect(chatWindow).not.toContain("from '../lib/starterEntries'");
+    expect(chatWindow).not.toContain('STARTER_ENTRIES.map(');
+    expect(sidebar).toContain("from '../lib/starterEntries'");
+    expect(sidebar).toContain('STARTER_ENTRIES.map(');
     // The intake layer derives its labels from the shared rows too.
     expect(starterIntents).toContain("from './starterEntries'");
     // …and no copy of the entry copy survives in any consumer.
@@ -144,20 +150,14 @@ describe('P355 · welcome starters and 快捷入口 share one source', () => {
     }
   });
 
-  it('390×844: the pill hint row names all four entries; the drawer lists the same four', async () => {
+  it('390×844: the pill row is gone (P413); the drawer is the phone starter path', async () => {
     await mountApp(390);
-    // P343 contract kept: chips collapse into ONE non-interactive line…
-    const line = qs('.starter-chips-line');
-    expect(line).not.toBeNull();
-    expect(line!.tagName).toBe('P');
-    expect(line!.querySelector('button, a[href], [role="button"]')).toBeNull();
+    // P413: the non-interactive pill row duplicated the example cards on
+    // the same screen, so it no longer mounts — the phone's only starter
+    // entries are the drawer's 快捷入口 rows.
+    expect(qs('.starter-chips-line')).toBeNull();
+    expect(qsa('.starter-pill')).toHaveLength(0);
     expect(qsa('.starter-chip')).toHaveLength(0);
-    // …which P374 renders as a wrap-safe row of independent pills — the
-    // shared array in order, all four names, never ·-joined.
-    expect(line!.textContent).toContain('也可以直接问：');
-    expect(line!.textContent).not.toContain('·');
-    const pills = line!.querySelectorAll('.starter-pill');
-    expect(pills.map((p) => p.textContent)).toEqual(LABELS);
 
     // The drawer「快捷入口」— same entries, same count, same order.
     const menuBtn = dom.document

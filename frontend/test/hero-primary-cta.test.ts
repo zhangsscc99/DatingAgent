@@ -725,9 +725,11 @@ describe('P380 · the same primary CTA leads the desktop empty state (1440×900)
  *     padded the last 24px.
  *  3. The off-screen-pointing copy is removed — no .welcome-hint element
  *     and no 「在下方输入框」 text anywhere in the tree.
- *  4. At 390×844 each name still resolves exactly one visible entry —
- *     the non-interactive pills; the closed drawer is aria-hidden +
- *     inert in the DOM and visibility:hidden in the stylesheet.
+ *  4. At 390×844 each name resolves ZERO visible entries — P413 removed
+ *     the non-interactive pills (a lookalike duplicate of the example
+ *     cards); the closed drawer is aria-hidden + inert in the DOM and
+ *     visibility:hidden in the stylesheet, and its rows stay the
+ *     phone's tappable starter path once opened.
  *
  * Same fake-DOM convention as above: the "visible-hit" count is the
  * render-level expression a real :visible query evaluates.
@@ -896,20 +898,24 @@ describe('P394 · one visible entry per starter name; P403 hero foot ≤120px ab
     await unmount();
   });
 
-  it('390×844: each starter name still resolves exactly ONE visible entry — the pills; the closed drawer contributes nothing', async () => {
+  it('390×844: each starter name resolves ZERO visible entries — the pills are gone (P413); the closed drawer contributes nothing', async () => {
     await mountScreen(390, true);
+    // P413: the non-interactive pill row duplicated the example cards'
+    // job on the same screen, so it no longer mounts at ≤768px — the
+    // four names have no visible entry on the phone first screen now.
+    expect(qs('.starter-chips-line')).toBeNull();
+    expect(qsa('.starter-pill')).toHaveLength(0);
     for (const entry of STARTER_ENTRIES) {
       const hits = visibleHits(entry.label);
       expect(
         hits.length,
         `${entry.label} hits: ${hits.map((el) => el.className).join(' | ')}`,
-      ).toBe(1);
-      expect(hits[0].classList.contains('starter-pill')).toBe(true);
+      ).toBe(0);
     }
     // Why the drawer rows can't be counted: closed ⇒ aria-hidden + inert
     // in the DOM and visibility:hidden + off-canvas in the stylesheet.
-    // The rows still mount for when the drawer opens — the pills are
-    // non-interactive, so the drawer stays the phone's tappable path.
+    // The rows still mount for when the drawer opens — with the pills
+    // gone the drawer stays the phone's only tappable starter path.
     const aside = qs('.sidebar')!;
     expect(aside.getAttribute('aria-hidden')).toBe('true');
     expect(aside.hasAttribute('inert')).toBe(true);
@@ -930,5 +936,170 @@ describe('P394 · one visible entry per starter name; P403 hero foot ≤120px ab
     expect(heroRule).toContain('flex: 1 0 auto');
     const pad = declPxValues(ruleBody(mobileChat, '.messages'), 'padding');
     expect(pad[pad.length - 1]).toBeLessThanOrEqual(160);
+  });
+});
+
+/**
+ * P413 — measured at 390×844 on 1795138181 (docs/runs/walk-1795138181-m1.png):
+ * EIGHT simultaneous "start a chat" entries crowded the phone first
+ * screen — the primary CTA「说说你的情况」 + 3 example cards + 4
+ * 「也可以直接问」pills + the composer. Vision: 「入口不唯一…多入口竞争」.
+ * The four pills were a non-interactive lookalike of the example cards —
+ * same job, second visual group — so they no longer mount at ≤768px.
+ * What remains: ONE primary entry (the focus-only CTA), ONE secondary
+ * group (the send-on-tap example cards), and the composer.
+ *
+ * Contract asserted here (the backlog's verify clause):
+ *  1. Visible elements able to trigger a send number ≤5 — the example
+ *     card buttons, chip buttons and the composer/send path count; the
+ *     hero CTA only focuses #chat-input, so it does NOT count.
+ *  2. At most ONE of the two secondary groups has visible items:
+ *     `[class*=example-card]` vs `[class*=chip]` — after the dedupe the
+ *     chip group is empty on the phone first screen.
+ *
+ * The real first screen mounts like the P394 describe: the aside with a
+ * CLOSED mobile drawer plus the empty ChatWindow — the state a 390×844
+ * walkthrough measures. The fake DOM reports zero rects, so "visible" is
+ * the same render-level expression used above: mounted and not parked
+ * inside an inert / aria-hidden / sr-only subtree.
+ */
+describe('P413 · phone first screen: ≤5 send entries, one secondary group', () => {
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qs = (sel: string) =>
+    dom.document.querySelector(sel) as FakeElement | null;
+  const qsa = (sel: string) => dom.document.querySelectorAll(sel);
+
+  const mountScreen = async () => {
+    dom = installFakeDom();
+    const mq = (q: string) => {
+      const maxW = /max-width:\s*(\d+)px/.exec(q);
+      const minW = /min-width:\s*(\d+)px/.exec(q);
+      const matches =
+        q === COARSE_POINTER_QUERY ||
+        ((maxW || minW) !== null &&
+          (maxW ? VIEWPORT_W <= Number(maxW[1]) : true) &&
+          (minW ? VIEWPORT_W >= Number(minW[1]) : true));
+      return {
+        matches,
+        media: q,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      };
+    };
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    vi.stubGlobal('matchMedia', mq);
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(
+          Fragment,
+          null,
+          createElement(Sidebar, {
+            tools: [],
+            isMobile: true,
+            open: false,
+            onQuickPrompt: () => {},
+            onNewChat: () => {},
+          }),
+          createElement(ChatWindow, {
+            messages: [] as ChatMessage[],
+            loading: false,
+            onSend: () => {},
+            onSetupProfile: () => {},
+          }),
+        ),
+      );
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const unmount = async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    dom.document.body.textContent = '';
+  };
+
+  /** The :visible-style count — mounted and not inside an inert /
+   *  aria-hidden / sr-only subtree (the closed drawer parks its rows
+   *  under all of them plus visibility:hidden in the sheet). */
+  const visible = (el: FakeElement) =>
+    !el.closest('[inert]') &&
+    !el.closest('[aria-hidden="true"]') &&
+    !el.closest('.sr-only');
+
+  const allElements = () =>
+    (dom.document.documentElement as FakeElement)._walk();
+  /** The spec's `[class*=x]` substring matcher — the fake DOM has no
+   *  attribute-substring selector, so the same predicate runs by hand
+   *  (the error-surface.test.ts convention). */
+  const classHits = (needle: string) =>
+    allElements().filter((e) => e.className.includes(needle));
+  /** Buttons that ARE chips or live inside a `[class*=chip]` container. */
+  const chipButtons = () =>
+    allElements().filter((e) => {
+      if (e.tagName !== 'BUTTON') return false;
+      for (let n: FakeElement | null = e; n; n = n.parentElement) {
+        if (n.className.includes('chip')) return true;
+      }
+      return false;
+    });
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('390×844: visible send-triggering elements number ≤5', async () => {
+    await mountScreen();
+    // The composer/send path counts as its controls: the textarea (Enter
+    // sends) and the send key. The hero primary CTA only focuses
+    // #chat-input — it sends nothing — so it is deliberately NOT in the
+    // counted list.
+    const sendTriggers = [
+      ...qsa('button.hero-cta-card'),
+      ...chipButtons(),
+      ...qsa('#chat-input'),
+      ...qsa('button.input-send'),
+    ].filter(visible);
+    expect(
+      sendTriggers.length,
+      `send entries: ${sendTriggers
+        .map((el) => `${el.className}:${el.textContent.trim()}`)
+        .join(' | ')}`,
+    ).toBeLessThanOrEqual(5);
+    // The measured shape: three example cards + the composer pair, and
+    // the focus-only primary still mounts beside them (not counted).
+    expect(qsa('button.hero-cta-card').filter(visible)).toHaveLength(3);
+    expect(qs('[data-testid="hero-primary-cta"]')).not.toBeNull();
+    await unmount();
+  });
+
+  it('390×844: at most ONE secondary group has visible items — example cards stay, chips are gone', async () => {
+    await mountScreen();
+    const exampleGroup = classHits('example-card').filter(visible);
+    const chipGroup = classHits('chip').filter(visible);
+    // The dedupe contract: never both groups on the same first screen.
+    expect(
+      Math.min(exampleGroup.length, chipGroup.length),
+      `example-card ${exampleGroup.length} vs chip ${chipGroup.length}: ` +
+        `${[...exampleGroup, ...chipGroup]
+          .map((el) => el.className)
+          .join(' | ')}`,
+    ).toBe(0);
+    // …and concretely: the example cards are the surviving group, the
+    //「也可以直接问」pills (and any chip chrome) mount nothing at ≤768px.
+    expect(exampleGroup).toHaveLength(HERO_EXAMPLE_PROMPTS.length);
+    expect(chipGroup).toHaveLength(0);
+    await unmount();
   });
 });

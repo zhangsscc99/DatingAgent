@@ -825,10 +825,10 @@ export default function Sidebar({
             screen — these rows plus the hero's identical .starter-chip
             capsules. The centre capsules are gone now, so this section is
             the single copy of the starter entries at every width (the
-            phone keeps it as the drawer's tappable starter path — the
-            hero only renders non-interactive pills there). Entries that
-            carry an intent open the hero's intake panel on desktop; the
-            rest prefill the composer, same as before. */}
+            phone keeps it as the drawer's tappable starter path — P413
+            removed the hero's last copy, the non-interactive pill row).
+            Entries that carry an intent open the hero's intake panel on
+            desktop; the rest prefill the composer, same as before. */}
         <section className="sidebar-section" aria-label="快捷入口">
           <h3>快捷入口</h3>
           <div className="quick-prompts">

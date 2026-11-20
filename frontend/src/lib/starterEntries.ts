@@ -1,11 +1,13 @@
 import type { ChatIntent } from '../types';
 
 /**
- * P355 — the ONE starter-entry list. The welcome block (starter chips on
- * desktop, the joined hint line at ≤768px) and the sidebar「快捷入口」both
- * render from this array, so the two surfaces can never drift apart again:
- * four entries, same order, same copy — the old split (3 capsule labels on
- * the first screen vs 4 drawer buttons) is what this replaces.
+ * P355 — the ONE starter-entry list. The sidebar「快捷入口」is now its
+ * sole renderer — the welcome block's own copies are all gone (the
+ * desktop capsules removed by P394, the compact hint-line pills by
+ * P413: a lookalike row beside the example cards was the measured
+ * 8-entry pileup). Four entries, same order, same copy — the old split
+ * (3 capsule labels on the first screen vs 4 drawer buttons) is what
+ * this replaces.
  *
  * P220: labels are intent-shaped sentences so they can never be mistaken
  * for the 进阶工具 capability names listed below them in the drawer.
