@@ -1,4 +1,8 @@
 .sidebar {
+  /* P405 — one left baseline for the 最近对话 column: the group label,
+     the filter field and every session row inset by this shared pad
+     instead of carrying three different hard-coded values. */
+  --sidebar-row-pad: 10px;
   width: 260px;
   background: var(--surface);
   border-right: 1px solid var(--border);
@@ -229,6 +233,8 @@
 .recent-chat-filter-wrap {
   position: relative;
   margin-bottom: 8px;
+  /* P405: the field's box edge lands on the shared row baseline. */
+  padding: 0 var(--sidebar-row-pad);
 }
 
 /* P378 — the field is inset: no border, no box-shadow; a left magnifier
@@ -393,7 +399,8 @@
 }
 
 .recent-chat-group {
-  padding: 0 10px;
+  /* P405: the label's left edge is the shared row baseline. */
+  padding: 0 var(--sidebar-row-pad);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -410,6 +417,8 @@
   display: flex;
   align-items: stretch;
   gap: 4px;
+  /* P405: the row card's left edge is the shared row baseline. */
+  padding: 0 var(--sidebar-row-pad);
 }
 
 .recent-chat-row .recent-chat-item {
