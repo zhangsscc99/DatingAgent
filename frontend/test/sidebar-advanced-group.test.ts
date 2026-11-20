@@ -11,6 +11,7 @@ import {
   type FakeDom,
 } from './helpers/fakeDom';
 import Sidebar, { TOOL_FALLBACK } from '../src/components/Sidebar';
+import { TOOL_PROMPTS } from '../src/lib/toolPrompts';
 
 /**
  * P386 — walkthrough 1795109419 (390×844, drawer open) found the 进阶工具
@@ -256,6 +257,25 @@ describe('P386 · 进阶工具 group — no invisible laid-out rows, no dead gap
     expect(list).not.toMatch(/overflow[^-]*:\s*(hidden|clip)/);
   });
 
+  it('stylesheet contract: the expanded rows keep a real >=24px box', () => {
+    // P412 — the fold restore alone is not enough: each row must declare a
+    // height floor well past the 24px visibility bar once its box returns.
+    const entry = ruleBody(sidebarCss, '.tool-entry');
+    const minHeight = /min-height:\s*(\d+)px/.exec(entry);
+    expect(minHeight, '.tool-entry min-height').not.toBeNull();
+    expect(Number(minHeight![1])).toBeGreaterThanOrEqual(40);
+    // Nothing inside the group may re-hide the opened rows: the only
+    // display:none the stylesheet declares sits on the CLOSED list.
+    const openRule = ruleBody(sidebarCss, '.tools-details[open] > .tool-list');
+    expect(openRule).not.toContain('display: none');
+    expect(ruleBody(sidebarCss, '.tool-item')).not.toMatch(
+      /display:\s*none|height:\s*0/,
+    );
+    // The toggle itself must keep a clickable height even though the h3
+    // inside it carries margin in other sections.
+    expect(ruleBody(sidebarCss, '.tools-toggle')).toContain('cursor: pointer');
+  });
+
   it('stylesheet contract: the drawer pins 设置 to the content, not the viewport bottom', () => {
     // The ≤56px heading→设置 bound only holds in a real engine when no
     // flex mechanism re-creates the free space: the scroll region must
@@ -283,4 +303,163 @@ describe('P386 · 进阶工具 group — no invisible laid-out rows, no dead gap
       'margin-top: auto',
     );
   });
+});
+
+/**
+ * P412 — the complementary half the P386 suite never pinned: OPENING the
+ * disclosure must reveal real, clickable rows, not a dead shell. Verified
+ * against live Chromium before writing this (1440×900 and the 390×844
+ * drawer): summary.click() sets `open`, the `[open]` rule restores
+ * display:flex, and every `[aria-label^="进阶工具："]` row measures 44px
+ * with a live offsetParent.
+ *
+ * The fake DOM ships no UA <details> behaviour (a summary click cannot set
+ * `open` itself) and no layout engine (offsetParent/rects read null/0), so
+ * the walkthrough's visibility contract is asserted the same two-level way
+ * as the folded half above:
+ *  1. DOM level — the <summary> is the details' first element child (the
+ *     only position that wires the native toggle); after `open` is applied
+ *     — what the UA toggle produces — at least 3 real rows sit inside
+ *     `ul.tool-list` (all 5 do), each a <button> whose painted label runs
+ *     ≥2 chars, and each click delivers its starter prompt through the
+ *     shared onQuickPrompt path.
+ *  2. Stylesheet level — asserted in the describe above: `[open]` restores
+ *     `display:flex` on that list and `.tool-entry` pins min-height ≥ 40px,
+ *     which is what produces the real-engine boxes (offsetParent !== null,
+ *     height ≥ 24) this group's contract requires.
+ */
+describe('P412 · 进阶工具 disclosure — expanding reveals real clickable rows', () => {
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qs = (sel: string) =>
+    dom.document.querySelector(sel) as FakeElement | null;
+
+  const mount = async (
+    widthPx: number,
+    heightPx: number,
+    mobile: boolean,
+    onQuickPrompt: (prompt: string) => void,
+  ) => {
+    dom = installFakeDom();
+    const mq = mediaQueryForWidth(widthPx);
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    (dom.window as Record<string, unknown>).innerWidth = widthPx;
+    (dom.window as Record<string, unknown>).innerHeight = heightPx;
+    vi.stubGlobal('matchMedia', mq);
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(Sidebar, {
+          tools: TOOL_FALLBACK,
+          profile: null,
+          isMobile: mobile,
+          open: mobile,
+          onQuickPrompt,
+          onNewChat: noop,
+          onOpenSettings: noop,
+          onClose: noop,
+        }),
+      );
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const unmount = async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    dom.document.body.textContent = '';
+  };
+
+  const advancedRows = (aside: FakeElement) =>
+    aside
+      ._walk()
+      .filter(
+        (el) =>
+          (el.getAttribute('aria-label') ?? '').startsWith('进阶工具：'),
+      );
+
+  /** What a real engine does when the user activates the <summary>:
+   *  toggles the `open` attribute on the parent <details>. The fake DOM
+   *  has no UA layer, so the attribute is applied directly — after first
+   *  proving the summary sits in the one position that makes it happen. */
+  const expandGroup = (aside: FakeElement): FakeElement => {
+    const details = aside.querySelector(
+      'details.tools-details',
+    ) as FakeElement | null;
+    expect(details, '进阶工具 disclosure group').not.toBeNull();
+    const summary = details!.querySelector(
+      'summary.tools-toggle',
+    ) as FakeElement | null;
+    expect(summary, 'disclosure toggle').not.toBeNull();
+    // The native toggle only fires from a <summary> that is the first
+    // element child of its <details> — pin that wiring before simulating.
+    expect(details!.children[0]).toBe(summary);
+    details!.setAttribute('open', '');
+    expect(details!.hasAttribute('open')).toBe(true);
+    return details!;
+  };
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  for (const vp of VIEWPORTS) {
+    it(`${vp.width}×${vp.height}: opened group exposes >=3 labelled rows inside the restored list`, async () => {
+      const prompts: string[] = [];
+      await mount(vp.width, vp.height, vp.mobile, (p) => prompts.push(p));
+      const aside = qs('.sidebar')!;
+      const details = expandGroup(aside);
+      const list = details.querySelector('ul.tool-list');
+      expect(list, 'tool list inside the opened group').not.toBeNull();
+      const rows = advancedRows(aside);
+      expect(
+        rows.length,
+        'at least 3 visible 进阶工具 entries once opened (all 5 expected)',
+      ).toBeGreaterThanOrEqual(3);
+      for (const row of rows) {
+        // Every row belongs to the list the [open] rule restores to
+        // display:flex — that membership is what gives it a real box.
+        expect(row.closest('ul.tool-list')).toBe(list);
+        expect(row.tagName).toBe('BUTTON');
+        expect(row.classList.contains('tool-entry')).toBe(true);
+        // The painted label — real text the user can read (>=2 chars).
+        expect(
+          row.innerText.trim().length,
+          `${row.getAttribute('aria-label')} painted label`,
+        ).toBeGreaterThanOrEqual(2);
+        // Not a skeleton or dead row: enabled while not busy, clickable.
+        expect(row.hasAttribute('disabled')).toBe(false);
+      }
+      await unmount();
+    });
+
+    it(`${vp.width}×${vp.height}: clicking each opened row drops its starter prompt via onQuickPrompt`, async () => {
+      const prompts: string[] = [];
+      await mount(vp.width, vp.height, vp.mobile, (p) => prompts.push(p));
+      const aside = qs('.sidebar')!;
+      expandGroup(aside);
+      const rows = advancedRows(aside);
+      expect(rows.length).toBeGreaterThanOrEqual(3);
+      for (const row of rows) {
+        await act(async () => {
+          row.click();
+        });
+      }
+      expect(prompts).toHaveLength(rows.length);
+      // Each click delivered the mapped starter question — the same
+      // ready-to-edit prefill path the 快捷入口 entries use.
+      for (const prompt of prompts) {
+        expect(Object.values(TOOL_PROMPTS)).toContain(prompt);
+        expect(prompt.length).toBeGreaterThan(0);
+      }
+      await unmount();
+    });
+  }
 });
