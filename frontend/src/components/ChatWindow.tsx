@@ -1143,7 +1143,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
       )}
       {/* P394: the 「在下方输入框…」 guidance line is gone — it named a
           target off-screen for most of the empty state's life, and with
-          the hero pulled within 160px of the composer the input path
+          the hero pulled within 120px of the composer the input path
           needs no signpost. */}
       <InputBar
         ref={inputRef}

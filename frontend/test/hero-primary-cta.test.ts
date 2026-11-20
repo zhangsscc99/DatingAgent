@@ -47,8 +47,10 @@ import type { ChatMessage } from '../src/types';
  * The same single button now renders on desktop (the example group stays
  * compact-only — the starter entries cover desktop quick-starts),
  * the explanation cards are gone, the trailing bookend is capped so the
- * hero's foot lands ≤160px from the composer, and the empty send key
- * drops to a real disabled visual. Asserted in the last describe.
+ * hero's foot lands near the composer — P403 tightened the contract to
+ * ≤120px after the 96px cap still measured 169px (walk-1795128648) —
+ * and the empty send key drops to a real disabled visual. Asserted in
+ * the last describe.
  */
 
 // P394: heroHint.ts is gone with the hint — the pointer query the
@@ -413,8 +415,9 @@ describe('P374 · the compact hero has one real primary action at 390×844', () 
  *     clickable, ≥44×44, brand background or brand border — number ≤2.
  *     The three explanation cards are gone (the starter chips stay as
  *     the neutral secondary entries).
- *  3. The hero's foot lands ≤160px above the composer — resolved from
- *     the capped trailing bookend, the row gaps and the scrollport pad.
+ *  3. The hero's foot lands ≤120px above the composer (P403) — resolved
+ *     from the capped trailing bookend, the row gaps, the scrollport pad
+ *     and the bar's own border + top padding.
  *  4. Empty input: `.input-send` resolves a disabled visual that is NOT
  *     the brand fill (neutral + dimmed + not-allowed cursor) and carries
  *     the disabled attribute; typing restores the enabled brand key.
@@ -428,8 +431,8 @@ describe('P374 · the compact hero has one real primary action at 390×844', () 
 describe('P380 · the same primary CTA leads the desktop empty state (1440×900)', () => {
   const DESKTOP_W = 1440;
   const DESKTOP_H = 900;
-  /** The hero foot must land within this of the composer top. */
-  const MAX_HERO_TO_COMPOSER = 160;
+  /** The hero foot must land within this of the composer top (P403). */
+  const MAX_HERO_TO_COMPOSER = 120;
 
   const desktopChat = mediaBlock(chatWindowCss, '(min-width: 769px)');
 
@@ -617,11 +620,14 @@ describe('P380 · the same primary CTA leads the desktop empty state (1440×900)
     await unmount();
   });
 
-  it('1440×900: the hero foot resolves ≤160px above the composer', () => {
-    // Model: .welcome bottom → composer top = row gap to the scroll
+  it('1440×900: the hero foot resolves ≤120px above the composer (P403)', () => {
+    // Model: .welcome bottom → textarea top = row gap to the scroll
     // sentinel + gap to the capped ::after spacer + the spacer itself +
-    // the scrollport's bottom padding. The P305 bookends used to split
-    // the free space evenly, leaving >250px — the cap closes it.
+    // the scrollport's bottom padding + the bar's border-top and top
+    // padding. The P305 bookends used to split the free space evenly,
+    // leaving >250px; the 96px cap still measured 169px at 1440×900
+    // (walk-1795128648: hero bottom 594 → textarea top 763) — P403
+    // tightens the spacer so the resolved path lands inside 120px.
     const afterRule = ruleBody(desktopChat, '.messages-hero::after');
     expect(afterRule).not.toBe('');
     const basis = /flex\s*:\s*0\s+1\s+([0-9.]+)px/.exec(afterRule)?.[1];
@@ -634,9 +640,13 @@ describe('P380 · the same primary CTA leads the desktop empty state (1440×900)
       ruleBody(topLevel(chatWindowCss), '.messages'),
       'padding',
     );
+    const bar = ruleBody(topLevel(inputBarCss), '.input-bar');
+    const barPadTop = declPxValues(bar, 'padding')[0];
+    const barBorder = firstPx(bar, 'border-top');
     expect(rowGap).toBeGreaterThan(0);
     expect(pad[0]).toBeGreaterThan(0);
-    const gap = Number(basis) + rowGap * 2 + pad[0];
+    const gap =
+      Number(basis) + rowGap * 2 + pad[0] + barPadTop + barBorder;
     expect(gap).toBeLessThanOrEqual(MAX_HERO_TO_COMPOSER);
   });
 
@@ -710,8 +720,9 @@ describe('P380 · the same primary CTA leads the desktop empty state (1440×900)
  *     aside's 快捷入口 rows own the names at every width (the P388
  *     direction reversed: the desktop keeps the WORKING entries in the
  *     sidebar and the hero converges on one input path).
- *  2. The hero's foot lands ≤160px above the composer — the P380 bookend
- *     model, now without the hint strip that padded the last 24px.
+ *  2. The hero's foot lands ≤120px above the composer — the P380 bookend
+ *     model, retightened by P403 and still without the hint strip that
+ *     padded the last 24px.
  *  3. The off-screen-pointing copy is removed — no .welcome-hint element
  *     and no 「在下方输入框」 text anywhere in the tree.
  *  4. At 390×844 each name still resolves exactly one visible entry —
@@ -721,7 +732,7 @@ describe('P380 · the same primary CTA leads the desktop empty state (1440×900)
  * Same fake-DOM convention as above: the "visible-hit" count is the
  * render-level expression a real :visible query evaluates.
  */
-describe('P394 · one visible entry per starter name; hero foot ≤160px above composer', () => {
+describe('P394 · one visible entry per starter name; P403 hero foot ≤120px above composer', () => {
   let dom: FakeDom;
   let root: Root | null = null;
 
@@ -833,13 +844,15 @@ describe('P394 · one visible entry per starter name; hero foot ≤160px above c
     await unmount();
   });
 
-  it('1440×900: hero bottom → composer top resolves ≤160px — margins pinned, spacer capped, no hint strip', () => {
+  it('1440×900: hero bottom → composer top resolves ≤120px — margins pinned, spacer retightened, no hint strip', () => {
     // The measured ~290px gap came from `.welcome`'s `margin: auto`
     // resolving on the column-flex scrollport's MAIN axis plus the
     // 24px .welcome-hint strip parked above the composer. The vertical
     // pair stays pinned to 0, ::before owns all the free space, and the
-    // hint is gone — the foot→bar distance is just the sentinel gaps +
-    // the capped ::after + the scrollpad.
+    // hint is gone — the foot→textarea distance is the sentinel gaps +
+    // the capped ::after + the scrollpad + the bar's border/pad. P403:
+    // the 96px cap still left a measured 169px band, so the spacer's
+    // basis is retightened until the resolved path lands ≤120px.
     const welcomeRule = ruleBody(topLevel(chatWindowCss), '.welcome');
     expect(welcomeRule).toContain('margin-top: 0');
     expect(welcomeRule).toContain('margin-bottom: 0');
@@ -857,7 +870,13 @@ describe('P394 · one visible entry per starter name; hero foot ≤160px above c
       ruleBody(topLevel(chatWindowCss), '.messages'),
       'padding',
     );
-    expect(Number(basis) + rowGap * 2 + pad[0]).toBeLessThanOrEqual(160);
+    const bar = ruleBody(topLevel(inputBarCss), '.input-bar');
+    const barGap =
+      declPxValues(bar, 'padding')[0] +
+      Number(/border-top\s*:\s*([0-9.]+)px/.exec(bar)?.[1] ?? 0);
+    expect(
+      Number(basis) + rowGap * 2 + pad[0] + barGap,
+    ).toBeLessThanOrEqual(120);
   });
 
   it('the「在下方输入框…」copy is gone — nothing on the first screen points off-screen', async () => {

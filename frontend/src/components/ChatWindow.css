@@ -302,10 +302,14 @@
   /* P380 — the centred bookends left a >250px dead band between the
      welcome block and the composer at 1440×900 (vision: 「中央空态与
      底部输入框割裂：二者距离过远」). The trailing spacer is capped so
-     the hero's foot lands within the ≤160px contract of the input bar;
-     the leading spacer keeps absorbing whatever free space is left. */
+     the hero's foot lands near the input bar;
+     the leading spacer keeps absorbing whatever free space is left.
+     P403 — the 96px cap still resolved to a measured 169px foot→textarea
+     band (walk-1795128648: .welcome bottom 594 → textarea top 763), past
+     the tightened ≤120px contract, so the basis drops to 40px: two row
+     gaps + spacer + scrollpad + the bar's own border/pad ≈ 113px. */
   .messages-hero::after {
-    flex: 0 1 96px;
+    flex: 0 1 40px;
   }
 
   /* P380 — the shared hero CTA renders on desktop too: it centres in the
