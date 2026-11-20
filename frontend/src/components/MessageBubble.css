@@ -664,12 +664,22 @@
    42px (32px avatar + 10px row gap) inside the column. */
 @media (min-width: 769px) {
   /* P391: the narrowed 660px column pairs with a larger, more open body —
-     16px at 1.7 keeps the desktop assistant text at ⌊626/16⌋ = 39 CJK
-     chars per line (comfortable 36–42). The mobile base rule above stays
-     14px/1.65, so ≤768px rendering is unchanged. */
+     16px at 1.7. The mobile base rule above stays 14px/1.65, so ≤768px
+     rendering is unchanged. */
   .bubble {
     font-size: 16px;
     line-height: 1.7;
+  }
+
+  /* P404 — at the P391 column the assistant bubble's 626px text box put
+     ~39 CJK chars on one line, past the ~35-char comfortable measure. The
+     shared --column-max stays 660px so the composer and welcome edges are
+     unmoved; only the assistant bubble narrows to a 600px outer box
+     (600−32 pad−2 border = 566px text → ⌊566/16⌋ = 35 chars/line). User
+     bubbles keep the base 100% cap and their right alignment; the ≤768px
+     base rule above is untouched. */
+  .bubble.assistant {
+    max-width: 600px;
   }
 
   .bubble-row.assistant {

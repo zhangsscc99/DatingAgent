@@ -36,14 +36,18 @@ import { fileURLToPath } from 'node:url';
  * 「完善资料」 card duplicated the welcome link. P391 narrowed it
  * 720→660 px: the 720 px column put ~49 CJK glyphs on one assistant
  * line, above the comfortable 36–42 (the tighter arithmetic is pinned
- * in thread-measure.test.ts). The current arithmetic:
+ * in thread-measure.test.ts). P404 capped .bubble.assistant at a 600px
+ * outer box inside the ≥769px block — the 660px column put ⌊626/16⌋ =
+ * 39 CJK chars on a line, over the ~35-char comfortable measure — while
+ * the shared column token (and so the composer/welcome edges) is
+ * unmoved. The current arithmetic:
  *
  *   column        = --column-max                          = 660 px
  *   gutter        = .messages/.input-bar padding-inline   = 66 px (≥42)
  *   avatar        = absolute at row.left − 42, out of flow
- *   bubble outer  = min(column, 100% of row)              = 660 px
- *   bubble text   = outer − 2·16 padding − 2·1 border      = 626 px
- *   CJK per line  = ⌊text / font-size⌋ = ⌊626 / 16⌋         = 39 ≤ 42
+ *   bubble outer  = min(column, 600px P404 measure cap)    = 600 px
+ *   bubble text   = outer − 2·16 padding − 2·1 border      = 566 px
+ *   CJK per line  = ⌊text / font-size⌋ = ⌊566 / 16⌋         = 35 ≤ 42
  *   textarea      = .input-column width (tools wrapped)    = 660 px
  *   bubble.left   = row.left = column.left = textarea.left → Δ 0
  *   welcome outer = var(--column-max, 520px) on desktop    = 660 px
@@ -160,13 +164,23 @@ const welcomeColumn = resolvePx(
 
 // Assistant-bubble geometry: P327 took the avatar out of the column (it
 // hangs absolutely in the gutter), so the bubble is the row's only
-// in-flow child and its 100% cap resolves to the full shared column.
+// in-flow child; its base 100% cap rides the shared column and the P404
+// ≥769px override narrows it further to the 600px measure cap.
 const avatarPx = pxDecl(ruleBody(bubbleCss, '.avatar'), 'width') ?? 0;
 const rowGapPx = pxDecl(ruleBody(bubbleCss, '.bubble-row'), 'gap') ?? 0;
 const avatarHangPx = avatarPx + rowGapPx; // 42
 const assistantCapDecl =
   maxWidthDecl(ruleBody(bubbleCss, '.bubble.assistant')) ?? '';
-const bubbleOuterPx = columnMax ?? 0;
+const assistantMeasureCap = resolvePx(
+  maxWidthDecl(
+    ruleBody(mediaBlock(bubbleCss, DESKTOP_QUERY), '.bubble.assistant'),
+  ) ?? '',
+  indexCss,
+);
+const bubbleOuterPx = Math.min(
+  columnMax ?? 0,
+  assistantMeasureCap ?? columnMax ?? 0,
+);
 
 describe('P311 · one desktop reading column', () => {
   it('declares --column-max for the desktop breakpoint only', () => {
@@ -182,12 +196,14 @@ describe('P311 · one desktop reading column', () => {
     expect(topLevel(indexCss)).not.toMatch(/--column-max:\s*[0-9.]+px/);
   });
 
-  it('caps the AI bubble at the shared column itself', () => {
-    // P327: the column is the only ceiling — max-width:100% of a row
-    // that is itself capped at --column-max.
+  it('caps the AI bubble at the P404 measure inside the shared column', () => {
+    // P327: the base rule still lets the bubble ride the column edge to
+    // edge (max-width:100% of a row capped at --column-max); the P404
+    // ≥769px override pulls the outer box in to the 600px measure cap.
     expect(assistantCapDecl).toBe('100%');
-    expect(bubbleOuterPx).toBe(columnMax);
-    expect(bubbleOuterPx).toBeLessThanOrEqual(680);
+    expect(assistantMeasureCap).toBe(600);
+    expect(bubbleOuterPx).toBe(600);
+    expect(bubbleOuterPx).toBeLessThanOrEqual(columnMax!);
     expect(bubbleOuterPx).toBeGreaterThan(0);
   });
 
@@ -242,7 +258,9 @@ describe('P311 · one desktop reading column', () => {
     const borderPx =
       pxDecl(ruleBody(bubbleCss, '.bubble.assistant'), 'border') ?? 0;
     const textWidth = bubbleOuterPx - 2 * padX - 2 * borderPx;
-    // 660 − 32 − 2 = 626 → ⌊626/16⌋ = 39.
+    // 600 − 32 − 2 = 566 → ⌊566/16⌋ = 35, and the P404 run-card gate is
+    // the p box resolving ≤580px at 1440×900.
+    expect(textWidth).toBeLessThanOrEqual(580);
     const charsPerLine = Math.floor(textWidth / fontSize);
     expect(charsPerLine).toBeLessThanOrEqual(42);
     // Robustness: the bubble box itself never exceeds the shared column.

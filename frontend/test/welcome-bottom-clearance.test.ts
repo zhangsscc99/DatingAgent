@@ -241,6 +241,10 @@ describe('P307 · welcome bottom clearance (≤768px)', () => {
     // the P305 bookends keep centring the card on 1440×900.
     expect(paddingBottomPx(desktop)).toBeLessThanOrEqual(40);
     const desktopBlock = mediaBlock(chatWindowCss, '(min-width: 769px)');
-    expect(desktopBlock).not.toContain('.welcome');
+    // Comments may mention .welcome (P403's measurements do) — the
+    // contract is that no .welcome RULE lives in the desktop block.
+    expect(desktopBlock.replace(/\/\*[\s\S]*?\*\//g, '')).not.toContain(
+      '.welcome',
+    );
   });
 });

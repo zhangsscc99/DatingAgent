@@ -11,18 +11,24 @@ import { fileURLToPath } from 'node:url';
  * walk-1795109419-d2.png). The fix narrows the shared reading column
  * (--column-max 720→660 px, still one token consumed by .messages > *,
  * .input-column and .welcome) and gives the desktop bubble body 16 px /
- * 1.7. Resolved arithmetic:
+ * 1.7.
+ *
+ * P404 — at 16px that column put 626px of text in the p box, ⌊626/16⌋ =
+ * 39 CJK chars per line, past the ~35-char comfortable measure
+ * (walk-1795128648-d2.png). The column token stays 660px — the composer
+ * and welcome edges are unmoved — while .bubble.assistant caps at a
+ * 600px outer box inside the same ≥769px block. Resolved arithmetic:
  *
  *   column        = --column-max (desktop :root only)     = 660 px
- *   bubble outer  = min(column, 100% of row)              = 660 px ≤ 680
- *   bubble text   = outer − 2·16 padding − 2·1 border      = 626 px
- *   CJK per line  = ⌊text / font-size⌋ = ⌊626 / 16⌋         = 39 ≤ 42
+ *   bubble outer  = min(column, 600px P404 measure cap)    = 600 px
+ *   bubble text   = outer − 2·16 padding − 2·1 border      = 566 px
+ *   CJK per line  = ⌊text / font-size⌋ = ⌊566 / 16⌋         = 35 ≤ 42
  *
  * No layout engine ships with this repo, so widths are resolved from the
  * declared CSS values — the same style as desktop-measure.test.ts. The
  * mobile breakpoint is untouched: --column-max stays declared only
- * inside the (min-width: 769px) :root block and the base .bubble rule
- * keeps 14 px / 1.65.
+ * inside the (min-width: 769px) :root block, the base .bubble rule keeps
+ * 14 px / 1.65 and the base .bubble.assistant cap stays 100%.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
@@ -123,8 +129,16 @@ const bubbleDesktop = mediaBlock(bubbleCss, DESKTOP_QUERY);
 const bubbleBase = ruleBody(bubbleCss, '.bubble');
 
 // The bubble is the assistant row's only in-flow child (avatar hangs in
-// the gutter): its 100% cap resolves to the full shared column.
-const bubbleOuterPx = columnMax ?? 0;
+// the gutter): its base 100% cap rides the full shared column, and the
+// P404 override inside the ≥769px block narrows it to the 600px measure.
+const assistantMeasureCap = resolvePx(
+  maxWidthDecl(ruleBody(bubbleDesktop, '.bubble.assistant')) ?? '',
+  indexCss,
+);
+const bubbleOuterPx = Math.min(
+  columnMax ?? 0,
+  assistantMeasureCap ?? columnMax ?? 0,
+);
 const padDecl = /padding:\s*([0-9.]+)px\s+([0-9.]+)px/.exec(bubbleBase);
 const padX = padDecl ? parseFloat(padDecl[2]) : 0;
 const borderPx =
@@ -143,12 +157,14 @@ describe('P391 · desktop reading column holds ≤42 CJK per line', () => {
     expect(
       ruleBody(mediaBlock(indexCss, DESKTOP_QUERY), ':root'),
     ).toContain('--column-max');
-    // The assistant bubble spans the shared column edge to edge, so its
-    // outer box IS the column.
+    // The base rule still rides the shared column edge to edge (100%);
+    // the P404 ≥769px override narrows the bubble to the 600px measure
+    // cap, inside the 600–620px container band the run card asks for.
     expect(maxWidthDecl(ruleBody(bubbleCss, '.bubble.assistant'))).toBe(
       '100%',
     );
-    expect(bubbleOuterPx).toBe(columnMax);
+    expect(assistantMeasureCap).toBe(600);
+    expect(bubbleOuterPx).toBe(600);
     expect(bubbleOuterPx).toBeLessThanOrEqual(680);
     // …while staying wide enough to read as a column, not a strip.
     expect(bubbleOuterPx).toBeGreaterThanOrEqual(600);
@@ -157,7 +173,9 @@ describe('P391 · desktop reading column holds ≤42 CJK per line', () => {
   it('resolves ≤42 CJK characters per rendered line', () => {
     expect(padX).toBe(16);
     expect(borderPx).toBe(1);
-    expect(bubbleTextPx).toBe(626);
+    expect(bubbleTextPx).toBe(566);
+    // P404's run-card gate: the p box resolves ≤580px at 1440×900.
+    expect(bubbleTextPx).toBeLessThanOrEqual(580);
     expect(desktopFontPx).not.toBeNull();
     // One CJK glyph advances ≈1em: chars/line = ⌊text / font-size⌋.
     const charsPerLine = Math.floor(bubbleTextPx / desktopFontPx!);
