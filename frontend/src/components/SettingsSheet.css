@@ -143,6 +143,12 @@
   opacity: 0.8;
 }
 
+/* P414 — neutral grey icon button: no border and no brand-colour chrome in
+   ANY state. The sheet's open-effect focuses the first button in the panel
+   (this one), and the old var(--accent) focus ring read as a magenta border
+   that competed with the segmented controls' selected fill — one strong
+   accent per screen (game-detail-bar). Brand magenta stays reserved for
+   real selected states only. */
 .settings-close {
   position: absolute;
   top: 12px;
@@ -162,22 +168,30 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.settings-close:hover {
+.settings-close:hover,
+.settings-close:focus-visible {
   background: var(--surface-hover);
   color: var(--text);
 }
 
 .settings-close:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text-muted);
   outline-offset: 2px;
 }
 
+.settings-close:active {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
 /* P259 — on phones the close button measured 32×32 and each segmented
-   option 34px tall; raise every settings-path control to ≥36px. */
+   option 34px tall; raise every settings-path control to ≥36px.
+   P414 raised the close target to 44px (Apple's minimum) while moving it
+   off the accent ring — bigger AND quieter. */
 @media (max-width: 768px) {
   .settings-close {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
   }
 
   .settings-segment {
