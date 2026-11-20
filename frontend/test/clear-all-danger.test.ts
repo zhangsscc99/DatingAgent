@@ -43,6 +43,7 @@ const SHEETS = [
   'index.css',
   'components/Sidebar.css',
   'components/SettingsSheet.css',
+  'components/ConfirmDialog.css',
 ];
 
 /* ---------- resting-state stylesheet resolver (same as sidebar-chrome-density) ---------- */
@@ -110,8 +111,15 @@ const RULES = SHEETS.flatMap((file, i) =>
 );
 
 /** RESTING compound match — any pseudo (`:hover`, `:focus-visible`,
- *  `:not(...)`) means the rule describes a state, never the resting box. */
-function compoundMatches(el: FakeElement, compound: string): boolean {
+ *  `:not(...)`) means the rule describes a state, never the resting box.
+ *  With `anyState` the same matcher instead evaluates what WOULD apply in
+ *  a state: `:not(X)` is honoured (el must not match X) while
+ *  `:hover`/`:focus*`/etc are treated as satisfied — P401's ring check. */
+function compoundMatches(
+  el: FakeElement,
+  compound: string,
+  anyState = false,
+): boolean {
   let rest = compound.trim();
   if (!rest) return false;
   while (rest.length > 0) {
@@ -119,7 +127,22 @@ function compoundMatches(el: FakeElement, compound: string): boolean {
       rest = rest.slice(1);
       continue;
     }
-    if (rest[0] === ':') return false;
+    if (rest[0] === ':') {
+      if (!anyState) return false;
+      if (rest.startsWith(':not(')) {
+        const end = rest.indexOf(')');
+        if (end < 0 || compoundMatches(el, rest.slice(5, end))) return false;
+        rest = rest.slice(end + 1);
+        continue;
+      }
+      const state =
+        /^:(focus-visible|focus-within|focus|hover|active|disabled|checked)/.exec(
+          rest,
+        );
+      if (!state) return false;
+      rest = rest.slice(state[0].length);
+      continue;
+    }
     const tag = /^[a-zA-Z][\w-]*/.exec(rest);
     if (tag) {
       if (el.tagName !== tag[0].toUpperCase()) return false;
@@ -161,7 +184,11 @@ function compoundMatches(el: FakeElement, compound: string): boolean {
   return true;
 }
 
-function selectorMatches(el: FakeElement, selector: string): boolean {
+function selectorMatches(
+  el: FakeElement,
+  selector: string,
+  anyState = false,
+): boolean {
   const tokens = selector
     .replace(/([>+~])/g, ' $1 ')
     .split(/\s+/)
@@ -183,17 +210,20 @@ function selectorMatches(el: FakeElement, selector: string): boolean {
     pending = 'desc';
   }
   if (!compounds.length) return false;
-  if (!compoundMatches(el, compounds[compounds.length - 1])) return false;
+  if (!compoundMatches(el, compounds[compounds.length - 1], anyState))
+    return false;
   let node: FakeElement | null = el;
   for (let i = compounds.length - 2; i >= 0; i--) {
     const comb = combinators[i];
     if (comb === 'sib') return false;
     if (comb === 'child') {
       node = node.parentElement;
-      if (!node || !compoundMatches(node, compounds[i])) return false;
+      if (!node || !compoundMatches(node, compounds[i], anyState))
+        return false;
     } else {
       let a: FakeElement | null = node.parentElement;
-      while (a && !compoundMatches(a, compounds[i])) a = a.parentElement;
+      while (a && !compoundMatches(a, compounds[i], anyState))
+        a = a.parentElement;
       if (!a) return false;
       node = a;
     }
@@ -240,6 +270,25 @@ function resolveProp(el: FakeElement, prop: string, width: number): string {
     }
   }
   return best ? best.value : 'unset';
+}
+
+/** Declarations of `prop` from every rule carrying a state pseudo whose
+ *  selector matches `el` at `width` px — what hover/focus WOULD paint,
+ *  where resolveProp above only ever reports the resting box. */
+function stateDecls(el: FakeElement, prop: string, width: number): string[] {
+  const out: string[] = [];
+  for (const rule of RULES) {
+    if (width < rule.minWidth || width > rule.maxWidth) continue;
+    const v = declOf(rule.body, prop);
+    if (v === null) continue;
+    for (const s of rule.selectors) {
+      if (s.includes(':') && selectorMatches(el, s, true)) {
+        out.push(v);
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 /* ---------- theme vars / colour ---------- */
@@ -539,6 +588,85 @@ describe('P389 · sidebar 清空全部对话 shares the danger language and leav
     expect(text).toContain('1 段对话');
     expect(text).toContain('移到回收站');
     expect(text).toContain(CLEAR_ALL_LABEL);
+    await unmountApp();
+  });
+
+  it('390×844 — P401: panel holds mount focus, 取消 keeps no brand ring, title and body agree, buttons sit ≥12px apart', async () => {
+    install(true, true);
+    await mountApp();
+    const btn = await openDrawerAndFindClearAll(true);
+    await click(btn);
+    await flush();
+    const dialog = qs('[role="alertdialog"]') as FakeElement | null;
+    expect(dialog, 'shared ConfirmDialog').not.toBeNull();
+    const buttons = dialog!
+      ._walk()
+      .filter((el) => el.classList.contains('confirm-btn'));
+    const cancel = buttons.find((el) => !el.classList.contains('danger'));
+    const danger = buttons.find((el) => el.classList.contains('danger'));
+    expect(cancel, '取消 button').toBeTruthy();
+    expect(danger, 'danger button').toBeTruthy();
+
+    // (1) Mount focus is the panel — never the cancel button that used to
+    // open already wearing the ring (and never the danger button either).
+    expect(dom.document.activeElement).not.toBe(cancel);
+    expect(dom.document.activeElement).not.toBe(danger);
+    expect(dom.document.activeElement).toBe(qs('.confirm-panel'));
+
+    // (2) 取消 carries no brand ring. The brand is --accent #d81b74 =
+    // rgb(216,27,116) — banned from its boxShadow entirely and from any
+    // outline/shadow a hover or keyboard-focus state could paint.
+    const vars = themeVarsFor(390);
+    const brand = /#d81b74|216,\s*27,\s*116|--accent|--brand|accent-glow/i;
+    const restingShadow = resolveVars(
+      resolveProp(cancel!, 'box-shadow', 390),
+      vars,
+    );
+    expect(restingShadow).not.toMatch(brand);
+    expect(
+      getComputedStyle(cancel as unknown as Element).getPropertyValue(
+        'box-shadow',
+      ),
+    ).not.toMatch(brand);
+    for (const prop of ['box-shadow', 'outline', 'outline-color']) {
+      for (const raw of stateDecls(cancel!, prop, 390)) {
+        expect(
+          resolveVars(raw, vars),
+          `state ${prop}: ${raw} must not use the brand colour`,
+        ).not.toMatch(brand);
+      }
+    }
+    // A neutral outline on keyboard focus is allowed — but it must exist
+    // as a state declaration and stay non-brand (checked above).
+    expect(stateDecls(cancel!, 'outline', 390).length).toBeGreaterThan(0);
+
+    // (3) The title states the same count the body does — one source of
+    // truth, so 「清空全部对话」 can never sit above 「将把 1 段对话」 again.
+    const title = qs('.confirm-title')!;
+    const desc = qs('.confirm-desc')!;
+    expect(title.textContent).toMatch(/清空 (全部 \d+ 段|\d+ 段)对话/);
+    const titleCount = Number(/(\d+) 段/.exec(title.textContent)![1]);
+    const bodyCount = Number(/将把 (\d+) 段对话/.exec(desc.textContent)![1]);
+    expect(titleCount).toBe(bodyCount);
+
+    // (4) ≥12px of horizontal separation: both buttons are the flex row's
+    // only children, cancel first, and the resolved gap meets the floor.
+    const actions = qs('.confirm-actions')!;
+    expect(cancel!.parentElement).toBe(actions);
+    expect(danger!.parentElement).toBe(actions);
+    const rowButtons = actions._walk().filter((el) => el.tagName === 'BUTTON');
+    expect(rowButtons.length).toBe(2);
+    expect(rowButtons[0]).toBe(cancel);
+    expect(rowButtons[1]).toBe(danger);
+    expect(resolveProp(actions, 'display', 390)).toBe('flex');
+    const px = (v: string) =>
+      Number(/([\d.]+)px/.exec(resolveVars(v, vars))?.[1] ?? '0');
+    const gap = Math.max(
+      px(resolveProp(actions, 'gap', 390)),
+      px(resolveProp(actions, 'column-gap', 390)),
+    );
+    expect(gap).toBeGreaterThanOrEqual(12);
+
     await unmountApp();
   });
 

@@ -99,9 +99,23 @@
   filter: brightness(0.94);
 }
 
+/* P401 — the panel takes mount focus (tabIndex -1) so no button opens
+   wearing a ring; it must never show the safety-net accent outline
+   ([tabindex]:focus-visible in index.css would otherwise paint it). */
+.confirm-panel:focus,
+.confirm-panel:focus-visible {
+  outline: none;
+}
+
+/* P401 — keyboard focus on 取消 is a quiet neutral ring: the destructive
+   action is the only element in the row allowed to carry colour. */
 .confirm-btn:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text-secondary);
   outline-offset: 2px;
+}
+
+.confirm-btn.danger:focus-visible {
+  outline-color: var(--danger);
 }
 
 @media (prefers-reduced-motion: reduce) {

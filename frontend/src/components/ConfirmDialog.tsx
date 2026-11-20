@@ -19,8 +19,9 @@ export interface ConfirmDialogProps {
  * P228 — the app's own confirmation layer for destructive actions, replacing
  * the browser-native confirm. Renders [role="alertdialog"]; Escape and
  * overlay clicks are treated as cancel, Tab stays trapped inside, and focus
- * returns to the trigger on close. 取消 is the default focus so a stray
- * Enter never nukes history.
+ * returns to the trigger on close. P401: focus lands on the panel, never on
+ * a button — 取消 no longer opens wearing the accent ring that outshone the
+ * danger action, and a stray Enter still cannot confirm.
  */
 export default function ConfirmDialog({
   title,
@@ -30,7 +31,6 @@ export default function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const cancelRef = useRef<HTMLButtonElement>(null);
   const onCancelRef = useRef(onCancel);
   const onConfirmRef = useRef(onConfirm);
   onCancelRef.current = onCancel;
@@ -41,7 +41,8 @@ export default function ConfirmDialog({
     // hand it back — the same contract startDialogDismiss's opener gives
     // SettingsSheet/ProfileOnboarding.
     const opener = document.activeElement;
-    cancelRef.current?.focus();
+    // P401: the panel takes mount focus — no button wears a ring on open.
+    panelRef.current?.focus();
 
     // Capture phase: the confirm dialog may sit above another sheet
     // (settings → 清空全部对话), and the topmost layer must settle
@@ -100,7 +101,7 @@ export default function ConfirmDialog({
         if (e.target === e.currentTarget) onCancelRef.current();
       }}
     >
-      <div className="confirm-panel" ref={panelRef}>
+      <div className="confirm-panel" ref={panelRef} tabIndex={-1}>
         <h2 id="confirm-dialog-title" className="confirm-title">
           {title}
         </h2>
@@ -109,7 +110,6 @@ export default function ConfirmDialog({
         </p>
         <div className="confirm-actions">
           <button
-            ref={cancelRef}
             type="button"
             className="confirm-btn"
             onClick={() => onCancelRef.current()}

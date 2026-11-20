@@ -59,12 +59,14 @@ export function deleteConfirmRequest(
  * P357 — one copy source for the whole dialog. The old wiring forked
  * three ways for the same action: the title said 「清空全部对话」, the
  * body said 「将清空 1 段对话…」 and the button said 「清空全部」. Now the
- * clear-all branch renders CLEAR_ALL_LABEL for both the title and the
- * button, and its body uses the same 「移到回收站」 sentence as a single
- * delete, so the three strings can never disagree again. A session with
- * no messages falls back to a count-free sentence rather than
- * 「0 条消息」. Counts are still frozen inside the request — nothing
- * re-reads storage while the dialog is open.
+ * button renders CLEAR_ALL_LABEL and the body uses the same 「移到回收站」
+ * sentence as a single delete. P401 took the title off the label too:
+ * the heading states the same counted scope as the body — 「清空 1 段对话」
+ * for a single session, 「清空全部 N 段对话」 beyond that — so heading and
+ * sentence can never contradict each other again. A session with no
+ * messages falls back to a count-free sentence rather than 「0 条消息」.
+ * Counts are still frozen inside the request — nothing re-reads storage
+ * while the dialog is open.
  */
 export function confirmDialogCopy(request: ConfirmRequest): {
   title: string;
@@ -73,7 +75,10 @@ export function confirmDialogCopy(request: ConfirmRequest): {
 } {
   if (request.kind === 'clear-all') {
     return {
-      title: CLEAR_ALL_LABEL,
+      title:
+        request.sessionCount > 1
+          ? `清空全部 ${request.sessionCount} 段对话`
+          : `清空 ${request.sessionCount} 段对话`,
       description: `将把 ${request.sessionCount} 段对话（共 ${request.messageCount} 条消息）移到回收站，7 天内可以恢复。`,
       confirmLabel: CLEAR_ALL_LABEL,
     };

@@ -16,7 +16,7 @@ import {
  * P228 — the two most destructive actions in the app (清空全部 and per-row
  * 删除对话) used to fall back to the browser's native confirm, the only
  * overlay that was not the app's own styled layer. Both now open the shared
- * ConfirmDialog ([role="alertdialog"], 取消-focused, Escape/overlay cancel,
+ * ConfirmDialog ([role="alertdialog"], panel-focused, Escape/overlay cancel,
  * focus returns to the trigger) and window.confirm is never called.
  *
  * Vitest runs in node, so App mounts against the same minimal fake DOM as
@@ -141,8 +141,8 @@ describe('P228 · in-app confirm dialog', () => {
       '将把「周末安排」的 1 条消息移到回收站，7 天内可以恢复。',
     );
     expect(confirmSpy).not.toHaveBeenCalled();
-    // Default focus lands on 取消, never on the danger button.
-    expect(dom.document.activeElement).toBe(cancelButton());
+    // P401: mount focus lands on the panel, never on a button.
+    expect(dom.document.activeElement).toBe(qs('.confirm-panel'));
 
     // 取消 closes without touching the store, and focus returns to the row.
     await click(cancelButton());
@@ -173,7 +173,7 @@ describe('P228 · in-app confirm dialog', () => {
     expect(dialog!.textContent).toContain(
       '将把 1 段对话（共 1 条消息）移到回收站，7 天内可以恢复。',
     );
-    expect(dom.document.activeElement).toBe(cancelButton());
+    expect(dom.document.activeElement).toBe(qs('.confirm-panel'));
     expect(confirmSpy).not.toHaveBeenCalled();
 
     await keydown('Escape');
@@ -230,7 +230,7 @@ describe('P228 · in-app confirm dialog', () => {
       expect(copy).toContain('移到回收站，7 天内可以恢复。');
     });
 
-    it('ConfirmDialog is a labelled alertdialog with a danger primary and a default-focused 取消', () => {
+    it('ConfirmDialog is a labelled alertdialog with a danger primary and panel mount focus', () => {
       const src = read('components/ConfirmDialog.tsx');
       expect(src).toContain('role="alertdialog"');
       expect(src).toContain('aria-modal="true"');
@@ -238,7 +238,7 @@ describe('P228 · in-app confirm dialog', () => {
       expect(src).toContain('aria-describedby="confirm-dialog-desc"');
       expect(src).toContain('confirm-btn danger');
       expect(src).toContain('取消');
-      expect(src).toContain('cancelRef.current?.focus()');
+      expect(src).toContain('panelRef.current?.focus()');
       expect(src).toContain("e.key === 'Escape'");
     });
   });

@@ -55,7 +55,10 @@ describe('P267 · one clear-all label everywhere', () => {
     expect(app).not.toContain('清空全部历史对话');
     const lib = read('lib/confirmCopy.ts');
     expect(lib).toContain("import { CLEAR_ALL_LABEL } from './copy'");
-    expect(lib).toContain('title: CLEAR_ALL_LABEL');
+    // P401: the title now states the counted scope; the shared constant
+    // still drives the confirm button — the one action wording.
+    expect(lib).toContain('清空全部 ${request.sessionCount} 段对话');
+    expect(lib).toContain('清空 ${request.sessionCount} 段对话');
     expect(lib).toContain('confirmLabel: CLEAR_ALL_LABEL');
   });
 });

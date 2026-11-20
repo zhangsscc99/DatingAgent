@@ -27,13 +27,14 @@ const block = (css: string, selector: string): string => {
 };
 
 describe('P357 · one copy source for the confirm dialog', () => {
-  it('clear-all: title, body and button all name the same action', () => {
+  it('clear-all: the title states the body count, the button the action', () => {
     const copy = confirmDialogCopy({
       kind: 'clear-all',
       sessionCount: 1,
       messageCount: 6,
     });
-    expect(copy.title).toBe(CLEAR_ALL_LABEL);
+    // P401: 「清空 1 段对话」, not 「清空全部对话」 — title and body agree.
+    expect(copy.title).toBe('清空 1 段对话');
     expect(copy.confirmLabel).toBe(CLEAR_ALL_LABEL);
     expect(copy.description).toContain('1 段对话');
     expect(copy.description).toContain('6 条消息');
@@ -41,14 +42,14 @@ describe('P357 · one copy source for the confirm dialog', () => {
     expect(copy.description).not.toContain('将清空');
   });
 
-  it('the session count scales while title and label stay identical', () => {
+  it('the session count scales the title — 清空全部 N 段对话 beyond one', () => {
     const copy = confirmDialogCopy({
       kind: 'clear-all',
       sessionCount: 3,
       messageCount: 9,
     });
     expect(copy.description).toContain('3 段对话');
-    expect(copy.title).toBe(CLEAR_ALL_LABEL);
+    expect(copy.title).toBe('清空全部 3 段对话');
     expect(copy.confirmLabel).toBe(CLEAR_ALL_LABEL);
   });
 
