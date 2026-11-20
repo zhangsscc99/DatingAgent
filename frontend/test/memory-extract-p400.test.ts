@@ -62,9 +62,11 @@ describe('P400 · verbatim hoisting from the title / first message is never stor
 
     // A real statement that is not a verbatim substring of the title
     // still lands — the gate costs no recall on new information.
+    // P411: the accusation about the other person no longer stores
+    // verbatim — it lands as the user-attributed label instead.
     rememberUserMessage(context, '她明明看了消息就是不回', 3);
     expect(sessionMemoryFacts(context).map((f) => f.text)).toEqual([
-      '她明明看了消息就是不回',
+      '我对已读不回特别敏感',
     ]);
   });
 
@@ -87,10 +89,10 @@ describe('P400 · malformed candidates are repaired deterministically or dropped
       expect(fact.text).not.toMatch(/我可能是我/);
       expect(fact.text).not.toMatch(/是是我|我我|你你|她她|他他/);
     }
-    // The deterministic repair drops the collided copula + repeated
-    // subject: 「我可能是我…」 lands as the grammatical 「我可能自己不够
-    // 好」 — same input, same output.
-    expect(facts.some((f) => f.text === '我可能自己不够好')).toBe(true);
+    // P411: the repaired 「我可能自己不够好」 is still a verbatim emotion
+    // — it now lands as the category label instead.
+    expect(facts.some((f) => f.text === '我最近在自我怀疑')).toBe(true);
+    expect(facts.some((f) => f.text.includes('不够好'))).toBe(false);
     expect(extractMemoryFacts('算了，可能是我自己不够好')).toEqual(facts);
   });
 
@@ -126,7 +128,7 @@ describe('P400 · normalised-substring dedupe on the read path', () => {
     ]);
   });
 
-  it('a pre-gate malformed shard is pruned on read', () => {
+  it('a pre-gate shard is re-owned on read — emotion and accusation become user labels', () => {
     const context = freshContext('s-p400-malformed');
     context.conversationHistory.push(
       { role: 'user', content: '你好' },
@@ -136,8 +138,11 @@ describe('P400 · normalised-substring dedupe on the read path', () => {
       { key: '我可能是我自己不够好', text: '我可能是我自己不够好', ts: 1 },
       { key: '她明明看了消息就是不回', text: '她明明看了消息就是不回', ts: 2 },
     ];
+    // P411: neither raw line survives a read — the emotion maps to its
+    // category label, the accusation to the user's read-receipt label.
     expect(sessionMemoryFacts(context).map((f) => f.text)).toEqual([
-      '她明明看了消息就是不回',
+      '我最近在自我怀疑',
+      '我对已读不回特别敏感',
     ]);
   });
 });
@@ -241,7 +246,9 @@ describe('P400 · the capsule never repeats the title nor renders a substring pa
 
   it('the title echo drops, the shorter half of the pair drops, real facts stay', () => {
     const texts = qsa('span[data-fact]').map((el) => el.textContent ?? '');
-    expect(texts).toEqual(['她明明看了消息就是不回', '我明天第一次约会']);
+    // P411: the stale accusation pill renders as its user-attributed
+    // label, never the verbatim rant.
+    expect(texts).toEqual(['我对已读不回特别敏感', '我明天第一次约会']);
     expect(new Set(texts).size).toBe(texts.length);
     expect(texts).not.toContain('她三天没回我消息');
     expect(texts).not.toContain('明天第一次约会');

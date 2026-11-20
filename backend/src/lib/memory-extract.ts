@@ -246,6 +246,78 @@ function repairFactGrammar(text: string): string | null {
 }
 
 /**
+ * P411 — a remembered fact is a statement about the USER, never a
+ * verbatim hoist of the user's latest emotional message. Two rewrites
+ * run before subject inference:
+ *
+ *  1. Owner gate — a clause that leads with 她/他/对方/人家 is about the
+ *     other person. When it reads as an accusation (明明/就是/故意/耍/
+ *     凭什么…) it can never surface as-is: a silence rant (明明…不回 /
+ *     就是…不理 / 故意…不接) rewrites to the user-attributed label
+ *     「我对已读不回特别敏感」 — what the user is really carrying — and
+ *     an accusation with nothing mappable is dropped outright. A plain
+ *     observation about the other side (她最近有点累 / 她三天没回我消息了)
+ *     stays: it names something the user is tracking and the P339–P400
+ *     rounds pin it.
+ *
+ *  2. Pure-emotion label — a candidate that is ONLY an emotion or
+ *     self-evaluation (不够好/难受/生气/焦虑…) with no durable event,
+ *     time or object named cannot stand as its own fact; it maps to a
+ *     category label such as 「我最近在自我怀疑」 instead of storing the
+ *     raw sentence.
+ */
+const OTHER_PERSON_LEAD = /^(?:她|他|对方|人家|它|ta)/i;
+const USER_LEAD = /^(?:我|我们)/;
+const ACCUSATION_MARK = /明明|就是|居然|竟然|故意|耍|凭什么|压根|根本/;
+const SILENCE_WORD = /已读|不回|没回|不理|没理|不接/;
+const READ_RECEIPT_LABEL = '我对已读不回特别敏感';
+
+const EMOTION_LABELS: readonly string[] = [
+  '我最近在自我怀疑',
+  '我最近情绪有点低落',
+  '我最近有点烦躁',
+  '我最近有点焦虑',
+];
+
+const PURE_EMOTION: ReadonlyArray<readonly [RegExp, string]> = [
+  [
+    /不够好|配不上|没用|我的错|是我的问题|自我怀疑|太笨|很笨|太差|失败/,
+    EMOTION_LABELS[0],
+  ],
+  [/难受|难过|委屈|伤心|失落|想哭|心酸|低落/, EMOTION_LABELS[1]],
+  [/生气|气死|火大|愤怒|崩溃|郁闷|烦躁|烦死|心烦|好烦|很烦|太烦/, EMOTION_LABELS[2]],
+  [/焦虑|紧张|不安|心慌|恐慌|害怕/, EMOTION_LABELS[3]],
+];
+
+/** A candidate naming a time, an event or an object is not "pure emotion alone". */
+const DURABLE_CONTENT =
+  /今天|明天|后天|昨天|昨晚|周末|下周|这周|今晚|明晚|第.次|约会|见面|相亲|加班|出差|考试|面试|消息|微信|电话|工作|上班|闺蜜|朋友|看展|爬山|健身|吃饭|电影|旅行|火锅/;
+
+/**
+ * The user-attributed label a candidate must carry instead of its raw
+ * text, `null` when the candidate is an accusation with nothing
+ * mappable (drop it), or `undefined` when no owner/emotion gate fires.
+ * Twin of the clause-fallback gate in conversationFacts.ts and the
+ * pill gate in frontend/src/lib/memoryReceipt.ts — keep in sync.
+ */
+function userAttributedLabel(text: string): string | null | undefined {
+  const t = text.trim();
+  // A silence accusation is the user hurting about being left on read —
+  // whoever the clause grammatically blames, the fact is the user's.
+  if (!USER_LEAD.test(t) && ACCUSATION_MARK.test(t) && SILENCE_WORD.test(t)) {
+    return READ_RECEIPT_LABEL;
+  }
+  if (OTHER_PERSON_LEAD.test(t)) {
+    return ACCUSATION_MARK.test(t) ? null : undefined;
+  }
+  if (EMOTION_LABELS.includes(t)) return undefined;
+  for (const [re, label] of PURE_EMOTION) {
+    if (re.test(t) && !DURABLE_CONTENT.test(t)) return label;
+  }
+  return undefined;
+}
+
+/**
  * Shape one candidate into a storable fact: question-shaped candidates
  * are dropped outright (P387), the subject moves up front, malformed
  * text is repaired or dropped (P400), then the standalone gates
@@ -255,6 +327,12 @@ function shapeFact(raw: string, source: string, index: number): string | null {
   if (isInterrogativeCandidate(raw, source, index)) return null;
   const cored = declarativeCore(raw);
   if (cored === null) return null;
+  // P411 — owner gate / pure-emotion label before subject inference:
+  // the other person's accusation and a bare emotion are never stored
+  // as verbatim sentences.
+  const owned = userAttributedLabel(cored);
+  if (owned === null) return null;
+  if (owned !== undefined) return clip(owned);
   const shaped = clip(inferSubject(cored, source, index, cored !== raw));
   const fact = repairFactGrammar(shaped);
   return fact !== null && isStandaloneFact(fact) ? fact : null;
@@ -577,11 +655,27 @@ export function rememberUserMessage(
   context: AgentContext,
   message: string,
   ts: number = Date.now(),
+  priorUserMessages?: readonly string[],
 ): MemoryFact[] {
   const facts = (context.memoryFacts ??= []);
   const forgotten = (context.forgottenFactKeys ??= new Set<string>());
   const tKey = verbatimKey(sessionTitleText(context, message));
   const sourceKey = verbatimKey(firstUserMessage(context, message));
+  // P411 — verbatim dedup against the last three user messages. The
+  // message being processed is deliberately not in this list (the chat
+  // path calls this before the turn lands in history): a fact that only
+  // restates something the user already said recently is a parrot, not
+  // a new memory. `priorUserMessages` lets ingestSessionMemory replay a
+  // full history without the current turn reading as its own echo.
+  const prior =
+    priorUserMessages ??
+    (context.conversationHistory ?? [])
+      .filter((m) => m.role === 'user' && m.content.trim().length > 0)
+      .map((m) => m.content);
+  const recentKeys = prior
+    .slice(-3)
+    .map(verbatimKey)
+    .filter((k) => k.length > 0);
   // The title / the user's own first message already states this fact —
   // drop such rows even when a pre-P382 shard carried them over (P400:
   // verbatim substring now counts, not just an identical sentence).
@@ -595,6 +689,19 @@ export function rememberUserMessage(
   for (const fact of extractMemoryFacts(message)) {
     if (forgotten.has(fact.key)) continue;
     if (verbatimEcho(fact.text, tKey) || verbatimEcho(fact.text, sourceKey)) continue;
+    // P411 — the same verbatim gate against the last three user
+    // messages, in both directions: a candidate clipped out of a recent
+    // turn (or one swallowing a shorter recent turn wholesale) is a
+    // restatement, never a new fact.
+    const fKey = verbatimKey(fact.text);
+    if (
+      fKey.length > 0 &&
+      recentKeys.some(
+        (k) => k.includes(fKey) || (k.length >= 4 && fKey.includes(k)),
+      )
+    ) {
+      continue;
+    }
     const mergeIndex = facts.findIndex((f) => mergeableFact(f.key, fact.key));
     if (mergeIndex !== -1) {
       if (fact.key.length > facts[mergeIndex].key.length) {
@@ -621,8 +728,15 @@ export function ingestSessionMemory(
   context: AgentContext,
   messages: readonly Pick<Message, 'role' | 'content'>[] = context.conversationHistory,
 ): MemoryFact[] {
+  // context.conversationHistory already holds the full restored list —
+  // feed each turn the messages that preceded it so the P411 recent-3
+  // verbatim gate compares a fact against earlier turns only, never
+  // against the message it was extracted from.
+  const priorUser: string[] = [];
   for (const message of messages) {
-    if (message.role === 'user') rememberUserMessage(context, message.content);
+    if (message.role !== 'user') continue;
+    rememberUserMessage(context, message.content, undefined, priorUser);
+    priorUser.push(message.content);
   }
   return context.memoryFacts ?? [];
 }
@@ -694,8 +808,28 @@ export function sessionMemoryFacts(context: AgentContext): MemoryFact[] {
   if (facts.length === 0) return facts;
   const tKey = verbatimKey(sessionTitleText(context, ''));
   const sourceKey = verbatimKey(firstUserMessage(context, ''));
+  const forgotten = context.forgottenFactKeys;
   for (let i = facts.length - 1; i >= 0; i--) {
     const { text } = facts[i];
+    // P411 — a shard written before the owner gate gets the same
+    // treatment on read: an accusation about the other person becomes
+    // the user-attributed label (or is pruned when nothing maps) and a
+    // bare emotion becomes its category label, so a refresh never
+    // replays the rant verbatim.
+    const owned = userAttributedLabel(text);
+    if (owned === null) {
+      facts.splice(i, 1);
+      continue;
+    }
+    if (owned !== undefined) {
+      const key = factKey(owned);
+      if (forgotten !== undefined && forgotten.has(key)) {
+        facts.splice(i, 1);
+        continue;
+      }
+      facts[i] = { key, text: owned, ts: facts[i].ts };
+      continue;
+    }
     if (
       FACT_INTERROGATIVE.test(text) ||
       !isStandaloneFact(text) ||

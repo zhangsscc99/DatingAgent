@@ -156,6 +156,65 @@ function fragmentInsideQuestion(text: string, index: number, label: string): boo
   return terminal !== null && (terminal[0] === '？' || terminal[0] === '?');
 }
 
+/**
+ * P411 — twin of the owner gate in backend/src/lib/memory-extract.ts: a
+ * fact is a statement about the USER. An accusation whose subject is the
+ * other person (她/他/对方/人家 + 明明/就是/故意/耍…) never surfaces
+ * verbatim — a silence rant rewrites to 「我对已读不回特别敏感」, an
+ * unmappable accusation dies. A clause that is only an emotion or
+ * self-evaluation (不够好/难受/生气/焦虑, no durable event or time named)
+ * maps to its category label instead of standing as the raw sentence.
+ * `memoryOwnerGateLabel` is also the capsule's pill gate: a stored shard
+ * label passing through it renders the mapped label (or is dropped).
+ */
+const OWNER_LEAD = /^(?:她|他|对方|人家|它|ta)/i;
+const USER_LEAD = /^(?:我|我们)/;
+const ACCUSATION_MARK = /明明|就是|居然|竟然|故意|耍|凭什么|压根|根本/;
+const SILENCE_WORD = /已读|不回|没回|不理|没理|不接/;
+const READ_RECEIPT_LABEL = '我对已读不回特别敏感';
+const EMOTION_LABELS: readonly string[] = [
+  '我最近在自我怀疑',
+  '我最近情绪有点低落',
+  '我最近有点烦躁',
+  '我最近有点焦虑',
+];
+const PURE_EMOTION: ReadonlyArray<readonly [RegExp, string]> = [
+  [
+    /不够好|配不上|没用|我的错|是我的问题|自我怀疑|太笨|很笨|太差|失败/,
+    EMOTION_LABELS[0],
+  ],
+  [/难受|难过|委屈|伤心|失落|想哭|心酸|低落/, EMOTION_LABELS[1]],
+  [
+    /生气|气死|火大|愤怒|崩溃|郁闷|烦躁|烦死|心烦|好烦|很烦|太烦/,
+    EMOTION_LABELS[2],
+  ],
+  [/焦虑|紧张|不安|心慌|恐慌|害怕/, EMOTION_LABELS[3]],
+];
+const DURABLE_CONTENT =
+  /今天|明天|后天|昨天|昨晚|周末|下周|这周|今晚|明晚|第.次|约会|见面|相亲|加班|出差|考试|面试|消息|微信|电话|工作|上班|闺蜜|朋友|看展|爬山|健身|吃饭|电影|旅行|火锅/;
+
+/**
+ * The user-attributed label a fact/clause must carry instead of its raw
+ * text, `null` when it is an accusation with nothing mappable (drop),
+ * `undefined` when no gate fires.
+ */
+export function memoryOwnerGateLabel(
+  text: string,
+): string | null | undefined {
+  const t = text.trim();
+  if (!USER_LEAD.test(t) && ACCUSATION_MARK.test(t) && SILENCE_WORD.test(t)) {
+    return READ_RECEIPT_LABEL;
+  }
+  if (OWNER_LEAD.test(t)) {
+    return ACCUSATION_MARK.test(t) ? null : undefined;
+  }
+  if (EMOTION_LABELS.includes(t)) return undefined;
+  for (const [re, label] of PURE_EMOTION) {
+    if (re.test(t) && !DURABLE_CONTENT.test(t)) return label;
+  }
+  return undefined;
+}
+
 /** Clause boundaries for the P323 fallback split. */
 const CONVERSATION_FACT_CLAUSE = /[^，。！？；、,.!?;\n]+/g;
 
@@ -284,15 +343,22 @@ export function conversationFactItems(
         // either (「明天第一次约会，穿卫衣去会不会太随便？」).
         if (fragmentInsideQuestion(text, index, label)) continue;
         if (!CONVERSATION_FACT_ANCHORS.test(label)) continue;
+        // P411 — the clause names a fact about the user only: the other
+        // person's accusation and a bare emotion are rewritten to
+        // user-attributed labels or dropped, never emitted verbatim.
+        const owned = memoryOwnerGateLabel(label);
+        if (owned === null) continue;
+        const emitted = clip(owned ?? label);
+        if (emitted.length < 2) continue;
         if (
           candidates.some((c) => index < c.end && c.index < index + clause[0].length)
         ) {
           continue;
         }
-        const key = clipped.toLowerCase();
+        const key = emitted.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        items.push(clipped);
+        items.push(emitted);
         break;
       }
     }

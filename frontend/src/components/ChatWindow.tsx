@@ -33,6 +33,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { HERO_EXAMPLE_PROMPTS, HERO_PRIMARY_LABEL } from '../lib/heroCta';
 import {
   MEMORY_RECEIPT_MAX_ITEMS,
+  memoryOwnerGateLabel,
   memoryReceiptItems,
   rememberedItems,
 } from '../lib/memoryReceipt';
@@ -288,7 +289,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
       .replace(/[\s\p{P}\p{S}]+/gu, '')
       .replace(/[了的啊吧]+$/u, '');
   const capsuleTitle = capsuleKeyOf(sessionTitle ?? '');
-  const capsuleEligible = visibleRows.filter((row) => {
+  const capsuleEligible = visibleRows.flatMap((row) => {
     // P387: a fact text that still carries a question mark is the user's
     // question restated — it never renders as a pill.
     // P392: same for deliberation/question markers on pre-gate shards —
@@ -299,12 +300,19 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
         row.label,
       )
     ) {
-      return false;
+      return [];
     }
-    const label = capsuleKeyOf(row.label);
-    if (label.length === 0) return false;
-    if (capsuleTitle.length === 0) return true;
-    return !capsuleTitle.includes(label);
+    // P411: a pre-owner-gate shard can still hand the capsule an
+    // accusation about the other person or a bare emotion verbatim —
+    // the pill renders the user-attributed label instead, and an
+    // unmappable accusation never renders.
+    const owned = memoryOwnerGateLabel(row.label);
+    if (owned === null) return [];
+    const text = owned ?? row.label;
+    const label = capsuleKeyOf(text);
+    if (label.length === 0) return [];
+    if (capsuleTitle.length === 0) return [{ ...row, label: text }];
+    return capsuleTitle.includes(label) ? [] : [{ ...row, label: text }];
   });
   const capsuleRows = capsuleEligible.filter((row, i) => {
     const key = capsuleKeyOf(row.label);
