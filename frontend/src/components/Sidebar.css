@@ -633,13 +633,16 @@
    solid row cards — it became a --surface-hover fill.
    P378: the filled bar read as a twin of the filter box — it drops to a
    borderless icon + label + chevron list row (same anatomy as the entry
-   rows), which the inset filter field above it can never be confused with. */
+   rows), which the inset filter field above it can never be confused with.
+   P402: the row also sat one stray tap under 清空全部对话 wearing the same
+   trash glyph — the extra margin-top puts ≥50px between the two controls
+   (36px clear-all height + 20px gap at the 390px floor). */
 .recent-chat-trash {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  margin-top: 6px;
+  margin-top: 20px;
   min-height: 44px;
   padding: 10px 12px;
   background: transparent;

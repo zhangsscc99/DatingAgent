@@ -147,9 +147,16 @@ export function groupSessionsByDay(
 // P358: the key space widens past the four starter keys — the 进阶工具 rows
 // mount the same icon + label + chevron anatomy as the 快捷入口 cards, so
 // tool ids resolve onto this one icon set through TOOL_ICON_KEYS below.
-// P378: 'trash' marks the two destructive/restore destinations (清空全部
-// button + 回收站 row); 'search' is the inset filter field's left glyph.
-type SidebarIconKey = StarterIconKey | 'advice' | 'trash' | 'search';
+// P378: 'trash' marks the destructive 清空全部 button; 'search' is the
+// inset filter field's left glyph. P402: the 回收站 row left 'trash' —
+// the same glyph on the adjacent navigation row read as a second
+// clear-all — and now mounts the 'history' clock instead.
+type SidebarIconKey =
+  | StarterIconKey
+  | 'advice'
+  | 'trash'
+  | 'history'
+  | 'search';
 
 const QUICK_ICON_PATHS: Record<SidebarIconKey, string[]> = {
   profile: ['M12 20h9', 'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'],
@@ -173,6 +180,10 @@ const QUICK_ICON_PATHS: Record<SidebarIconKey, string[]> = {
     'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
     'M10 11v6',
     'M14 11v6',
+  ],
+  history: [
+    'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',
+    'M12 6v6l4 2',
   ],
   search: ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z', 'M21 21l-4.35-4.35'],
 };
@@ -705,6 +716,7 @@ export default function Sidebar({
               type="button"
               className="recent-chat-clear-all"
               data-tone="danger"
+              data-icon="trash"
               // P228: App owns the in-app confirm dialog; this only asks.
               onClick={() => onClearAllChats?.()}
               disabled={busy}
@@ -719,17 +731,20 @@ export default function Sidebar({
           )}
           {/* P265: the way back from a delete — visible whenever either list
               holds something, above the eviction notice; a totally empty
-              section hides the row entirely. */}
+              section hides the row entirely. P402: a navigation row, not a
+              destructive twin — it wears the 'history' clock and exposes it
+              via data-icon so no test or user can confuse it with clear-all. */}
           {shouldShowTrashEntry(recentSessions.length, trashEntries.length) && (
             <button
               type="button"
               className="recent-chat-trash"
               data-control="row"
+              data-icon="history"
               onClick={() => setTrashOpen(true)}
               aria-label={`回收站，${trashEntries.length} 段已删除对话`}
               title="回收站"
             >
-              <SidebarIcon iconKey="trash" />
+              <SidebarIcon iconKey="history" />
               <span className="sidebar-row-label">
                 回收站（{trashEntries.length}）
               </span>
