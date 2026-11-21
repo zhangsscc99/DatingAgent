@@ -320,3 +320,53 @@ export function fillBracketSlots(text: string): string {
   }
   return out + fillSlotSegment(text.slice(last));
 }
+
+// P406: the model keeps reaching for a small kit of consulting-jargon
+// metaphors (「新鲜感退潮」「热度自然回落」「消耗自己」) that made the Round
+// 103 replies read like template paste-ups. The mapping below rewrites
+// each term to everyday wording; the prompt bans the same list, exported
+// here so the rule and the cleaner share one source of truth.
+export const CLINIC_TERMS = ['新鲜感退潮', '热度自然回落', '消耗自己', '情感账户'] as const;
+
+// P406: same spans as PROTECTED_SPAN, plus quoted user speech (「…」 and
+// “…”) — a jargon term the user wrote, or one inside a quote the reply
+// cites, is not the reply's own voice and must survive untouched.
+const CLINIC_PROTECTED_SPAN =
+  /```[\s\S]*?(?:```|$)|`[^`\n]*`|「[^」\n]*」|“[^”\n]*”|https?:\/\/\S+/gu;
+
+// The verb-phrase terms absorb a trailing 了 so 「热度自然回落了」 and
+// 「热度自然回落」 both land on natural wording without a doubled particle.
+const CLINIC_TERM_REPLACEMENTS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/新鲜感退潮了?/g, '没那么新鲜了'],
+  [/热度自然回落了?/g, '联系少了些'],
+  [/消耗自己/g, '勉强自己'],
+  [/情感账户/g, '感情'],
+];
+
+function softenClinicSegment(segment: string): string {
+  let out = segment;
+  for (const [pattern, replacement] of CLINIC_TERM_REPLACEMENTS) {
+    out = out.replace(pattern, replacement);
+  }
+  return out;
+}
+
+/**
+ * P406 — replaces the consulting-jargon terms in CLINIC_TERMS with plain
+ * everyday phrasing (「热度自然回落」→「联系少了些」, 「消耗自己」→「勉强自己」).
+ * Fenced code blocks, inline `code`, 「…」/“…” quoted user speech and URLs
+ * are protected spans and pass through byte-identical, as does any text
+ * with none of the terms. The function is idempotent: no replacement
+ * output contains a banned term, so a second pass changes nothing.
+ */
+export function softenClinicTerms(text: string): string {
+  if (!CLINIC_TERMS.some((term) => text.includes(term))) return text;
+  let out = '';
+  let last = 0;
+  for (const match of text.matchAll(CLINIC_PROTECTED_SPAN)) {
+    out += softenClinicSegment(text.slice(last, match.index));
+    out += match[0];
+    last = match.index + match[0].length;
+  }
+  return out + softenClinicSegment(text.slice(last));
+}

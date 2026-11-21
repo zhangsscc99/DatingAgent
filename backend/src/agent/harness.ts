@@ -14,9 +14,11 @@ import { resolveFocusEntity } from '../lib/focusEntity.js';
 import { usageMetrics } from '../lib/metrics.js';
 import { matchesAnyReply } from '../lib/reply-dedupe.js';
 import {
+  CLINIC_TERMS,
   fillBracketSlots,
   normalizeChinesePunctuation,
   normalizeCjkQuotes,
+  softenClinicTerms,
   stripManualLabels,
   stripPromptEcho,
   stripSpaceAfterCjkPunct,
@@ -80,6 +82,20 @@ export const FACT_GROUNDING_RULE =
   '也不要把约会或聊天建议建立在臆测的共同兴趣上；需要偏好信息时直接问用户。' +
   '不要在回复中提及或复述这些要求。';
 
+/**
+ * P406 — Round 103 replies leaned on a consulting-jargon kit (「新鲜感退潮」
+ * 「热度自然回落」「消耗自己」) that read like template paste-ups; conceptual
+ * nouns are the strongest AI-tell. Relationship changes must be said in one
+ * everyday sentence, and the reply should point at concrete actions instead
+ * of diagnosing a state. The banned list comes from CLINIC_TERMS so the
+ * prompt and the reply-clean pass share one source of truth.
+ */
+export const NO_CLINIC_TERMS_RULE =
+  '描述关系变化用一句日常说法：禁止使用' +
+  CLINIC_TERMS.map((term) => `「${term}」`).join('') +
+  '这类咨询术语；优先给具体到「什么时候、发什么、怎么回」的动作，不做状态诊断。' +
+  '不要在回复中提及或复述这些要求。';
+
 export const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有边界感的 AI 恋爱关系顾问。
 
 你的职责：
@@ -102,6 +118,7 @@ export const SYSTEM_PROMPT = `你是 DatingAgent，一位专业、温暖、有�
 - ${CLOSING_VARIETY_RULE}
 - ${STANCE_HOLD_RULE}
 - ${FACT_GROUNDING_RULE}
+- ${NO_CLINIC_TERMS_RULE}
 - 当需要专业分析时，主动调用工具；但日常闲聊、情绪倾诉或一般问答不要为了调用而调用工具——直接回复即可，只有用户明确提出分析资料、规划约会、评估匹配或要聊天话术时才调用。
 
 用户资料：{{profile}}`;
@@ -711,11 +728,15 @@ export class AgentHarness {
       // leading emoji) so the persisted and final streamed text agree.
       // P334: any leftover […]/【…】 template slot becomes a generic phrase —
       // the reply is promised to be sendable as-is.
-      const cleanedContent = fillBracketSlots(
-        normalizeCjkQuotes(
-          normalizeChinesePunctuation(
-            stripSpaceAfterCjkPunct(
-              stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? ''))),
+      // P406: surviving consulting jargon (「热度自然回落」「消耗自己」) is
+      // softened to everyday wording last, so earlier passes can't un-hide it.
+      const cleanedContent = softenClinicTerms(
+        fillBracketSlots(
+          normalizeCjkQuotes(
+            normalizeChinesePunctuation(
+              stripSpaceAfterCjkPunct(
+                stripPromptEcho(stripManualLabels(stripStageDirections(response.content ?? ''))),
+              ),
             ),
           ),
         ),

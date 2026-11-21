@@ -334,3 +334,4 @@
 2026-11-20 03:25 | P414 | 设置面板关闭键去洋红描边改中性灰图标键，新增 settings-close-chrome.test.ts
 2026-11-21 16:45 | P415 | 桌面空态承诺去重+hero 垂直重心上移至 45–55% 带：顶栏副标题「先听你说完，再给具体建议」与 hero 副文案逐字重复，整段 <p class="subtitle"> 及 .subtitle 两组规则移除（顶栏只留品牌字标），「先听你说完」在 1440×900 可见文本中恰出现 1 次；桌面 (min-width:769px) 新增 .messages-hero::before flex:0 1 64px 封顶与 .messages-hero>.hero flex:1 0 auto + justify-content:center——hero 盒像 ≤768px 一样填满 scrollport 并自居中，重心由 ~63% 上移至 ~50%（选 .hero 标记类而非 .welcome 以守 P307 桌面块禁 .welcome 规则之约，元素同为一个）；手机布局未动；header-subtitle-copy.test.ts 重写为无副标题守卫、hero-primary-cta.test.ts 新增 P415 describe（挂载级一次命中+样式契约）；全套 189 文件 1538 例绿、tsc 21 个既有报错与 HEAD 一致、ci-deploy 通过（health ok + smoke "OK"）
 2026-11-21 17:12 | P416 | 确认键文案跟随数量词（清空 1 段对话），扩展 clear-all-danger.test.ts
+2026-11-21 17:31 | P406 | 系统提示加入禁用术语约束 + reply-clean 新增 softenClinicTerms（幂等、保护代码块/引号/URL）
