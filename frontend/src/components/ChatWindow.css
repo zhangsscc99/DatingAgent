@@ -312,6 +312,30 @@
     flex: 0 1 40px;
   }
 
+  /* P415 — the leading bookend still ate every spare pixel, so the hero
+     hugged the composer and its centre landed ~63% down the 1440×900
+     viewport (walk-1795138181: 「顶栏到 Hero 之间、Hero 到输入区之间
+     留白很大…视觉重心偏下」). Both spacers are now capped shares and
+     the .hero box itself grows to fill the scrollport — the same
+     fill-the-port shape the ≤768px hero already uses — while
+     justify-content centres the content inside the box. The 64px/40px
+     asymmetry nudges the block centre a touch below port centre, ≈46–48%
+     of the viewport, inside the 45–55% contract. The rule selects the
+     .hero state marker (the welcome block's P337 alias) rather than
+     .welcome — a plain-.welcome rule inside this block would trip the
+     P307 clearance contract that keeps the card's desktop chrome to the
+     top-level rule only. */
+  .messages-hero::before {
+    flex: 0 1 64px;
+  }
+
+  .messages-hero > .hero {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
   /* P380 — the shared hero CTA renders on desktop too: it centres in the
      welcome column as a button-sized control instead of the phone's
      full-width bar. */

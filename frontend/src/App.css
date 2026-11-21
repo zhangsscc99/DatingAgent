@@ -99,12 +99,6 @@
   text-overflow: ellipsis;
 }
 
-.subtitle {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
 .header-status {
   display: flex;
   align-items: center;
@@ -569,10 +563,6 @@
 
   .header h1 {
     font-size: 16px;
-  }
-
-  .subtitle {
-    display: none;
   }
 
   /* P226: hide the status chip so the always-visible search toggle fits in

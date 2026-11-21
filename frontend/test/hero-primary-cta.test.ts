@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   installFakeDom,
+  jsonResponse,
   FakeEvent,
   type FakeDom,
   type FakeElement,
@@ -1101,5 +1102,176 @@ describe('P413 · phone first screen: ≤5 send entries, one secondary group', (
     expect(exampleGroup).toHaveLength(HERO_EXAMPLE_PROMPTS.length);
     expect(chipGroup).toHaveLength(0);
     await unmount();
+  });
+});
+
+/**
+ * P415 — measured at 1440×900 on 1795138181 (docs/runs/walk-1795138181-d1.png):
+ * the header subtitle「先听你说完，再给具体建议」and the hero line
+ * 「懂分寸的恋爱顾问：先听你说完，再给一句能直接照着用的建议。」repeated
+ * the SAME promise twice on one screen, and the leading bookend ate all
+ * the free space so the hero hugged the composer — vision: 「留白很大…
+ * 视觉重心偏下」「品牌名和副标题语义也重复」.
+ *
+ * Contract asserted here (the backlog's verify clause):
+ *  1. At 1440×900「先听你说完」appears exactly ONCE in the rendered
+ *     visible text of header + hero — the header keeps the brand
+ *     wordmark only, the hero keeps the single copy.
+ *  2. The hero's vertical centre lands in the 45–55% viewport band.
+ *     The fake DOM resolves no rects, so the assertion is the same
+ *     stylesheet contract the layout now uses: inside (min-width:
+ *     769px) the .welcome box grows to fill the scrollport and centres
+ *     its own content (justify-content: center) while BOTH bookends
+ *     keep capped bases — 64px leading, 40px trailing — so the block
+ *     centre sits a touch below port centre (≈46–48% of 900px for the
+ *     measured header/composer heights), never the old ~63%.
+ *  3. The phone model is untouched — those rules live inside the
+ *     desktop media block; the ≤768px describes above still pin it.
+ */
+describe('P415 · one promise on the first screen; hero centred 45–55%', () => {
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qs = (sel: string) =>
+    dom.document.querySelector(sel) as FakeElement | null;
+
+  /** Occurrences of `text` inside visible text nodes under `rootEl` —
+   *  counts each text node once (textContent on parents would
+   *  double-count) and skips inert / aria-hidden / sr-only subtrees. */
+  const visibleTextHits = (rootEl: FakeElement, text: string) => {
+    let hits = 0;
+    const hidden = (el: FakeElement) =>
+      el.closest('[inert]') !== null ||
+      el.closest('[aria-hidden="true"]') !== null ||
+      el.closest('.sr-only') !== null;
+    for (const el of [rootEl, ...rootEl._walk()]) {
+      if (hidden(el)) continue;
+      for (const node of el.childNodes) {
+        if (node.nodeType === 3) {
+          hits += (node.nodeValue.match(new RegExp(text, 'g')) ?? []).length;
+        }
+      }
+    }
+    return hits;
+  };
+
+  const mountApp = async () => {
+    dom = installFakeDom();
+    (dom.window as Record<string, unknown>).innerWidth = 1440;
+    (dom.window as Record<string, unknown>).innerHeight = 900;
+    // Desktop stub: every width query resolves against 1440px and the
+    // pointer is fine — the same width-aware shape as the P394 harness.
+    const mq = (q: string) => {
+      const maxW = /max-width:\s*(\d+)px/.exec(q);
+      const minW = /min-width:\s*(\d+)px/.exec(q);
+      const matches =
+        q === COARSE_POINTER_QUERY
+          ? false
+          : (maxW || minW) !== null &&
+            (maxW ? 1440 <= Number(maxW[1]) : true) &&
+            (minW ? 1440 >= Number(minW[1]) : true);
+      return {
+        matches,
+        media: q,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      };
+    };
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    vi.stubGlobal('matchMedia', mq);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: unknown) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : String((input as { url?: string })?.url);
+        if (url === '/api/tools') return jsonResponse({ tools: [] });
+        if (url === '/api/health') {
+          return jsonResponse({
+            status: 'ok',
+            llmConfigured: true,
+            llmModel: 'qwen3.8-flash',
+          });
+        }
+        return jsonResponse({ ok: true });
+      }),
+    );
+    dom.localStorage.setItem('datingAgent.onboardingDone', 'true');
+    const { createRoot } = await import('react-dom/client');
+    const { default: App } = await import('../src/App');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(createElement(App));
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const unmountApp = async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    dom.document.body.textContent = '';
+  };
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('1440×900: 「先听你说完」resolves exactly once across the header + hero visible text', async () => {
+    await mountApp();
+    const header = qs('.header');
+    const hero = qs('.hero');
+    expect(header).not.toBeNull();
+    expect(hero).not.toBeNull();
+    // The header keeps the brand wordmark only — no subtitle node at all.
+    expect(header!.querySelector('.subtitle')).toBeNull();
+    const headerHits = visibleTextHits(header!, '先听你说完');
+    const heroHits = visibleTextHits(hero!, '先听你说完');
+    expect(headerHits).toBe(0);
+    expect(heroHits).toBe(1);
+    expect(headerHits + heroHits).toBe(1);
+    await unmountApp();
+  });
+
+  it('the desktop hero fills the scrollport and centres its content — both bookends capped', () => {
+    const desktop = mediaBlock(chatWindowCss, '(min-width: 769px)');
+    // The box grows to fill the port and centres its own content — the
+    // centring rule a getBoundingClientRect can't express in the fake DOM.
+    // The rule selects the .hero state marker (P337's alias on the same
+    // .welcome element) — a plain-.welcome rule in the desktop block is
+    // banned by the P307 clearance contract.
+    const heroRule = ruleBody(desktop, '.messages-hero > .hero');
+    expect(heroRule).toContain('flex: 1 0 auto');
+    expect(heroRule).toContain('justify-content: center');
+    // Both spacers keep capped bases; the leading cap outgrows the
+    // trailing 40px by ≤56px so the block centre lands only a touch below
+    // port centre — inside the 45–55% viewport band, never the old ~63%.
+    const beforeBasis = Number(
+      /flex\s*:\s*0\s+1\s+([0-9.]+)px/.exec(
+        ruleBody(desktop, '.messages-hero::before'),
+      )?.[1],
+    );
+    const afterBasis = Number(
+      /flex\s*:\s*0\s+1\s+([0-9.]+)px/.exec(
+        ruleBody(desktop, '.messages-hero::after'),
+      )?.[1],
+    );
+    expect(beforeBasis).toBeGreaterThan(0);
+    expect(afterBasis).toBeGreaterThan(0);
+    expect(beforeBasis - afterBasis).toBeLessThanOrEqual(56);
+    // The phone layout keeps its own fill model — the ≤768px
+    // .messages-hero > .welcome still distributes via auto margins,
+    // never the desktop centring rule.
+    expect(
+      ruleBody(mobileChat, '.messages-hero > .welcome'),
+    ).not.toContain('justify-content: center');
   });
 });

@@ -1851,7 +1851,9 @@ export default function App() {
                 next to four controls — no width ever shows a fragment of
                 the name again. Below the mobile breakpoint the brand is a
                 logo-only mark that names itself through aria-label; the
-                full title + subtitle still render at wider widths. */}
+                full wordmark still renders at wider widths. P415: the
+                subtitle under the h1 is gone — it repeated the hero's
+                promise line word for word on the same first screen. */}
             <div
               className="header-title"
               role={isMobile ? 'img' : undefined}
@@ -1875,7 +1877,6 @@ export default function App() {
               {!isMobile && (
                 <div className="header-title-text">
                   <h1>DatingAgent</h1>
-                  <p className="subtitle">先听你说完，再给具体建议</p>
                 </div>
               )}
             </div>

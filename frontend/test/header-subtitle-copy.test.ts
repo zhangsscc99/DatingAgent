@@ -5,47 +5,41 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /**
- * P232 — the visible subtitle under the header title still rendered
+ * P232 — the visible subtitle under the header title once rendered
  * 「AI 恋爱关系顾问 · Agent Harness」: framework vocabulary meaningless
  * to a dating user (the <title> and server HTML were already clean).
- * The subtitle is now a human positioning line. These guards pin the
- * source so the jargon cannot regress and the new copy stays non-empty
- * and user-facing (CJK).
+ *
+ * P415 — the human positioning line that replaced it
+ * (「先听你说完，再给具体建议」) duplicated the hero's promise word for
+ * word on the desktop empty state, so the subtitle is gone for good: the
+ * header wordmark carries the brand name only, and the single surviving
+ * copy of the promise lives in the hero. These guards pin the source so
+ * neither the jargon nor a second copy of the promise can regress into
+ * the header.
  */
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const app = readFileSync(join(SRC, 'App.tsx'), 'utf8');
+const appCss = readFileSync(join(SRC, 'App.css'), 'utf8');
 
-const subtitleMatch = app.match(
-  /<p className="subtitle">([^<]+)<\/p>/,
-);
-const subtitle = subtitleMatch?.[1] ?? '';
+const subtitleMatch = app.match(/className="subtitle"/);
 
-const JARGON = [
-  'Agent Harness',
-  'Harness',
-  'Tool-calling',
-  'SSE',
-  'TypeScript',
-];
-
-describe('P232 · header subtitle copy carries no framework jargon', () => {
-  it('renders a subtitle element in the header', () => {
-    expect(subtitleMatch).not.toBeNull();
+describe('P232/P415 · header wordmark carries no subtitle', () => {
+  it('renders no .subtitle element in the header', () => {
+    expect(subtitleMatch).toBeNull();
+    expect(app).not.toMatch(/<p className="subtitle">/);
   });
 
-  it('contains none of the jargon strings', () => {
-    for (const word of JARGON) {
-      expect(subtitle).not.toContain(word);
-    }
+  it('the hero’s promise line does not appear in the header source', () => {
+    expect(app).not.toContain('先听你说完');
+    expect(app).not.toContain('先听你说完，再给具体建议');
   });
 
   it('old jargon subtitle string is gone from the source', () => {
     expect(app).not.toContain('AI 恋爱关系顾问 · Agent Harness');
   });
 
-  it('new subtitle is non-empty and CJK', () => {
-    expect(subtitle.trim().length).toBeGreaterThan(0);
-    expect(subtitle).toMatch(/[一-鿿]/);
+  it('the orphaned .subtitle rules are gone from the stylesheet', () => {
+    expect(appCss).not.toMatch(/\.subtitle\s*\{/);
   });
 });
