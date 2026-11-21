@@ -40,6 +40,32 @@ const INITIAL_SNAPSHOT: HealthSnapshot = {
 };
 
 /**
+ * P420 — read the body of a non-2xx /api/health response. Returns the
+ * payload's `degradedReason` ('llm' | 'frontend-dist' | null) only when the
+ * body parses to an object with `status === 'degraded'`; otherwise throws so
+ * the caller falls back to ordinary failure semantics.
+ */
+async function readDegradedReason(
+  res: Response,
+): Promise<'llm' | 'frontend-dist' | null> {
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  if (
+    typeof body === 'object' &&
+    body !== null &&
+    (body as { status?: unknown }).status === 'degraded'
+  ) {
+    const reason = (body as { degradedReason?: unknown }).degradedReason;
+    return reason === 'llm' || reason === 'frontend-dist' ? reason : null;
+  }
+  throw new Error(`HTTP ${res.status}`);
+}
+
+/**
  * P135 — polls /api/health immediately and on a recurring timer, but only
  * while the tab is visible: ticks are skipped while `document.hidden`, no
  * initial poll fires when mounted in a background tab, and becoming visible
@@ -73,16 +99,33 @@ export function startHealthPoll(
   const poll = async () => {
     try {
       const res = await fetch('/api/health');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const payload: unknown = await res.json();
-      if (!cancelled) {
-        consecutiveFailures = 0;
-        snapshot = {
-          status: coarseStatus(payload),
-          reachable: true,
-          lastCheckedAt: Date.now(),
-        };
-        onSnapshot(snapshot);
+      if (!res.ok) {
+        // P420 — a non-2xx that still carries the health JSON is a
+        // degraded-but-alive server, not a network outage: it counts as
+        // reachable and resets the backoff. Anything else (HTML gateway
+        // page, unreadable body) throws into the failure branch below.
+        const degradedReason = await readDegradedReason(res);
+        if (!cancelled) {
+          consecutiveFailures = 0;
+          snapshot = {
+            status: 'degraded',
+            reachable: true,
+            degradedReason,
+            lastCheckedAt: Date.now(),
+          };
+          onSnapshot(snapshot);
+        }
+      } else {
+        const payload: unknown = await res.json();
+        if (!cancelled) {
+          consecutiveFailures = 0;
+          snapshot = {
+            status: coarseStatus(payload),
+            reachable: true,
+            lastCheckedAt: Date.now(),
+          };
+          onSnapshot(snapshot);
+        }
       }
     } catch {
       if (!cancelled) {

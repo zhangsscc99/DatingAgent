@@ -340,3 +340,4 @@
 2026-11-21 21:42 | P417 | frontend tsc --noEmit clean: added src/vite-env.d.ts (vite/client refs), typed Sidebar trapFocus as globalThis.KeyboardEvent, added typecheck scripts to root+frontend package.json
 2026-11-21 22:11 | P418 | root typecheck no longer dead: delegates to workspaces (backend typecheck added), new root verify=typecheck+test gate, AGENT-LOOP pre-commit section + source-level typecheck-gate test
 2026-11-21 22:45 | P419 | /api/health degrades on llmConfigured:false — new degradedReason field (frontend-dist > llm, null when ok); README + 2 new health.test cases; 3 probe tests pinned llmConfigured:true
+2026-11-21 23:09 | P420 | health poll treats 503+degraded JSON as reachable degraded (degradedReason snapshot field, no backoff); statusLabel reason-aware copy; 7 new frontend test cases

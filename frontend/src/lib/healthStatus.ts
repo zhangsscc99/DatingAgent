@@ -11,6 +11,8 @@ export interface HealthSnapshot {
   status: CoarseStatus;
   /** Whether the most recent poll attempt reached the server. */
   reachable: boolean;
+  /** P420 — why the server reported degraded, when it said so in the body. */
+  degradedReason?: 'llm' | 'frontend-dist' | null;
   /** Epoch millis of the last completed poll attempt; null before the first. */
   lastCheckedAt: number | null;
 }
@@ -44,6 +46,9 @@ export function footerLevel(snapshot: HealthSnapshot): FooterLevel {
 export function statusLabel(snapshot: HealthSnapshot): string | null {
   if (footerLevel(snapshot) !== 'warn') return null;
   if (!snapshot.reachable) return '连接有点问题，正在重试';
+  // P420 — a reachable-but-degraded server gets reason-specific plain copy.
+  if (snapshot.degradedReason === 'llm') return '回答功能还没就绪，稍后再试';
+  if (snapshot.degradedReason === 'frontend-dist') return '界面文件还在更新，刷新试试';
   return '服务有点忙，稍等再试';
 }
 
