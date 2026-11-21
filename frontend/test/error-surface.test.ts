@@ -162,8 +162,12 @@ describe('P397 · one failure, one error surface', () => {
     expect(qs('.bubble.error')?.querySelector('.retry-btn')).not.toBeNull();
 
     // The failure detail carries the localized line; nothing internal and
-    // no self-contradicting 「完成」 claim anywhere on screen.
-    expect(qs('.bubble-failure-detail')?.innerText).toBe(`出错了：${TOOL_ERR}`);
+    // no self-contradicting 「完成」 claim anywhere on screen. P87: the copy
+    // is keyed on `code` — the backend's raw sentence stays out of the UI.
+    expect(qs('.bubble-failure-detail')?.innerText).toBe(
+      '出错了：这个功能暂时用不了，换个问法再试',
+    );
+    expect(qs('.bubble-failure-detail')?.innerText).not.toContain(TOOL_ERR);
     const pageText = dom.document.body.innerText;
     expect(pageText).not.toContain('Unknown tool');
     expect(pageText).not.toContain('get_date');

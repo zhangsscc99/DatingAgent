@@ -341,3 +341,4 @@
 2026-11-21 22:11 | P418 | root typecheck no longer dead: delegates to workspaces (backend typecheck added), new root verify=typecheck+test gate, AGENT-LOOP pre-commit section + source-level typecheck-gate test
 2026-11-21 22:45 | P419 | /api/health degrades on llmConfigured:false — new degradedReason field (frontend-dist > llm, null when ok); README + 2 new health.test cases; 3 probe tests pinned llmConfigured:true
 2026-11-21 23:09 | P420 | health poll treats 503+degraded JSON as reachable degraded (degradedReason snapshot field, no backoff); statusLabel reason-aware copy; 7 new frontend test cases
+2026-11-21 23:33 | P87 | 错误文案统一走 errorCopy.humanizeChatError：code/status 映射中文可执行文案，SSE error 透传 code，原始英文/内部 message 只进 console.warn

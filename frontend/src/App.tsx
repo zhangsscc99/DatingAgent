@@ -72,6 +72,7 @@ import {
 import { copyText } from './lib/clipboard';
 import { buildChatRequestBody } from './lib/chatRequest';
 import { createErrorToast, type ErrorToastState } from './lib/errorToast';
+import { humanizeChatError } from './lib/errorCopy';
 import {
   createClearAllUndo,
   type ClearAllUndoToastState,
@@ -153,18 +154,25 @@ export function documentLangFor(language: ReplyLanguage): string {
 /** Human-readable message for a failed chat request, using the API's JSON error shape. */
 async function describeChatError(res: Response): Promise<string> {
   const retryAfter = res.headers.get('Retry-After');
-  if (res.status === 429) {
-    return `请求过于频繁，请 ${retryAfter ? `${retryAfter} 秒` : '稍'}后再试`;
-  }
-  if (res.status === 413) return '消息太长了，请精简到 4000 字以内再发送';
-
+  let code: string | undefined;
+  let message: string | undefined;
   try {
-    const body = (await res.json()) as { error?: string };
-    if (body?.error) return body.error;
+    const body = (await res.json()) as { error?: string; code?: string };
+    code = body?.code;
+    message = body?.error;
   } catch {
-    // Non-JSON error body — fall through to the status code.
+    // Non-JSON error body — the status alone still picks the right copy.
   }
-  return `HTTP ${res.status}`;
+  // P87: raw body.error can be an internal English exception — the code +
+  // status pick the localized line, the raw text only reaches console.warn.
+  const retryAfterSec = retryAfter ? Number(retryAfter) : undefined;
+  return humanizeChatError({
+    code,
+    message,
+    status: res.status,
+    retryAfterSec:
+      retryAfterSec && Number.isFinite(retryAfterSec) ? retryAfterSec : undefined,
+  });
 }
 
 /** Result of one streamed reply; P26 uses it to restore a failed regeneration. */
@@ -817,7 +825,11 @@ export default function App() {
               }
 
               if (event.type === 'error') {
-                streamError = (event.data as { message: string }).message;
+                // P87: the payload's stable `code` picks the localized copy;
+                // the raw message can be an internal English exception and
+                // only reaches console.warn, never the bubble.
+                const d = event.data as { message?: string; code?: string };
+                streamError = humanizeChatError({ code: d.code, message: d.message });
               }
             }
           }
@@ -940,9 +952,15 @@ export default function App() {
           });
           return { status: 'ok', content: finalContent };
         }
-        const errorText = `请求失败：${(err as Error).message}`;
-        // P11: fetch rejects with TypeError on a transport failure; the thrown
-        // describeChatError above is a plain Error carrying the HTTP status.
+        // P11/P87: fetch rejects with TypeError on a transport failure — an
+        // English "Failed to fetch" must not reach the bubble either; the
+        // thrown describeChatError is a plain Error already carrying
+        // localized copy.
+        const errorText = `请求失败：${
+          err instanceof TypeError
+            ? humanizeChatError({ status: 0, message: err.message })
+            : (err as Error).message
+        }`;
         const serviceDown = isServiceDown({
           networkError: err instanceof TypeError,
           status: httpStatus,
