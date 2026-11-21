@@ -389,7 +389,7 @@ export default function Sidebar({
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
 
-    const trapFocus = (e: KeyboardEvent) => {
+    const trapFocus = (e: globalThis.KeyboardEvent) => {
       if (e.key !== 'Tab' || focusable.length === 0) return;
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
