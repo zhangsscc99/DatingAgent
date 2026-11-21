@@ -198,7 +198,9 @@ describe('P353 · settings 数据 group parity across viewports', () => {
     await flush();
     const dialog = qs('[role="alertdialog"]');
     expect(dialog, 'confirm dialog').not.toBeNull();
-    expect(dialog!.textContent).toContain(CLEAR_ALL_LABEL);
+    // P416: the in-dialog copy states the counted scope (「清空 1 段对话」),
+    // not the fixed entry-point label.
+    expect(dialog!.textContent).toMatch(/清空 ?(全部 )?\d+ 段对话/);
     await unmountApp();
   });
 

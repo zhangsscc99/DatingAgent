@@ -54,11 +54,12 @@ describe('P267 · one clear-all label everywhere', () => {
     expect(app).not.toContain("confirmRequest.kind === 'clear-all' ?");
     expect(app).not.toContain('清空全部历史对话');
     const lib = read('lib/confirmCopy.ts');
-    expect(lib).toContain("import { CLEAR_ALL_LABEL } from './copy'");
-    // P401: the title now states the counted scope; the shared constant
-    // still drives the confirm button — the one action wording.
+    // P401: the title states the counted scope. P416: the confirm button
+    // renders that same string — confirmLabel is the title, so heading
+    // and button can never drift apart again. CLEAR_ALL_LABEL now lives
+    // only on the entry-point controls (checked above).
     expect(lib).toContain('清空全部 ${request.sessionCount} 段对话');
     expect(lib).toContain('清空 ${request.sessionCount} 段对话');
-    expect(lib).toContain('confirmLabel: CLEAR_ALL_LABEL');
+    expect(lib).toContain('confirmLabel: title');
   });
 });

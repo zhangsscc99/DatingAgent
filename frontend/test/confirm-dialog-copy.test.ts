@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { confirmDialogCopy, describeConfirm } from '../src/lib/confirmCopy';
-import { CLEAR_ALL_LABEL } from '../src/lib/copy';
 
 /**
  * P357 — the clear-all confirm used to speak three ways at once (title
@@ -34,8 +33,9 @@ describe('P357 · one copy source for the confirm dialog', () => {
       messageCount: 6,
     });
     // P401: 「清空 1 段对话」, not 「清空全部对话」 — title and body agree.
+    // P416: the button IS the title string — they can never drift apart.
     expect(copy.title).toBe('清空 1 段对话');
-    expect(copy.confirmLabel).toBe(CLEAR_ALL_LABEL);
+    expect(copy.confirmLabel).toBe('清空 1 段对话');
     expect(copy.description).toContain('1 段对话');
     expect(copy.description).toContain('6 条消息');
     expect(copy.description).toContain('回收站');
@@ -50,7 +50,7 @@ describe('P357 · one copy source for the confirm dialog', () => {
     });
     expect(copy.description).toContain('3 段对话');
     expect(copy.title).toBe('清空全部 3 段对话');
-    expect(copy.confirmLabel).toBe(CLEAR_ALL_LABEL);
+    expect(copy.confirmLabel).toBe('清空全部 3 段对话');
   });
 
   it('delete keeps the session name, its message count and the 回收站 window', () => {

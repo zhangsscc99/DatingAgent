@@ -404,6 +404,21 @@ const STORED_SESSION = {
   ],
 };
 
+/** A stored state holding `n` sessions (2 messages each) — used by the
+ *  P416 multi-session case so the dialog has to say 「清空全部 n 段对话」. */
+const storedSessionsFor = (n: number) => ({
+  activeSessionId: 's-p416-0',
+  sessions: Array.from({ length: n }, (_, i) => ({
+    id: `s-p416-${i}`,
+    title: `会话 ${i + 1}`,
+    updatedAt: 1000 + i,
+    messages: [
+      { id: `m-${i}-1`, role: 'user', content: '在吗', createdAt: 1 },
+      { id: `m-${i}-2`, role: 'assistant', content: '在的，怎么了？', createdAt: 2 },
+    ],
+  })),
+});
+
 describe('P389 · sidebar 清空全部对话 shares the danger language and leaves the heading row', () => {
   let dom: FakeDom;
   let root: Root | null = null;
@@ -446,7 +461,7 @@ describe('P389 · sidebar 清空全部对话 shares the danger language and leav
     dom.document.body.textContent = '';
   };
 
-  const install = (narrow: boolean, withSession: boolean) => {
+  const install = (narrow: boolean, withSession: boolean, sessionCount = 1) => {
     dom = installFakeDom();
     const mq = mediaQueryFor(narrow);
     (dom.window as Record<string, unknown>).matchMedia = mq;
@@ -472,7 +487,9 @@ describe('P389 · sidebar 清空全部对话 shares the danger language and leav
     if (withSession) {
       dom.localStorage.setItem(
         'datingAgent.chatHistory',
-        JSON.stringify(STORED_SESSION),
+        JSON.stringify(
+          sessionCount > 1 ? storedSessionsFor(sessionCount) : STORED_SESSION,
+        ),
       );
     }
   };
@@ -587,7 +604,10 @@ describe('P389 · sidebar 清空全部对话 shares the danger language and leav
     expect(text).toContain('回收站');
     expect(text).toContain('1 段对话');
     expect(text).toContain('移到回收站');
-    expect(text).toContain(CLEAR_ALL_LABEL);
+    // P416: the dialog speaks the counted scope end to end — heading and
+    // button both say 「清空 1 段对话」, never the entry-point's bare
+    // 「清空全部对话」.
+    expect(text).toContain('清空 1 段对话');
     await unmountApp();
   });
 
@@ -669,6 +689,35 @@ describe('P389 · sidebar 清空全部对话 shares the danger language and leav
 
     await unmountApp();
   });
+
+  for (const sessionCount of [1, 3]) {
+    it(`390×844 — P416: confirm button repeats the heading's counted scope (${sessionCount} session${sessionCount > 1 ? 's' : ''})`, async () => {
+      install(true, true, sessionCount);
+      await mountApp();
+      const btn = await openDrawerAndFindClearAll(true);
+      // The sidebar entry point keeps its fixed CLEAR_ALL_LABEL — only the
+      // in-dialog confirm button follows the counted scope.
+      expect(btn!.getAttribute('aria-label')).toBe(CLEAR_ALL_LABEL);
+      await click(btn);
+      await flush();
+      const dialog = qs('[role="alertdialog"]') as FakeElement | null;
+      expect(dialog, 'shared ConfirmDialog').not.toBeNull();
+      const danger = dialog!
+        ._walk()
+        .find((el) => el.classList.contains('danger'))!;
+      const heading = qs('.confirm-title')!;
+      // The button states a counted scope just like the heading…
+      const scope = /清空 ?(全部 )?(\d+) 段对话/;
+      expect(danger.textContent.trim()).toMatch(scope);
+      // …and the number on the button IS the number in the heading —
+      // compare parsed digits so the two can never drift again.
+      const buttonCount = Number(scope.exec(danger.textContent)![2]);
+      const headingCount = Number(/(\d+) 段/.exec(heading.textContent)![1]);
+      expect(buttonCount).toBe(headingCount);
+      expect(buttonCount).toBe(sessionCount);
+      await unmountApp();
+    });
+  }
 
   it('still only renders when at least one chat exists (P270 gate preserved)', async () => {
     install(true, false);

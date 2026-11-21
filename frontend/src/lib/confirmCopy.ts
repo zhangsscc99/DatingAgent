@@ -1,4 +1,3 @@
-import { CLEAR_ALL_LABEL } from './copy';
 import type { ChatStorageState } from './chatStorage';
 
 /**
@@ -65,6 +64,10 @@ export function deleteConfirmRequest(
  * for a single session, 「清空全部 N 段对话」 beyond that — so heading and
  * sentence can never contradict each other again. A session with no
  * messages falls back to a count-free sentence rather than 「0 条消息」.
+ * P416 put the confirm button on the same string: its label IS the
+ * title, so the counted scope can never drift between heading and
+ * button again (the fixed CLEAR_ALL_LABEL stays only on the
+ * sidebar/settings entry-point controls that open this dialog).
  * Counts are still frozen inside the request — nothing re-reads storage
  * while the dialog is open.
  */
@@ -74,13 +77,14 @@ export function confirmDialogCopy(request: ConfirmRequest): {
   confirmLabel: string;
 } {
   if (request.kind === 'clear-all') {
+    const title =
+      request.sessionCount > 1
+        ? `清空全部 ${request.sessionCount} 段对话`
+        : `清空 ${request.sessionCount} 段对话`;
     return {
-      title:
-        request.sessionCount > 1
-          ? `清空全部 ${request.sessionCount} 段对话`
-          : `清空 ${request.sessionCount} 段对话`,
+      title,
       description: `将把 ${request.sessionCount} 段对话（共 ${request.messageCount} 条消息）移到回收站，7 天内可以恢复。`,
-      confirmLabel: CLEAR_ALL_LABEL,
+      confirmLabel: title,
     };
   }
   const description =
