@@ -49,8 +49,32 @@ describe('buildHealthReport', () => {
     const report = buildHealthReport(dist, true);
 
     expect(report.status).toBe('ok');
+    expect(report.degradedReason).toBeNull();
     expect(report.frontend.indexExists).toBe(true);
     expect(report.frontend.distPath).toBe(dist);
     expect(report.version).toMatch(/\S/);
+  });
+
+  it('reports degraded with reason llm when the LLM is not configured', () => {
+    const dist = tmpDir();
+    fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><title>ok</title>');
+
+    const report = buildHealthReport(dist, false);
+
+    expect(report.status).toBe('degraded');
+    expect(report.degradedReason).toBe('llm');
+    expect(report.llmConfigured).toBe(false);
+    expect(report.frontend.indexExists).toBe(true);
+  });
+
+  it('prefers frontend-dist over llm when both causes hit', () => {
+    const dist = tmpDir();
+
+    const report = buildHealthReport(dist, false);
+
+    expect(report.status).toBe('degraded');
+    expect(report.degradedReason).toBe('frontend-dist');
+    expect(report.llmConfigured).toBe(false);
+    expect(report.frontend.indexExists).toBe(false);
   });
 });

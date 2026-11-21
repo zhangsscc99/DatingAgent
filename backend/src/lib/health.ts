@@ -7,6 +7,8 @@ import type { LastApiError } from './last-error.js';
 
 export interface HealthReport {
   status: 'ok' | 'degraded';
+  /** Why `status` is degraded; 'frontend-dist' wins when both causes hit. null when ok. */
+  degradedReason: 'llm' | 'frontend-dist' | null;
   service: string;
   version: string;
   uptimeSeconds: number;
@@ -36,10 +38,12 @@ export function buildHealthReport(
 ): HealthReport {
   const indexPath = path.join(frontendDist, 'index.html');
   const indexExists = fs.existsSync(indexPath);
+  const degradedReason = !indexExists ? 'frontend-dist' : !llmConfigured ? 'llm' : null;
   const mem = process.memoryUsage();
 
   return {
-    status: indexExists ? 'ok' : 'degraded',
+    status: degradedReason === null ? 'ok' : 'degraded',
+    degradedReason,
     service: 'DatingAgent',
     version: BUILD_INFO.version,
     uptimeSeconds: Math.floor((Date.now() - serverStartedAt) / 1000),

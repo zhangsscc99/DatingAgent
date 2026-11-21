@@ -98,7 +98,7 @@ describe('P359 · sessions and memories survive a restart', () => {
   });
 
   async function startApp() {
-    const { server, baseUrl } = await listen(createApp());
+    const { server, baseUrl } = await listen(createApp({ llmConfigured: true }));
     servers.push(server);
     return { server, baseUrl };
   }

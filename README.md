@@ -93,7 +93,7 @@ bash scripts/deploy.sh
 - `metrics.startedAt` — 进程启动时间（ISO 8601 时间戳）
 - `metrics.rssMB` — 进程当前 RSS 内存（MB，取整）
 
-若前端未构建，`status` 为 `degraded` 且 HTTP 503。
+若前端未构建或 LLM 未配置（`llmConfigured: false`），`status` 为 `degraded` 且 HTTP 503；`degradedReason` 标明原因（`frontend-dist` 优先于 `llm`），健康时为 `null`。
 
 ## API
 
@@ -103,6 +103,7 @@ bash scripts/deploy.sh
 |--------|------|------|
 | GET | `/api/health` | 状态、uptime、`node` 运行时版本、内存、LLM 配置与 `llmModel`、前端构建、`metrics` 用量；`degraded` → 503 |
 | — | `/api/health` 字段 `node` | Node 运行时版本（`process.version`，如 `v24.5.0`），用于免 SSH 确认运行时 |
+| — | `/api/health` 字段 `degradedReason` | `degraded` 原因：`frontend-dist`（前端未构建，两者同时命中时优先）或 `llm`（LLM 未配置）；`status: ok` 时为 `null` |
 | GET | `/api/version` | `{version, gitSha, buildTime, node}`，构建期注入 |
 | GET | `/api/tools` | 工具列表 `{name, label, icon, inputs}`（`inputs` 为各工具参数 schema） |
 | GET | `/api/sessions` | `{count, oldestAgeSec}`，不含内容与 PII |

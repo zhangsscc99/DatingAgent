@@ -45,7 +45,7 @@ describe('P170 · same-origin cors middleware', () => {
   let baseUrl = '';
 
   beforeAll(async () => {
-    const app = createApp();
+    const app = createApp({ llmConfigured: true });
     server = app.listen(0);
     await new Promise<void>((resolve) => server!.once('listening', resolve));
     const addr = server.address();

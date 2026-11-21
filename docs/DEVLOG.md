@@ -339,3 +339,4 @@
 2026-11-21 19:48 | backlog | dispatcher 复核：`## Proposed` 里最后两条无复选框候选 P225（工具徽章重名）与 P287（进阶工具死条目）均已被 P231/P316 落地，按「already satisfied」关闭并附证据；`## Done` 段的 P13–P129 为 2026-11-14 初始种子清单（历史，不作候选）。全部 358 项已勾选、0 条未勾选，本轮未派 devin。
 2026-11-21 21:42 | P417 | frontend tsc --noEmit clean: added src/vite-env.d.ts (vite/client refs), typed Sidebar trapFocus as globalThis.KeyboardEvent, added typecheck scripts to root+frontend package.json
 2026-11-21 22:11 | P418 | root typecheck no longer dead: delegates to workspaces (backend typecheck added), new root verify=typecheck+test gate, AGENT-LOOP pre-commit section + source-level typecheck-gate test
+2026-11-21 22:45 | P419 | /api/health degrades on llmConfigured:false — new degradedReason field (frontend-dist > llm, null when ok); README + 2 new health.test cases; 3 probe tests pinned llmConfigured:true
