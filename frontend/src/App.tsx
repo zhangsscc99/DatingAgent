@@ -183,6 +183,12 @@ type StreamOutcome =
     }
   | { status: 'aborted' };
 
+/** P244: one parked composer draft — text plus the turn's picked chips. */
+interface PendingSend {
+  prompt: string;
+  constraints?: string[];
+}
+
 function upsertAssistant(
   prev: ChatMessage[],
   assistantId: string,
@@ -311,10 +317,14 @@ export default function App() {
   // P244: drafts submitted while a reply is in flight wait here and go out
   // automatically (FIFO) once the turn ends. Memory-only — a refresh drops
   // the queue rather than resurrecting a half-sent state.
-  const [pendingQueue, setPendingQueue] = useState<string[]>([]);
-  const pendingQueueRef = useRef<string[]>([]);
-  const enqueuePending = useCallback((prompt: string) => {
-    pendingQueueRef.current = [...pendingQueueRef.current, prompt];
+  // P407: each parked draft keeps the 本轮约束 chips picked at submit time.
+  const [pendingQueue, setPendingQueue] = useState<PendingSend[]>([]);
+  const pendingQueueRef = useRef<PendingSend[]>([]);
+  const enqueuePending = useCallback((prompt: string, constraints?: string[]) => {
+    pendingQueueRef.current = [
+      ...pendingQueueRef.current,
+      { prompt, ...(constraints?.length ? { constraints } : {}) },
+    ];
     setPendingQueue(pendingQueueRef.current);
   }, []);
   // 「取消排队」 drops the queue without sending; the texts are returned so
@@ -323,7 +333,7 @@ export default function App() {
     const dropped = pendingQueueRef.current;
     pendingQueueRef.current = [];
     setPendingQueue([]);
-    return dropped;
+    return dropped.map((item) => item.prompt);
   }, []);
   const restoredRef = useRef(false);
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -548,6 +558,8 @@ export default function App() {
       previousReplies?: string[],
       // P345: which starter intake composed the turn — only a starter send sets it.
       intent?: ChatIntent,
+      // P407: the turn's picked 本轮约束 chips — spliced into `message` as a hint.
+      constraints?: string[],
     ): Promise<StreamOutcome> => {
       const toolEvents: ToolEvent[] = [];
       let finalContent = '';
@@ -588,6 +600,7 @@ export default function App() {
               replyLength: replyLengthRequestField(replyLength),
               previousReplies: continuing ? undefined : previousReplies,
               intent: continuing ? undefined : intent,
+              constraints: continuing ? undefined : constraints,
             }),
             signal: abortRef.current.signal,
           });
@@ -979,7 +992,7 @@ export default function App() {
    * a rapid double-submit can still only produce one turn at a time.
    */
   const runSend = useCallback(
-    async (prompt: string, intent?: ChatIntent) => {
+    async (prompt: string, intent?: ChatIntent, constraints?: string[]) => {
       if (!prompt || replyInFlightRef.current) return;
 
       const now = Date.now();
@@ -1012,6 +1025,9 @@ export default function App() {
           createdAt: now,
           streaming: true,
           streamPhase: 'thinking',
+          // P407: the bubble's 「已按约束」 header is metadata on the reply —
+          // set at placeholder time so it shows while streaming and persists.
+          ...(constraints?.length ? { constraints } : {}),
         },
       ]);
       // P253: persist NOW, before the turn finishes — a refresh during
@@ -1023,7 +1039,7 @@ export default function App() {
       setLoading(true);
 
       try {
-        const outcome = await streamReply(prompt, assistantId, sid, undefined, intent);
+        const outcome = await streamReply(prompt, assistantId, sid, undefined, intent, constraints);
         noteStreamOutcome(outcome);
       } finally {
         replyInFlightRef.current = false;
@@ -1034,7 +1050,7 @@ export default function App() {
   );
 
   const sendMessage = useCallback(
-    async (text: string, intent?: ChatIntent) => {
+    async (text: string, intent?: ChatIntent, constraints?: string[]) => {
       const prompt = text.trim();
       if (!prompt) return;
       // P224: `loading` only flips after React commits, so a second send
@@ -1047,10 +1063,10 @@ export default function App() {
       // while items are already waiting (even between turns) keeps strict
       // FIFO order.
       if (loading || replyInFlightRef.current || pendingQueueRef.current.length > 0) {
-        enqueuePending(prompt);
+        enqueuePending(prompt, constraints);
         return;
       }
-      await runSend(prompt, intent);
+      await runSend(prompt, intent, constraints);
     },
     [loading, runSend, enqueuePending],
   );
@@ -1064,7 +1080,7 @@ export default function App() {
     if (head === undefined) return;
     pendingQueueRef.current = pendingQueueRef.current.slice(1);
     setPendingQueue(pendingQueueRef.current);
-    void runSend(head);
+    void runSend(head.prompt, undefined, head.constraints);
   }, [loading, runSend]);
 
   /**
@@ -1083,6 +1099,8 @@ export default function App() {
 
       const previous = messages[failedIndex - 1];
       const reuseUserBubble = previous?.role === 'user' && previous.content === prompt;
+      // P407: retrying re-issues the same turn — its picked chips ride again.
+      const constraints = messages[failedIndex]?.constraints;
       const now = Date.now();
       const assistantId = `a-${now}`;
       const retryUser: ChatMessage[] = reuseUserBubble
@@ -1095,6 +1113,7 @@ export default function App() {
         createdAt: now,
         streaming: true,
         streamPhase: 'thinking',
+        ...(constraints?.length ? { constraints } : {}),
       };
 
       setMessages((prev) => [
@@ -1104,7 +1123,7 @@ export default function App() {
       ]);
       replyInFlightRef.current = true;
       setLoading(true);
-      void streamReply(prompt, assistantId)
+      void streamReply(prompt, assistantId, undefined, undefined, undefined, constraints)
         .then(noteStreamOutcome)
         .finally(() => {
           replyInFlightRef.current = false;
@@ -1210,7 +1229,8 @@ export default function App() {
       }
       replyInFlightRef.current = true;
       setLoading(true);
-      void streamReply(prompt, messageId, undefined, previousReplies)
+      // P407: 换一个 re-rolls the same turn — its chips still constrain it.
+      void streamReply(prompt, messageId, undefined, previousReplies, undefined, target.constraints)
         .then((outcome) => {
           noteStreamOutcome(outcome);
           if (outcome.status === 'error') {

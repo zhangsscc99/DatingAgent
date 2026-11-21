@@ -56,6 +56,16 @@
   max-width: 100%;
 }
 
+/* P407: the 「已按约束：…」 header — one dim line atop the reply confirming
+   which composer chips constrained this turn; restored from persisted
+   message metadata after a refresh. */
+.constraint-note {
+  margin-bottom: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
 .bubble-content p {
   margin-bottom: 8px;
 }

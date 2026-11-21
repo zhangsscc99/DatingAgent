@@ -86,6 +86,12 @@ export interface ChatMessage {
   regenRolls?: number;
   /** P335: epoch millis when the re-roll lock lifts; unset while live. */
   regenCooldownUntil?: number;
+  /**
+   * P407: the composer constraint chips this reply answered under — the
+   * bubble header renders 「已按约束：…」 from it. Persisted through
+   * serializeMessages so the line survives a refresh.
+   */
+  constraints?: string[];
 }
 
 export interface ReplyMeta {

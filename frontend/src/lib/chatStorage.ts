@@ -396,6 +396,7 @@ export function serializeMessages(messages: ChatMessage[]): ChatMessage[] {
         stopped,
         truncated,
         meta,
+        constraints,
       }) => {
         const cleanMeta = normalizeReplyMeta(meta);
         return {
@@ -415,6 +416,8 @@ export function serializeMessages(messages: ChatMessage[]): ChatMessage[] {
           ...(stopped ? { stopped: true as const } : {}),
           // P398: an incomplete reply keeps its footer retry across reloads.
           ...(truncated ? { truncated: true as const, retryPrompt } : {}),
+          // P407: the 「已按约束」 header restores from stored metadata.
+          ...(constraints?.length ? { constraints } : {}),
         };
       },
     );

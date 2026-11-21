@@ -93,8 +93,9 @@ interface Props {
   restoring?: boolean;
   profile?: UserProfile | null;
   sessionId?: string | null;
-  /** P345: `intent` rides along when the text came from a starter intake. */
-  onSend: (text: string, intent?: ChatIntent) => void;
+  /** P345: `intent` rides along when the text came from a starter intake.
+   *  P407: `constraints` carries the composer's picked 本轮约束 chips. */
+  onSend: (text: string, intent?: ChatIntent, constraints?: string[]) => void;
   /** P12: abort the in-flight streamed reply. */
   onStop?: () => void;
   onRetry?: (messageId: string, prompt: string) => void;
@@ -685,9 +686,9 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   // P162: sending while the search bar is open would hide the new message
   // behind the stale filter — close search first so it appears immediately.
   // P345: a starter-assembled draft carries its branch's intent with it.
-  const handleSend = (text: string) => {
+  const handleSend = (text: string, constraints?: string[]) => {
     if (searchOpen) closeSearch();
-    onSend(text, pendingIntent ?? undefined);
+    onSend(text, pendingIntent ?? undefined, constraints);
     setPendingIntent(null);
   };
 

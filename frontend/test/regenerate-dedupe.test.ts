@@ -142,7 +142,7 @@ describe('P284 · wiring guards', () => {
 
   it('App passes previous versions into the regenerate stream and flags duplicates', () => {
     expect(appSrc).toContain('collectPreviousReplies(target)');
-    expect(appSrc).toContain('streamReply(prompt, messageId, undefined, previousReplies)');
+    expect(appSrc).toContain('streamReply(prompt, messageId, undefined, previousReplies, undefined, target.constraints)');
     expect(appSrc).toContain('isDuplicateReply(original.content, outcome.content)');
     expect(appSrc).toContain('duplicateRegen: true');
   });

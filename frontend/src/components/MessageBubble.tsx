@@ -27,6 +27,7 @@ import {
   regenLimitHint,
   regenLimitStateOf,
 } from '../lib/regenLimit';
+import { constraintSummaryLine } from '../lib/constraintChips';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
 import './MessageBubble.css';
@@ -233,6 +234,13 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
     !message.duplicateRegen &&
     typeof message.meta?.tokens === 'number';
 
+  // P407: the turn's picked 本轮约束 chips echo back as a dim header line
+  // (「已按约束：不想主动」) so the user can see the constraint took; it is
+  // restored from the persisted message metadata after a refresh.
+  const constraintNote = isUser
+    ? ''
+    : constraintSummaryLine(message.constraints ?? []);
+
   /* P381: the tool chips were still leading the reply — pinned atop the
      bubble column they owned the row's first two innerText lines
      (「排约会」「✓」) and read as a reply header. They now leave that
@@ -322,6 +330,9 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
           className={`bubble ${isUser ? 'user' : 'assistant'}${message.error ? ' error' : ''}${searchHit ? ' search-match' : ''}`}
           data-search-match={searchHit ? 'true' : undefined}
         >
+          {constraintNote !== '' && (
+            <div className="constraint-note">{constraintNote}</div>
+          )}
           <div className="bubble-content">
           {isUser ? (
             highlightQuery ? (

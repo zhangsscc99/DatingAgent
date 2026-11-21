@@ -1,5 +1,6 @@
 import type { ChatIntent, ReplyLanguage, UserProfile } from '../types';
 import type { ReplyLengthRequest } from './replyLength';
+import { constraintHintText } from './constraintChips';
 
 export interface ChatRequestFields {
   sessionId: string | null;
@@ -12,6 +13,13 @@ export interface ChatRequestFields {
   previousReplies?: string[];
   /** P345: which starter capsule composed the first message; omitted for typed input. */
   intent?: ChatIntent;
+  /**
+   * P407: composer constraint capsules picked for this turn — spliced into
+   * `message` as a 「本轮约束：…」 hint, the same channel the typed text
+   * already rides (no new request field, no backend contract change).
+   * Absent/empty keeps the serialized body byte-identical.
+   */
+  constraints?: string[];
 }
 
 /**
@@ -20,9 +28,12 @@ export interface ChatRequestFields {
  * byte-identical output to the old `JSON.stringify({…})` call.
  */
 export function buildChatRequestBody(fields: ChatRequestFields): string {
+  const constraintHint = constraintHintText(fields.constraints ?? []);
   const body: Record<string, unknown> = {
     sessionId: fields.sessionId,
-    message: fields.message,
+    message: constraintHint
+      ? `${fields.message}\n\n${constraintHint}`
+      : fields.message,
     profile: fields.profile ?? undefined,
     language: fields.language,
   };

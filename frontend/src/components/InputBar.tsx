@@ -28,6 +28,7 @@ import {
   type ReplyLengthPreference,
 } from '../lib/replyLength';
 import { queueHintText, restoreQueuedDraft } from '../lib/sendQueue';
+import { CONSTRAINT_CHIPS } from '../lib/constraintChips';
 import './InputBar.css';
 
 export interface InputBarHandle {
@@ -37,7 +38,8 @@ export interface InputBarHandle {
 }
 
 interface Props {
-  onSend: (text: string) => void;
+  /** P407: `constraints` carries the picked 本轮约束 chip labels for this turn. */
+  onSend: (text: string, constraints?: string[]) => void;
   disabled?: boolean;
   /** True while a reply is streaming — the send button becomes a stop button. */
   streaming?: boolean;
@@ -119,6 +121,9 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   const [text, setText] = useState(() => loadDraft(draftId));
   const draftIdRef = useRef(draftId);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // P407: 本轮约束 chip selection — labels kept in CONSTRAINT_CHIPS order so
+  // the injected hint reads deterministically regardless of click order.
+  const [constraints, setConstraints] = useState<string[]>([]);
 
   // P193: the full placeholder wraps to three clipped lines inside the 50 px
   // composer at 390 px, so ≤430 px viewports get a short hint instead. The
@@ -202,6 +207,17 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
     },
   }));
 
+  const toggleConstraint = (label: string) => {
+    setConstraints((prev) => {
+      const next = prev.includes(label)
+        ? prev.filter((l) => l !== label)
+        : [...prev, label];
+      return CONSTRAINT_CHIPS.filter((chip) => next.includes(chip.label)).map(
+        (chip) => chip.label,
+      );
+    });
+  };
+
   const submit = () => {
     // P224/P244: a second turn must never *start* while one is in flight,
     // but the typed message is no longer dropped — while `streaming` the
@@ -209,8 +225,13 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
     // non-streaming disable (session restore) still blocks submission.
     if (!text.trim() || (disabled && !streaming)) return;
     historyPosRef.current = null;
-    onSend(text);
+    // P407: the constraint snapshot travels with THIS send — a queued draft
+    // keeps the chips picked at submit time; the row then resets so the
+    // next turn starts unconstrained.
+    const picked = constraints.length > 0 ? constraints : undefined;
+    onSend(text, picked);
     setText('');
+    setConstraints([]);
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
@@ -394,6 +415,31 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
           </span>
         )}
       </div>
+      {/* P407: 本轮约束 capsules — a quiet multi-select row above the tool
+          row. Picked labels ride the request as a 「本轮约束：…」 hint and
+          the turn's assistant bubble echoes them back as 「已按约束：…」.
+          Unselected state sends byte-identical bodies to today. Like the
+          length cycler it drops off the spotlighted phone empty screen —
+          the first screen keeps its one obvious action (P343). */}
+      {!(spotlight && compactViewport) && (
+        <div className="constraint-chips" role="group" aria-label="本轮约束">
+          {CONSTRAINT_CHIPS.map((chip) => {
+            const pressed = constraints.includes(chip.label);
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                className="constraint-chip"
+                aria-pressed={pressed}
+                onClick={() => toggleConstraint(chip.label)}
+                title={`本轮约束：${chip.label}`}
+              >
+                {chip.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {/* P205: the composer tool row — length cycler, shortcut hint and
           send/stop stay in one group so they wrap (or not) as a unit on
           narrow viewports instead of stranding the send button alone. */}
