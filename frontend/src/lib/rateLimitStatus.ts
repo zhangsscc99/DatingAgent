@@ -15,6 +15,13 @@ export interface RateLimitBudget {
    * present on a 429, when the budget is already exhausted.
    */
   retryAfterSec?: number;
+  /**
+   * Millisecond timestamp (Date.now) of the response this budget was parsed
+   * from. P421: without it the chip is a snapshot that can never expire —
+   * the 「约 N 秒」 number and the low-budget warning outlive the minute
+   * window they describe.
+   */
+  observedAt: number;
 }
 
 /**
@@ -43,6 +50,7 @@ function parseCount(raw: string | null): number | null {
  */
 export function parseRateLimit(
   headers: HeaderReader | null | undefined,
+  now: number = Date.now(),
 ): RateLimitBudget | null {
   if (!headers) return null;
   const remaining = parseCount(headers.get('x-ratelimit-remaining'));
@@ -52,13 +60,39 @@ export function parseRateLimit(
   // rather than sinking the whole budget.
   const retryAfter = parseCount(headers.get('retry-after'));
   return retryAfter === null
-    ? { remaining, limit }
-    : { remaining, limit, retryAfterSec: retryAfter };
+    ? { remaining, limit, observedAt: now }
+    : { remaining, limit, retryAfterSec: retryAfter, observedAt: now };
 }
 
 /** True when at most RATE_LIMIT_WARN_THRESHOLD requests remain. */
 export function rateLimitWarning(budget: RateLimitBudget): boolean {
   return budget.remaining <= RATE_LIMIT_WARN_THRESHOLD;
+}
+
+/**
+ * P421 — seconds until the window this budget describes reopens, rounded up.
+ * An exhausted budget lives for `retryAfterSec ?? 60` seconds from
+ * `observedAt`; any other budget describes a fixed 60 s server window. Once
+ * the window has passed the answer is 0 — the stale 「约 N 秒」 number must
+ * never be shown again.
+ */
+export function rateLimitSecondsLeft(budget: RateLimitBudget, now: number): number {
+  const windowMs =
+    budget.remaining === 0 ? (budget.retryAfterSec ?? 60) * 1000 : 60_000;
+  const leftMs = budget.observedAt + windowMs - now;
+  return leftMs <= 0 ? 0 : Math.ceil(leftMs / 1000);
+}
+
+/**
+ * P421 — the budget while its window is still live, `null` once it has
+ * expired. Renderers should route the stored snapshot through this so an
+ * old minute's numbers can never linger on screen.
+ */
+export function effectiveBudget(
+  budget: RateLimitBudget,
+  now: number,
+): RateLimitBudget | null {
+  return rateLimitSecondsLeft(budget, now) > 0 ? budget : null;
 }
 
 /**
@@ -69,12 +103,20 @@ export function rateLimitWarning(budget: RateLimitBudget): boolean {
  * Below that the hint is one human sentence, and an exhausted window states
  * the real recovery time instead of a bare count. Returns null whenever
  * nothing should be shown.
+ *
+ * P421: the exhausted copy is built from `rateLimitSecondsLeft(budget, now)`
+ * so it counts down live, and every hint returns null once the window the
+ * budget describes has reopened — no fossil numbers, no stale warnings.
  */
-export function rateLimitHint(budget: RateLimitBudget): string | null {
+export function rateLimitHint(
+  budget: RateLimitBudget,
+  now: number = Date.now(),
+): string | null {
+  if (effectiveBudget(budget, now) === null) return null;
   if (budget.remaining >= RATE_LIMIT_HIDE_THRESHOLD) return null;
   if (budget.remaining === 0) {
     if (budget.retryAfterSec !== undefined && budget.retryAfterSec > 0) {
-      return `这一分钟到上限了，约 ${budget.retryAfterSec} 秒后可以再问`;
+      return `这一分钟到上限了，约 ${rateLimitSecondsLeft(budget, now)} 秒后可以再问`;
     }
     return '这一分钟到上限了，稍等一下再问';
   }

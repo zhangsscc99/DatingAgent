@@ -17,6 +17,7 @@ import { shouldSubmitOnEnter, type KeyEventLike } from '../lib/ime';
 import { loadInputHistory } from '../lib/inputHistory';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
+  effectiveBudget,
   rateLimitHint,
   rateLimitWarning,
   type RateLimitBudget,
@@ -207,6 +208,16 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
     },
   }));
 
+  // P421: a known budget is a snapshot that decays — tick once a second so
+  // the 「约 N 秒」 count runs down and the chip disappears when its window
+  // reopens. No timer at all while no budget is known (the common case).
+  const [rateLimitNow, setRateLimitNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (rateLimit === null) return;
+    const id = window.setInterval(() => setRateLimitNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [rateLimit === null]);
+
   const toggleConstraint = (label: string) => {
     setConstraints((prev) => {
       const next = prev.includes(label)
@@ -340,8 +351,12 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   // P07/P256: the budget readout only speaks once the minute is nearly
   // spent — a comfortable budget (or an unknown one) renders nothing at
   // all, so no element is left carrying the count for a screen reader.
-  const rateHint = rateLimit !== null ? rateLimitHint(rateLimit) : null;
-  const rateWarn = rateLimit !== null && rateLimitWarning(rateLimit);
+  // P421: the stored snapshot is routed through effectiveBudget first, so
+  // once its window has reopened the chip is gone, not fossilized.
+  const liveBudget =
+    rateLimit !== null ? effectiveBudget(rateLimit, rateLimitNow) : null;
+  const rateHint = liveBudget !== null ? rateLimitHint(liveBudget, rateLimitNow) : null;
+  const rateWarn = liveBudget !== null && rateLimitWarning(liveBudget);
   // P07: the rate-limit readout sits beside the counter inside the field, so
   // reserve the same bottom padding whenever either is visible.
   const showRateLimit = rateHint !== null;
