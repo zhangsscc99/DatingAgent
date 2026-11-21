@@ -20,6 +20,14 @@ Cron runs this loop every 10 minutes. These are hard constraints for any agent w
    (restarts pm2 so `/api/version` gitSha matches the commit just made — the sha is resolved at process
    start in `backend/src/lib/git-sha.ts`, so a restart is enough; it exits 0 only on exact equality).
 
+## 提交前验收闸门
+- Before committing, run `npm run verify` from the repo root. It runs `npm run typecheck`
+  (backend + frontend `tsc --noEmit` via `--workspaces`) followed by the full `npm test`
+  (vitest) suite.
+- If any step exits non-zero: do NOT tick the backlog box, do NOT commit. Fix or roll
+  back first. Never wire the root `typecheck` back to a bare `tsc --noEmit` — there is no
+  root `tsconfig.json` by design; it must delegate to the workspaces.
+
 ## Environment
 - `npm` at `/usr/local/bin/npm`, pm2 at `/root/.nvm/versions/node/v24.5.0/bin/pm2` (scripts set `PATH`).
 - pm2 app `dating-agent`, port **3012**, backend serves `frontend/dist`, health `http://127.0.0.1:3012/api/health`.

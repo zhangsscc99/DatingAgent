@@ -338,3 +338,4 @@
 2026-11-21 18:05 | P407 | composer 工具行上方新增「本轮约束」三胶囊（我不想主动/只能发短信/预算有限，多选 aria-pressed、次要色选中态），经 chatRequest 现有通道把「本轮约束：A、B」拼入 message（未选时请求体逐字节不变）；助手气泡顶部 dim「已按约束：…」从消息元数据恢复；新增 frontend/test/constraint-chips.test.ts 与 backend/test/constraint-hint.test.ts，全量 1927 例绿、ci-deploy 通过
 2026-11-21 19:48 | backlog | dispatcher 复核：`## Proposed` 里最后两条无复选框候选 P225（工具徽章重名）与 P287（进阶工具死条目）均已被 P231/P316 落地，按「already satisfied」关闭并附证据；`## Done` 段的 P13–P129 为 2026-11-14 初始种子清单（历史，不作候选）。全部 358 项已勾选、0 条未勾选，本轮未派 devin。
 2026-11-21 21:42 | P417 | frontend tsc --noEmit clean: added src/vite-env.d.ts (vite/client refs), typed Sidebar trapFocus as globalThis.KeyboardEvent, added typecheck scripts to root+frontend package.json
+2026-11-21 22:11 | P418 | root typecheck no longer dead: delegates to workspaces (backend typecheck added), new root verify=typecheck+test gate, AGENT-LOOP pre-commit section + source-level typecheck-gate test

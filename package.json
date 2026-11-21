@@ -14,7 +14,8 @@
     "test": "node scripts/gen-build-info.mjs && vitest run",
     "test:watch": "node scripts/gen-build-info.mjs && vitest",
     "deploy": "npm run build && npm run start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "verify": "npm run typecheck && npm test"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
