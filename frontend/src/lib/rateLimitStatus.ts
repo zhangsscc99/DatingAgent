@@ -96,6 +96,24 @@ export function effectiveBudget(
 }
 
 /**
+ * P422 — should the 1 s heartbeat that drives the live countdown be running
+ * at all? True only while a hint could actually be on screen: a budget is
+ * known, its window is still live, and it sits below the hide threshold. A
+ * comfortable or expired budget renders nothing, so every tick would be a
+ * wasted re-render for the rest of the page's life.
+ */
+export function rateLimitTickerActive(
+  budget: RateLimitBudget | null,
+  now: number,
+): boolean {
+  return (
+    budget !== null &&
+    effectiveBudget(budget, now) !== null &&
+    budget.remaining < RATE_LIMIT_HIDE_THRESHOLD
+  );
+}
+
+/**
  * P256 — the countdown meter only created run-out anxiety about a budget
  * that resets every minute. Nothing renders while the minute is comfortable
  * (≥ RATE_LIMIT_HIDE_THRESHOLD left — nearly every turn, the clean landing

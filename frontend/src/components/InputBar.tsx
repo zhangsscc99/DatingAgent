@@ -19,6 +19,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import {
   effectiveBudget,
   rateLimitHint,
+  rateLimitTickerActive,
   rateLimitWarning,
   type RateLimitBudget,
 } from '../lib/rateLimitStatus';
@@ -211,12 +212,26 @@ const InputBar = forwardRef<InputBarHandle, Props>(function InputBar(
   // P421: a known budget is a snapshot that decays — tick once a second so
   // the 「约 N 秒」 count runs down and the chip disappears when its window
   // reopens. No timer at all while no budget is known (the common case).
+  // P422: the heartbeat only runs while a hint could actually render — a
+  // comfortable or expired budget shows nothing, so an interval there is a
+  // pure wasted re-render once a second until the page closes.
   const [rateLimitNow, setRateLimitNow] = useState(() => Date.now());
+  // A fresh snapshot resets the clock: a stopped ticker leaves rateLimitNow
+  // stale, and a new budget must not be misread as expired or over-counted.
   useEffect(() => {
-    if (rateLimit === null) return;
+    setRateLimitNow(Date.now());
+  }, [rateLimit]);
+  const tickerActive = rateLimitTickerActive(rateLimit, rateLimitNow);
+  useEffect(() => {
+    if (!tickerActive) return;
     const id = window.setInterval(() => setRateLimitNow(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [rateLimit === null]);
+  }, [
+    tickerActive,
+    rateLimit?.observedAt,
+    rateLimit?.remaining,
+    rateLimit?.retryAfterSec,
+  ]);
 
   const toggleConstraint = (label: string) => {
     setConstraints((prev) => {
