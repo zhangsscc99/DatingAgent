@@ -209,6 +209,45 @@ describe('P426 · gzip text responses', () => {
     expect(res.body.length).toBe(0);
   });
 
+  // P428 — RFC 9110 q=0 means "not acceptable"; gzip;q=0 must not get a gzip body.
+  for (const value of ['gzip;q=0', 'gzip;q=0.000', '*;q=0']) {
+    it(`Accept-Encoding "${value}" receives the identity body, no Content-Encoding`, async () => {
+      const res = await rawRequest({
+        port,
+        path: '/assets/index-abc.js',
+        headers: { 'accept-encoding': value },
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers['content-encoding']).toBeUndefined();
+      expect(Number(res.headers['content-length'])).toBe(JS_CONTENT.length);
+      expect(res.body.equals(Buffer.from(JS_CONTENT))).toBe(true);
+    });
+  }
+
+  for (const value of ['gzip;q=0.8', 'gzip, deflate', 'GZIP']) {
+    it(`Accept-Encoding "${value}" still gets gzip`, async () => {
+      const res = await rawRequest({
+        port,
+        path: '/assets/index-abc.js',
+        headers: { 'accept-encoding': value },
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers['content-encoding']).toBe('gzip');
+      expect(zlib.gunzipSync(res.body).equals(Buffer.from(JS_CONTENT))).toBe(true);
+    });
+  }
+
+  it('Accept-Encoding "xgzip" still does not match the gzip token', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      headers: { 'accept-encoding': 'xgzip' },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(res.body.equals(Buffer.from(JS_CONTENT))).toBe(true);
+  });
+
   it('a 500-byte text response is not compressed', async () => {
     const res = await rawRequest({
       port,

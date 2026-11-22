@@ -21,11 +21,25 @@ function isCompressibleType(contentType: unknown): boolean {
   );
 }
 
-/** `Accept-Encoding` token check — `xgzip` must not match, `gzip;q=0.8` must. */
+/**
+ * `Accept-Encoding` token check — `xgzip` must not match, `gzip;q=0.8` must,
+ * `gzip;q=0` must not (RFC 9110: q=0 means "not acceptable"). Each element's
+ * q-value comes from the `q=` param after the first `;`, defaulting to 1.
+ */
 function acceptsGzip(req: Request): boolean {
   const header = req.headers['accept-encoding'];
   const value = Array.isArray(header) ? header.join(',') : header ?? '';
-  return /\bgzip\b/i.test(value);
+  for (const part of value.split(',')) {
+    const [token, ...params] = part.split(';');
+    if (token.trim().toLowerCase() !== 'gzip') continue;
+    let q = 1;
+    for (const param of params) {
+      const m = /^\s*q\s*=\s*([0-9]+(?:\.[0-9]+)?)\s*$/i.exec(param);
+      if (m) q = Number(m[1]);
+    }
+    return q > 0;
+  }
+  return false;
 }
 
 interface EndArgs {
