@@ -3598,3 +3598,7 @@ step5(桌面首屏 d1)   | 首屏清晰度 4/5   | 层级 3.5/5 | 排版问题: 
 
 ### 本轮确认修好的（对照上轮）
 P401（弹层不再自动 focus 取消、无品牌色 focus ring、标题按实际段数渲染、两键间距 12px）、P402（回收站改时钟图标、与清空条视觉分离）、P403（桌面 hero→composer 收敛）、P404（桌面 AI 正文 566px / 35 汉字每行）、P395 高亮与清除×、P396 危险色、P398（三条连发均完整结束）。P400 仍复现（第 8 轮，语法错误已修、原话摘抄未修）。
+
+## 运维事故记录
+
+- 2026-11-22 16:39 UTC：dating-agent 进程被某个外部操作以 `PORT=3001` 的 shell 环境重启（pm2 restart --update-env 捕获了脏 env），openfolio 出口指向的 3012 连接被拒。16:45 UTC 由 loop 调度器恢复：`pm2 delete dating-agent && pm2 start ecosystem.config.cjs --only dating-agent`（干净 env），health 200、llmConfigured true、`pm2 save` 已刷新。教训：重启 pm2 应用前必须 `env -u PORT`，恢复用 ecosystem 文件而不是裸 restart。
