@@ -20,6 +20,27 @@ export function draftStorageKey(sessionId: string): string {
   return `${DRAFT_PREFIX}${sessionId}`;
 }
 
+/** Persisted drafts are capped at 4 KB — the same limit InputBar writes. */
+const MAX_DRAFT_CHARS = 4096;
+
+/**
+ * P423 — write one session's composer draft. Empty text removes the key
+ * and an over-long draft is clipped to the same 4 KB cap InputBar uses,
+ * so a draft written here reads back identically there. Never throws.
+ */
+export function saveDraft(sessionId: string, text: string): void {
+  try {
+    const key = draftStorageKey(sessionId);
+    if (text) {
+      localStorage.setItem(key, text.slice(0, MAX_DRAFT_CHARS));
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch {
+    // Storage unavailable — drafts are best-effort.
+  }
+}
+
 /** Remove one session's draft. Never throws. */
 export function purgeDraft(sessionId: string): void {
   try {

@@ -52,7 +52,8 @@ import {
 } from './lib/chatTrash';
 import type { TrashEntry } from './lib/chatTrash';
 import { FIND_IN_CONVERSATION_LABEL } from './lib/searchLabels';
-import { DEFAULT_DRAFT_ID, sweepOrphanDrafts } from './lib/chatDrafts';
+import { DEFAULT_DRAFT_ID, saveDraft, sweepOrphanDrafts } from './lib/chatDrafts';
+import { isForeignQueuedSend, retireQueue } from './lib/sendQueue';
 import { sweepOrphanScrollAnchors } from './lib/scrollAnchor';
 import {
   hasMinimalProfile,
@@ -191,8 +192,12 @@ type StreamOutcome =
     }
   | { status: 'aborted' };
 
-/** P244: one parked composer draft — text plus the turn's picked chips. */
+/** P244: one parked composer draft — text plus the turn's picked chips.
+ *  P423: also the conversation it was typed in — a queued send must never
+ *  fire into a different session, and on a switch its text is written back
+ *  to that session's composer draft instead of being lost. */
 interface PendingSend {
+  sessionId: string | null;
   prompt: string;
   constraints?: string[];
 }
@@ -328,11 +333,39 @@ export default function App() {
   // P407: each parked draft keeps the 本轮约束 chips picked at submit time.
   const [pendingQueue, setPendingQueue] = useState<PendingSend[]>([]);
   const pendingQueueRef = useRef<PendingSend[]>([]);
+  // P423: the session the in-flight turn writes into — runSend mints or
+  // reuses it before replyInFlightRef goes up, so a draft parked during a
+  // fresh chat's very first turn (sessionId state not yet committed)
+  // still knows which conversation owns it.
+  const inFlightSessionIdRef = useRef<string | null>(null);
+  // P423: the mount-stable enqueuePending reads the active session through
+  // a ref — a `sessionId` state closure there would fossilize at mount.
+  const sessionIdRef = useRef<string | null>(sessionId);
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
   const enqueuePending = useCallback((prompt: string, constraints?: string[]) => {
     pendingQueueRef.current = [
       ...pendingQueueRef.current,
-      { prompt, ...(constraints?.length ? { constraints } : {}) },
+      {
+        sessionId: sessionIdRef.current ?? inFlightSessionIdRef.current,
+        prompt,
+        ...(constraints?.length ? { constraints } : {}),
+      },
     ];
+    setPendingQueue(pendingQueueRef.current);
+  }, []);
+  /**
+   * P423: every conversation-switch path calls this right after aborting
+   * the stream — each parked draft is written back to the composer draft
+   * of the session it was typed in (FIFO, newline-joined per session), so
+   * the queue can neither strand the 「已排队」 hint nor fire one
+   * conversation's words into another. A `save` that throws keeps that
+   * session's items queued.
+   */
+  const retirePendingDrafts = useCallback(() => {
+    if (pendingQueueRef.current.length === 0) return;
+    pendingQueueRef.current = retireQueue(pendingQueueRef.current, saveDraft);
     setPendingQueue(pendingQueueRef.current);
   }, []);
   // 「取消排队」 drops the queue without sending; the texts are returned so
@@ -804,6 +837,17 @@ export default function App() {
                   // move the stored entry so the conversation keeps one id.
                   if (requestSessionId && d.sessionId !== requestSessionId) {
                     remapChatSessionId(requestSessionId, d.sessionId);
+                    // P423: parked drafts recorded the just-minted id —
+                    // re-home them onto the server-assigned one so the
+                    // drain guard does not read this same conversation's
+                    // queue as foreign.
+                    pendingQueueRef.current = pendingQueueRef.current.map(
+                      (item) =>
+                        item.sessionId === requestSessionId
+                          ? { ...item, sessionId: d.sessionId }
+                          : item,
+                    );
+                    setPendingQueue(pendingQueueRef.current);
                   }
                   setSessionId(d.sessionId);
                 }
@@ -1054,6 +1098,7 @@ export default function App() {
       saveChatSession(sid, [...messagesRef.current, userMessage]);
       setRecentSessions(getRecentSessions());
       replyInFlightRef.current = true;
+      inFlightSessionIdRef.current = sid;
       setLoading(true);
 
       try {
@@ -1061,6 +1106,7 @@ export default function App() {
         noteStreamOutcome(outcome);
       } finally {
         replyInFlightRef.current = false;
+        inFlightSessionIdRef.current = null;
         setLoading(false);
       }
     },
@@ -1096,10 +1142,21 @@ export default function App() {
     if (loading || replyInFlightRef.current) return;
     const head = pendingQueueRef.current[0];
     if (head === undefined) return;
+    // P423: a parked draft belongs to the conversation it was typed in —
+    // a head bound to another session is written back to that session's
+    // composer draft, never sent into the active one. `loading` alone
+    // cannot wake this effect for that case: an aborted turn settles
+    // loading back onto the same false value it already held, so the deps
+    // may not change on the switch and a foreign head would otherwise sit
+    // unexamined — or fire into the wrong conversation on a later settle.
+    if (isForeignQueuedSend(head.sessionId, sessionId)) {
+      retirePendingDrafts();
+      return;
+    }
     pendingQueueRef.current = pendingQueueRef.current.slice(1);
     setPendingQueue(pendingQueueRef.current);
     void runSend(head.prompt, undefined, head.constraints);
-  }, [loading, runSend]);
+  }, [loading, runSend, sessionId, retirePendingDrafts]);
 
   /**
    * Re-run the failed turn. The user bubble is reused when it is still the one
@@ -1531,6 +1588,7 @@ export default function App() {
     setMessages([]);
     setSessionId(null);
     setLoading(false);
+    retirePendingDrafts();
     clearActiveSession();
     closeSidebar();
   };
@@ -1549,6 +1607,7 @@ export default function App() {
     setMessages(session.messages);
     setActiveSessionId(session.id);
     setLoading(false);
+    retirePendingDrafts();
     setSessionLostNotice(false);
     syncSessionWithBackend(session.id, session.messages, profile)
       .then((result) => {
@@ -1602,6 +1661,7 @@ export default function App() {
           setMessages([]);
           setSessionId(null);
           setLoading(false);
+          retirePendingDrafts();
         }
       },
       restore: () => restoreDeletedChat(id, wasActive),
@@ -1615,6 +1675,7 @@ export default function App() {
     setRecentSessions(getRecentSessions());
     setTrashEntries(loadTrash());
     if (session && wasActive) {
+      retirePendingDrafts();
       setSessionId(session.id);
       setMessages(session.messages);
       setActiveSessionId(session.id);
@@ -1644,6 +1705,7 @@ export default function App() {
     setMessages(session.messages);
     setActiveSessionId(session.id);
     setLoading(false);
+    retirePendingDrafts();
     setRestoringSession(true);
     void syncSessionWithBackend(
       session.id,
@@ -1716,6 +1778,7 @@ export default function App() {
         setMessages([]);
         setSessionId(null);
         setLoading(false);
+        retirePendingDrafts();
         setRestoringSession(false);
         closeSidebar();
       },
