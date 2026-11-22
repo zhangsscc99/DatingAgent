@@ -7,6 +7,8 @@ import {
   REPLY_STRATEGY_LABELS,
   ReplyStrategyLedger,
   extractReplyStrategy,
+  hasRegenMetaReport,
+  stripRegenMetaReport,
 } from '../lib/reply-strategy.js';
 import { LLMClient } from '../llm/client.js';
 import { capHistory, historyLimitsFromEnv } from '../lib/history.js';
@@ -438,6 +440,8 @@ export function buildAvoidRepeatDirective(
     '也不要断言用户没提过的偏好。' +
     '写完正文后另起一行，单独写「strategy: 策略id」标明你本次选的策略' +
     '（id 用上方括号里的英文小写代号）；该行不算正文，正文其余位置不要出现 strategy 或策略代号。' +
+    '策略选择只体现在内容本身和那一行 marker 里：正文任何位置不得出现「已用」「可选」「我选」' +
+    '「重新生成」这类选路汇报或过程说明。' +
     '直接照做，不要在回复中提及或复述这些要求。'
   );
 }
@@ -457,6 +461,17 @@ const REGEN_DUPLICATE_RETRY_DIRECTIVE =
 const STRATEGY_REPEAT_RETRY_DIRECTIVE =
   '你刚才选择的策略在这条「换一个」序列里已经用过，这是不允许的。' +
   '必须从未用过的策略里重新选一条写出全新回复，并在最后一行用「strategy: 策略id」标明。';
+
+/**
+ * P440 — sharpened directive for the single server-side re-ask when a
+ * regen narrates its strategy bookkeeping inside the reply body
+ * (「已用：…可选：…我选…」). The marker line is the only channel the
+ * pick may be reported on.
+ */
+const REGEN_META_RETRY_DIRECTIVE =
+  '你刚才把策略选择的汇报写进了回复正文，这是不允许的。重写一版：' +
+  '正文只放给用户看的回复，不得出现「已用」「可选」「我选」「重新生成」这类选路汇报或过程说明；' +
+  '策略选择只体现在内容本身和最后一行「strategy: 策略id」marker 里。';
 
 export class AgentHarness {
   private llm = new LLMClient();
@@ -520,6 +535,10 @@ export class AgentHarness {
     let stanceRetried = false;
     // P390: one retry when a regen reports a strategy the chain already used.
     let strategyRetried = false;
+    // P440: one retry when a regen writes its strategy bookkeeping into
+    // the reply body — the streamed meta draft is dropped when the fresh
+    // thinking beat lands.
+    let metaRetried = false;
 
     yield { type: 'thinking', data: { message: '正在思考…' } };
 
@@ -748,11 +767,27 @@ export class AgentHarness {
       const extracted = regenChainKey
         ? extractReplyStrategy(cleanedContent)
         : { text: cleanedContent, strategy: undefined };
-      const finalContent = extracted.text.trim()
-        ? extracted.text
+      // P440: posterior filter — even when the re-ask below is spent, no
+      // strategy-bookkeeping sentence (「已用：」「可选：」「我选」) may
+      // survive in the visible body.
+      const bodyText = regenChainKey ? stripRegenMetaReport(extracted.text) : extracted.text;
+      const finalContent = bodyText.trim()
+        ? bodyText
         : fallbackFromToolResults(toolsSucceeded);
       // A marker-only reply (empty body) carries no usable strategy.
-      const replyStrategy = extracted.text.trim() ? extracted.strategy : undefined;
+      const replyStrategy = bodyText.trim() ? extracted.strategy : undefined;
+
+      // P440: the model narrated its route pick in the body — re-ask once
+      // with the bookkeeping ban pinned to the tail of the conversation.
+      // The fresh thinking beat tells the client to drop the meta draft
+      // before the replacement deltas arrive; a second leak falls through
+      // and the strip above still guarantees a clean body.
+      if (!metaRetried && regenChainKey && hasRegenMetaReport(extracted.text)) {
+        metaRetried = true;
+        messages.push({ role: 'system', content: REGEN_META_RETRY_DIRECTIVE });
+        yield { type: 'thinking', data: { message: '正在换一个说法…' } };
+        continue;
+      }
 
       // P284: the model ignored the avoid-repeat directive and handed back a
       // version the user already saw — re-ask once with a sharpened rule. The

@@ -9,6 +9,8 @@ import {
   REPLY_STRATEGIES,
   REPLY_STRATEGY_LABELS,
   extractReplyStrategy,
+  hasRegenMetaReport,
+  stripRegenMetaReport,
 } from '../src/lib/reply-strategy.js';
 
 /**
@@ -351,6 +353,152 @@ describe('P390 · 「换一个」 switches strategy each version', () => {
     expect(extractReplyStrategy('普通回复，没有任何标记。')).toEqual({
       text: '普通回复，没有任何标记。',
     });
+  });
+});
+
+/**
+ * P440 — the fourth click of 「换一个」 opened its bubble with the model's
+ * route bookkeeping verbatim: 「**用户要求重新生成，且必须换策略。已用：
+ * 轻量试探、等待。可选：明确收尾、转移注意力、自我调节。我选「自我调
+ * 节」——先安顿情绪再决定下一步。…**」 — system meta-instruction, the
+ * strategy menu and the self-report all in user-visible text. A regen
+ * that narrates its pick in the body is re-asked once with a sharpened
+ * ban; a body that still leaks is stripped sentence-by-sentence before it
+ * is persisted or emitted, so the bubble never carries
+ * 「已用：」「可选：」「我选」.
+ */
+describe('P440 · regen strategy bookkeeping never reaches the reply body', () => {
+  const QUESTION = '她回我「好的呀」，我怕聊死';
+  const ORIGINAL =
+    '先别把「好的呀」当成聊死：她只是顺手接了一句。今晚到这里就好，明天换个新话题开场更自然。';
+
+  /** The exact leak shape measured live — report wrapped in **…**. */
+  const metaReport = (pick: string) =>
+    `**用户要求重新生成，且必须换策略。已用：轻量试探、等待。可选：明确收尾、转移注意力、自我调节。` +
+    `我选「${pick}」——先安顿情绪再决定下一步。**`;
+
+  /** The meta tokens the bubble must never show. */
+  const META_TOKEN = /已用：|可选：|我选/;
+
+  async function regen(
+    harness: InstanceType<typeof AgentHarness>,
+    context: AgentContext,
+    shown: string[],
+  ): Promise<{ events: AgentEvent[]; content: string; strategy?: string }> {
+    const events: AgentEvent[] = [];
+    for await (const event of harness.run(
+      QUESTION,
+      context,
+      undefined,
+      undefined,
+      [...shown],
+    )) {
+      events.push(event);
+    }
+    const final = [...events].reverse().find((e) => e.type === 'message');
+    return { events, ...(final!.data as { content: string; strategy?: string }) };
+  }
+
+  it('3 clicks of 「换一个」: every leaked version is re-asked and lands meta-free', async () => {
+    const harness = new AgentHarness();
+    const context = createSession({}, 'auto');
+    const versions: { leaked: string; clean: string }[] = [
+      {
+        leaked:
+          `${metaReport('等待')}\n\n给自己定一个 48 小时的期限，这期间一条消息都别发，期限到了再决定下一步。` +
+          `\nstrategy: wait`,
+        clean: '给自己定一个 48 小时的期限，这期间一条消息都别发，期限到了再决定下一步。',
+      },
+      {
+        leaked:
+          `${metaReport('轻量试探')}\n\n明晚发一条不带压力的轻量消息，分享一件你今天的趣事，不追问她为什么没回。` +
+          `\nstrategy: light_probe`,
+        clean: '明晚发一条不带压力的轻量消息，分享一件你今天的趣事，不追问她为什么没回。',
+      },
+      {
+        leaked:
+          `${metaReport('转移注意力')}\n\n把今晚的注意力挪去别的事——打球、看剧都行，注意力回来了再决定要不要聊。` +
+          `\nstrategy: distraction`,
+        clean: '把今晚的注意力挪去别的事——打球、看剧都行，注意力回来了再决定要不要聊。',
+      },
+    ];
+
+    const shown = [ORIGINAL];
+    for (const [i, version] of versions.entries()) {
+      chatMock
+        .mockImplementationOnce(async () => response({ content: version.leaked }))
+        .mockImplementationOnce(async () => response({ content: version.clean }));
+      const reply = await regen(harness, context, shown);
+
+      expect(reply.content).not.toMatch(META_TOKEN);
+      expect(reply.content).toBe(version.clean);
+      // Each leak earned exactly one re-ask: two calls per click.
+      const retryMessages = chatMock.mock.calls[i * 2 + 1][0] as Message[];
+      expect(
+        retryMessages.some((m) => m.role === 'system' && m.content.includes('汇报')),
+      ).toBe(true);
+      // A fresh thinking beat separates the dropped meta draft from the retry.
+      expect(reply.events.filter((e) => e.type === 'thinking')).toHaveLength(2);
+      shown.push(reply.content);
+    }
+    expect(chatMock).toHaveBeenCalledTimes(6);
+  });
+
+  it('a second leak falls through to the strip — the bubble still never shows the tokens', async () => {
+    const harness = new AgentHarness();
+    const context = createSession({}, 'auto');
+    const shown = [ORIGINAL];
+
+    const realBody = '先把自己的状态调整好：今晚做点能让你松下来的事，明天再决定要不要发消息。';
+    chatMock
+      .mockImplementationOnce(async () =>
+        response({ content: `${metaReport('自我调节')}\n\n旧正文。\nstrategy: wait` }),
+      )
+      .mockImplementationOnce(async () =>
+        response({ content: `${metaReport('自我调节')}\n\n${realBody}\nstrategy: self_regulation` }),
+      );
+
+    const reply = await regen(harness, context, shown);
+
+    expect(chatMock).toHaveBeenCalledTimes(2);
+    expect(reply.content).not.toMatch(META_TOKEN);
+    expect(reply.content).not.toMatch(/重新生成|已用|可选策略/);
+    expect(reply.content).toBe(realBody);
+    // History records the stripped body, never the report.
+    expect(context.conversationHistory.at(-1)).toEqual({
+      role: 'assistant',
+      content: realBody,
+    });
+  });
+
+  it('stripRegenMetaReport removes report sentences and keeps the advice', () => {
+    const leaked = `${metaReport('自我调节')}\n\n先深呼吸——她回了「好的呀」说明聊天没死。今晚先不聊，明天用新话题开场。`;
+    const stripped = stripRegenMetaReport(leaked);
+    expect(stripped).not.toMatch(META_TOKEN);
+    expect(stripped).toBe('先深呼吸——她回了「好的呀」说明聊天没死。今晚先不聊，明天用新话题开场。');
+
+    // A report mid-reply loses only its own sentences.
+    const inline = '先安顿好自己。我选「等待」——给彼此一点时间。等 48 小时再说。';
+    expect(stripRegenMetaReport(inline)).toBe('先安顿好自己。等 48 小时再说。');
+
+    // Clean text is returned byte-identical.
+    const clean = '今晚发一条轻量的问候。';
+    expect(stripRegenMetaReport(clean)).toBe(clean);
+    expect(hasRegenMetaReport(clean)).toBe(false);
+    expect(hasRegenMetaReport(leaked)).toBe(true);
+  });
+
+  it('the regen directive pins the bookkeeping ban inside the body', () => {
+    const directive = buildAvoidRepeatDirective([ORIGINAL]);
+    expect(directive).toContain('不得出现「已用」「可选」「我选」');
+  });
+
+  it('a normal turn keeps 「我选」 in advice — the filter is regen-only', async () => {
+    const advice = '如果二选一，我选展：并肩看东西比面对面干聊更自然。';
+    chatMock.mockImplementationOnce(async () => response({ content: advice }));
+    const content = await runTurn('约咖啡还是约展？');
+    expect(content).toBe(advice);
+    expect(chatMock).toHaveBeenCalledTimes(1);
   });
 });
 

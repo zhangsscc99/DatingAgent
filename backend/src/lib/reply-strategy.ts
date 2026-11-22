@@ -79,6 +79,55 @@ export function extractReplyStrategy(content: string): { text: string; strategy?
 }
 
 /**
+ * P440 — a regen sometimes writes its route bookkeeping into the visible
+ * body instead of keeping it on the marker channel. Measured live on the
+ * fourth click of 「换一个」: the bubble opened with
+ * 「**用户要求重新生成，且必须换策略。已用：轻量试探、等待。可选：明确
+ *   收尾、转移注意力、自我调节。我选「自我调节」——先安顿情绪再决定下
+ *   一步。…**」 — the system instruction, the strategy menu and the
+ * self-report, all shown to the user. Every sentence carrying one of
+ * these bookkeeping markers is meta-discourse, never user-facing advice:
+ * hasRegenMetaReport detects the leak so the harness can re-ask once, and
+ * stripRegenMetaReport removes the report sentences as the posterior
+ * guarantee when a second attempt still leaks.
+ */
+const REGEN_META_PATTERN =
+  /重新生成|已用[：:]|已用过的策略|可选[：:]|可选策略|尚未用过的策略|我选|必须换(?:一?条?|个)?策略|本次(?:采用|选用)|策略(?:维度|清单|汇报|代号|选择)/;
+
+export function hasRegenMetaReport(text: string): boolean {
+  return REGEN_META_PATTERN.test(text);
+}
+
+// Sentences end on a CJK/ASCII terminator or a line break; the lookbehind
+// split keeps each terminator attached to its sentence, so a reply with no
+// report reassembles byte-identical.
+const META_SENTENCE_BOUNDARY = /(?<=[。！？!?；;….…\n])/;
+
+// After the report sentences are dropped a line can hold only the
+// punctuation that wrapped them (「**」「…」「> 」) — decoration-only lines
+// drop too so no orphaned emphasis survives in the bubble.
+const DECORATION_ONLY_LINE =
+  /^[\s>*_~\-—–…·.。，,、:：;；!！?？「」『』《》"''""()（）[\]【】{}]+$/u;
+
+/**
+ * Remove every sentence that carries strategy-bookkeeping meta-discourse.
+ * Text with no report is returned byte-identical.
+ */
+export function stripRegenMetaReport(text: string): string {
+  if (!REGEN_META_PATTERN.test(text)) return text;
+  const kept = text
+    .split(META_SENTENCE_BOUNDARY)
+    .filter((sentence) => !REGEN_META_PATTERN.test(sentence))
+    .join('');
+  return kept
+    .split('\n')
+    .filter((line) => line.trim() === '' || !DECORATION_ONLY_LINE.test(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
  * Strategies a regenerate chain has already spent. Chains are keyed by
  * session + re-issued prompt (the same key the dedupe request state is
  * scoped to), so sequential 「换一个」 calls on the same question see each
