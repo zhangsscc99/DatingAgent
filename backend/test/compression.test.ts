@@ -301,6 +301,68 @@ describe('P426 · gzip text responses', () => {
   });
 });
 
+describe('P431 · 304 revalidation carries Vary: Accept-Encoding', () => {
+  let distDir = '';
+  let server: ReturnType<App['listen']> | undefined;
+  let port = 0;
+  let etag = '';
+
+  beforeAll(async () => {
+    chatMock.mockResolvedValue({ content: '回复', toolCalls: [], finishReason: 'stop' } satisfies Partial<LLMResponse>);
+    distDir = fs.mkdtempSync(path.join(os.tmpdir(), 'compression-304-'));
+    fs.mkdirSync(path.join(distDir, 'assets'));
+    fs.writeFileSync(path.join(distDir, 'assets', 'index-abc.js'), JS_CONTENT);
+    fs.writeFileSync(path.join(distDir, 'index.html'), SHELL);
+    ({ server, port } = await listen(createApp({ frontendDist: distDir, llmConfigured: true })));
+    const first = await rawRequest({ port, path: '/assets/index-abc.js' });
+    etag = String(first.headers.etag);
+    expect(etag.length).toBeGreaterThan(0);
+  });
+
+  afterAll(async () => {
+    await close(server!);
+    fs.rmSync(distDir, { recursive: true, force: true });
+  });
+
+  it('304 with Accept-Encoding: gzip carries Vary and no Content-Encoding/body', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      headers: { 'accept-encoding': 'gzip', 'if-none-match': etag },
+    });
+    expect(res.status).toBe(304);
+    expect(res.headers.vary).toContain('Accept-Encoding');
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(res.headers['content-length']).toBeUndefined();
+    expect(res.body.length).toBe(0);
+  });
+
+  it('304 from an identity-only client also carries Vary', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      headers: { 'if-none-match': etag },
+    });
+    expect(res.status).toBe(304);
+    expect(res.headers.vary).toContain('Accept-Encoding');
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(res.body.length).toBe(0);
+  });
+
+  it('HEAD 304 revalidation carries Vary too', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      method: 'HEAD',
+      headers: { 'accept-encoding': 'gzip', 'if-none-match': etag },
+    });
+    expect(res.status).toBe(304);
+    expect(res.headers.vary).toContain('Accept-Encoding');
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(res.body.length).toBe(0);
+  });
+});
+
 describe('P426 · middleware pass-through', () => {
   it('a text/event-stream route behind the middleware streams unbuffered', async () => {
     let finishSse: (() => void) | undefined;

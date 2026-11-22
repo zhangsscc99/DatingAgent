@@ -75,7 +75,35 @@ function parseEndArgs(args: unknown[]): EndArgs {
  */
 export function createCompressionMiddleware(): RequestHandler {
   return (req: Request, res: Response, next) => {
+    // P431 — a 304 revalidation must still declare which variant it holds.
+    // Express strips Content-Type before res.end on a 304, so remember the
+    // last declared type via a setHeader hook.
+    let lastSeenContentType: unknown;
+    const originalSetHeader = res.setHeader.bind(res) as (
+      name: string,
+      value: unknown,
+    ) => Response;
+    res.setHeader = function (this: Response, name: string, value: unknown): Response {
+      if (name.toLowerCase() === 'content-type') lastSeenContentType = value;
+      return originalSetHeader(name, value);
+    } as typeof res.setHeader;
+
+    /** Add `Vary: Accept-Encoding` to a compressible 304; touch nothing else. */
+    const varyFor304 = (): void => {
+      if (res.statusCode !== 304 || res.headersSent) return;
+      if (isCompressibleType(res.getHeader('Content-Type') ?? lastSeenContentType)) {
+        res.vary('Accept-Encoding');
+      }
+    };
+
     if (!acceptsGzip(req)) {
+      // Identity-only clients never get a compressed body, but their 304s
+      // still need Vary so shared caches can tell the variants apart.
+      const end = res.end.bind(res) as unknown as (...args: unknown[]) => Response;
+      res.end = function (this: Response, ...args: unknown[]): Response {
+        varyFor304();
+        return end(...args);
+      } as typeof res.end;
       next();
       return;
     }
@@ -126,6 +154,7 @@ export function createCompressionMiddleware(): RequestHandler {
     } as typeof res.write;
 
     res.end = function (this: Response, ...args: unknown[]): Response {
+      varyFor304();
       const { tail, encoding, callback } = parseEndArgs(args);
       if (!stillBufferable()) {
         bypass();
