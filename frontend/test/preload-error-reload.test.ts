@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { afterAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,6 +67,8 @@ const install = async () => {
 const fire = () =>
   dom.window.dispatchEvent(new FakeEvent('vite:preloadError'));
 
+const fireLoad = () => dom.window.dispatchEvent(new FakeEvent('load'));
+
 afterAll(() => {
   vi.unstubAllGlobals();
 });
@@ -122,5 +124,63 @@ describe('P433 · vite:preloadError reload-once contract', () => {
     vi.stubGlobal('sessionStorage', broken);
     expect(() => fire()).not.toThrow();
     expect(reloadCount).toBe(0);
+  });
+});
+
+describe('P434 · one-shot flag resets once the page proves healthy', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('main.tsx clears the flag via removeItem(PRELOAD_RELOAD_KEY)', () => {
+    expect(mainSrc).toContain('removeItem(PRELOAD_RELOAD_KEY)');
+  });
+
+  it('a healthy page (load + 3s, no preloadError) clears the flag so a later deploy can reload again', async () => {
+    await install();
+    // Carry the spent flag in like a tab that already used its one reload.
+    storage.map.set(KEY, '1');
+    vi.useFakeTimers();
+    fireLoad();
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(storage.map.has(KEY)).toBe(false);
+    // Second deploy arrives: the session has a fresh reload credit.
+    fire();
+    expect(reloadCount).toBe(1);
+    expect(flagAtReload).toBe('1');
+  });
+
+  it('a preloadError inside the 3s window keeps the flag and never reloads twice', async () => {
+    await install();
+    vi.useFakeTimers();
+    fireLoad();
+    await vi.advanceTimersByTimeAsync(2500);
+    fire();
+    expect(reloadCount).toBe(1);
+    await vi.advanceTimersByTimeAsync(2000);
+    // The error inside the window blocked the reset — loop guard intact.
+    expect(storage.map.get(KEY)).toBe('1');
+    fire();
+    expect(reloadCount).toBe(1);
+  });
+
+  it('throwing storage makes the reset silent (no unhandled error)', async () => {
+    await install();
+    const broken = {
+      getItem: () => {
+        throw new Error('disabled');
+      },
+      setItem: () => {
+        throw new Error('disabled');
+      },
+      removeItem: () => {
+        throw new Error('disabled');
+      },
+    };
+    (dom.window as Record<string, unknown>).sessionStorage = broken;
+    vi.stubGlobal('sessionStorage', broken);
+    vi.useFakeTimers();
+    fireLoad();
+    await vi.advanceTimersByTimeAsync(4000);
   });
 });
