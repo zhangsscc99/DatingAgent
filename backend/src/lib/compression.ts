@@ -102,11 +102,38 @@ export function createCompressionMiddleware(): RequestHandler {
     };
 
     if (!acceptsGzip(req)) {
-      // Identity-only clients never get a compressed body, but their 304s
-      // still need Vary so shared caches can tell the variants apart.
+      // Identity-only clients never get a compressed body, but the response
+      // still varies on Accept-Encoding — without Vary a shared cache could
+      // serve this identity variant to gzip-capable clients (RFC 9110
+      // §12.5.3). Applies to 200/203 responses whose type would have been
+      // compressed; 206/304/small bodies are handled elsewhere or exempt.
+      const varyFor200 = (): void => {
+        if (res.headersSent) return;
+        if (res.statusCode !== 200 && res.statusCode !== 203) return;
+        if (!isCompressibleType(res.getHeader('Content-Type') ?? lastSeenContentType)) {
+          return;
+        }
+        const length = res.getHeader('Content-Length');
+        if (length !== undefined && Number(length) < MIN_COMPRESS_BYTES) return;
+        res.vary('Accept-Encoding');
+      };
+      // Piped bodies flush headers on the first res.write — Vary must be set
+      // there too, not only at res.end.
+      const varyAll = (): void => {
+        varyFor304();
+        varyFor200();
+      };
+      const write = res.write.bind(res) as unknown as (
+        chunk: unknown,
+        ...rest: unknown[]
+      ) => boolean;
+      res.write = function (this: Response, chunk: unknown, ...rest: unknown[]): boolean {
+        varyAll();
+        return write(chunk, ...rest);
+      } as typeof res.write;
       const end = res.end.bind(res) as unknown as (...args: unknown[]) => Response;
       res.end = function (this: Response, ...args: unknown[]): Response {
-        varyFor304();
+        varyAll();
         return end(...args);
       } as typeof res.end;
       next();

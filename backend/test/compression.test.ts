@@ -418,6 +418,79 @@ describe('P431 · 304 revalidation carries Vary: Accept-Encoding', () => {
   });
 });
 
+describe('P436 · identity-path 200 carries Vary: Accept-Encoding', () => {
+  let distDir = '';
+  let server: ReturnType<App['listen']> | undefined;
+  let port = 0;
+
+  beforeAll(async () => {
+    chatMock.mockResolvedValue({ content: '回复', toolCalls: [], finishReason: 'stop' } satisfies Partial<LLMResponse>);
+    distDir = fs.mkdtempSync(path.join(os.tmpdir(), 'compression-id-'));
+    fs.mkdirSync(path.join(distDir, 'assets'));
+    fs.writeFileSync(path.join(distDir, 'assets', 'index-abc.js'), JS_CONTENT);
+    fs.writeFileSync(path.join(distDir, 'small.txt'), SMALL_TEXT);
+    fs.writeFileSync(path.join(distDir, 'index.html'), SHELL);
+    ({ server, port } = await listen(createApp({ frontendDist: distDir, llmConfigured: true })));
+  });
+
+  afterAll(async () => {
+    await close(server!);
+    fs.rmSync(distDir, { recursive: true, force: true });
+  });
+
+  it('q=0 client gets a compressible 200 with Vary and no Content-Encoding', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      headers: { 'accept-encoding': 'gzip;q=0' },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.vary).toContain('Accept-Encoding');
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(res.body.equals(Buffer.from(JS_CONTENT))).toBe(true);
+  });
+
+  it('a request with no Accept-Encoding header gets Vary too', async () => {
+    const res = await rawRequest({ port, path: '/assets/index-abc.js' });
+    expect(res.status).toBe(200);
+    expect(res.headers.vary).toContain('Accept-Encoding');
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(res.body.equals(Buffer.from(JS_CONTENT))).toBe(true);
+  });
+
+  it('identity 206 partial response gets no Vary', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      headers: { range: 'bytes=0-1999' },
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers.vary).toBeUndefined();
+    expect(res.headers['content-encoding']).toBeUndefined();
+  });
+
+  it('identity response below MIN_COMPRESS_BYTES gets no Vary', async () => {
+    const res = await rawRequest({ port, path: '/small.txt' });
+    expect(res.status).toBe(200);
+    expect(res.headers.vary).toBeUndefined();
+    expect(res.body.equals(Buffer.from(SMALL_TEXT))).toBe(true);
+  });
+
+  it('identity SSE stream gets no Vary', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/api/chat/stream',
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: '你好' }),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/event-stream');
+    expect(res.headers.vary).toBeUndefined();
+    expect(res.headers['content-encoding']).toBeUndefined();
+  });
+});
+
 describe('P426 · middleware pass-through', () => {
   it('a text/event-stream route behind the middleware streams unbuffered', async () => {
     let finishSse: (() => void) | undefined;
