@@ -989,9 +989,12 @@
      ring plus the focus outline read as a double outline that competed with
      「+ 新对话」. Dropping the border leaves the focus outline as the one
      ring layer (no box-shadow at all). */
+  /* P441 — 36×36px fell under the 44px touch-target floor (WCAG 2.5.8 /
+     Apple HIG); the button box itself grows to 44×44, the × glyph stays
+     the same size. */
   .sidebar-close-btn {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -333,11 +333,13 @@ describe('P227 · header density at 390px', () => {
       expect(base).toContain('height: 36px');
     });
 
-    it('every ≤768px header button is padded to ≥36px', () => {
+    it('every ≤768px header button is padded to ≥44px (P441)', () => {
       const narrow = mediaBlock(appCss, '(max-width: 768px)');
-      const theme = ruleBody(narrow, '.theme-btn');
-      expect(theme).toContain('width: 36px');
-      expect(theme).toContain('height: 36px');
+      for (const sel of ['.theme-btn', '.more-menu-trigger']) {
+        const body = ruleBody(narrow, sel);
+        expect(body).toContain('width: 44px');
+        expect(body).toContain('height: 44px');
+      }
     });
 
     it('the reply-language select reaches a ≥32px tap height', () => {
