@@ -64,6 +64,13 @@ interface Props {
   onRestoreTrash?: (sessionId: string) => void;
   onClearTrash?: () => void;
   busy?: boolean;
+  /** P439: on the desktop empty state (hero up, no messages) the 快捷入口
+   * rows duplicate the hero's primary path — the same measured pileup P413
+   * fixed on the phone. With this flag the section folds into a「推荐问题」
+   * disclosure group (collapsed by default), so the rows stay reachable one
+   * layer down without competing as first-level entries. Ignored below the
+   * desktop breakpoint — the drawer's rows stay the phone's starter path. */
+  emptyState?: boolean;
   /** P320: the pristine first screen (no stored conversations AND no
    * messages) demotes「+ 新对话」to a quiet outlined button — the composer's
    * send key is the only solid brand action until a conversation exists. */
@@ -292,6 +299,7 @@ export default function Sidebar({
   onRestoreTrash,
   onClearTrash,
   busy = false,
+  emptyState = false,
   pristine = false,
   toolsLoading = false,
 }: Props) {
@@ -315,6 +323,10 @@ export default function Sidebar({
   // the P281 collapse) — the no-profile 「完善资料」 card stays out of the
   // persistent aside so the welcome footnote link is the one entry.
   const wideViewport = useMediaQuery('(min-width: 769px)');
+  // P439: the fold engages only on the desktop empty state — mid
+  // conversation the rows stay expanded as the same quick-starter path,
+  // and the phone drawer never folds (the rows are its only starter path).
+  const foldQuickEntries = wideViewport && emptyState;
   const visibleSessions = filterRecentChats(recentSessions, filterQuery);
   const sessionGroups = groupSessionsByDay(visibleSessions);
   const trimmedQuery = filterQuery.trim().toLowerCase();
@@ -828,28 +840,50 @@ export default function Sidebar({
             phone keeps it as the drawer's tappable starter path — P413
             removed the hero's last copy, the non-interactive pill row).
             Entries that carry an intent open the hero's intake panel on
-            desktop; the rest prefill the composer, same as before. */}
-        <section className="sidebar-section" aria-label="快捷入口">
-          <h3>快捷入口</h3>
-          <div className="quick-prompts">
-            {STARTER_ENTRIES.map((p) => (
-              <button
-                key={p.label}
-                className="quick-btn"
-                data-control="row"
-                onClick={() => onQuickPrompt(p.prompt, p.intent)}
-                disabled={busy}
-                aria-disabled={busy || undefined}
-                title={busy ? '回复生成中，请稍候' : undefined}
-                aria-label={`快捷提问：${p.label}`}
-              >
-                <SidebarIcon iconKey={p.iconKey} />
-                <span className="sidebar-row-label">{p.label}</span>
-                <SidebarChevron />
-              </button>
-            ))}
-          </div>
-        </section>
+            desktop; the rest prefill the composer, same as before.
+            P439: on the desktop empty state the four expanded rows still
+            competed with the hero's one primary path — the same copy,
+            first level. The section folds into a「推荐问题」disclosure
+            (collapsed by default): the entries stay one layer down and the
+            first screen's sidebar keeps only 新对话/最近对话/设置 chrome. */}
+        {(() => {
+          const quickRows = (
+            <div className="quick-prompts">
+              {STARTER_ENTRIES.map((p) => (
+                <button
+                  key={p.label}
+                  className="quick-btn"
+                  data-control="row"
+                  onClick={() => onQuickPrompt(p.prompt, p.intent)}
+                  disabled={busy}
+                  aria-disabled={busy || undefined}
+                  title={busy ? '回复生成中，请稍候' : undefined}
+                  aria-label={`快捷提问：${p.label}`}
+                >
+                  <SidebarIcon iconKey={p.iconKey} />
+                  <span className="sidebar-row-label">{p.label}</span>
+                  <SidebarChevron />
+                </button>
+              ))}
+            </div>
+          );
+          return foldQuickEntries ? (
+            <section className="sidebar-section" aria-label="推荐问题">
+              <details className="tools-details quick-details">
+                <summary className="tools-toggle">
+                  <h3>推荐问题</h3>
+                  <SidebarChevron />
+                </summary>
+                {quickRows}
+              </details>
+            </section>
+          ) : (
+            <section className="sidebar-section" aria-label="快捷入口">
+              <h3>快捷入口</h3>
+              {quickRows}
+            </section>
+          );
+        })()}
 
         <section className="sidebar-section" aria-label="进阶工具">
           {/* P378: the whole block folds into a disclosure group, collapsed

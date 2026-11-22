@@ -851,6 +851,25 @@
   outline-offset: 2px;
 }
 
+/* P439 — the desktop empty state folds the 快捷入口 rows into the same
+   disclosure anatomy the 进阶工具 group already uses (shared
+   .tools-details/.tools-toggle chrome, chevron rotation included). The
+   declared display:none drops the folded rows' boxes entirely — the P384
+   lesson: unslotted <details> children keep their layout boxes in Chromium
+   while skipping paint, leaving invisible click targets. [open] restores
+   the flex column. */
+.quick-details .quick-prompts {
+  margin-top: 10px;
+}
+
+.quick-details > .quick-prompts {
+  display: none;
+}
+
+.quick-details[open] > .quick-prompts {
+  display: flex;
+}
+
 /* P322 — while /api/tools is in flight the 进阶工具 list paints the same
    five rows as inert skeletons: real labels on a --surface-hover fill at
    the exact .tool-entry height (the mobile 44px touch target included),

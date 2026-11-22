@@ -1862,6 +1862,7 @@ export default function App() {
         onRestoreTrash={handleRestoreTrash}
         onClearTrash={handleClearTrash}
         busy={loading}
+        emptyState={messages.length === 0}
         pristine={isPristine}
         onEditProfile={() => {
           openProfileDialog();

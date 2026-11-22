@@ -181,7 +181,14 @@ describe('P355 · welcome starters and 快捷入口 share one source', () => {
     // section, where its rows stay the working starter path.
     expect(qsa('.starter-chip')).toHaveLength(0);
     expect(qs('.starter-chips')).toBeNull();
-    expect(qs('[aria-label="快捷入口"]')).not.toBeNull();
+    // P439: on the desktop empty state the section folds into the
+    //「推荐问题」disclosure — the rows stay the single copy, one layer
+    // down; expanding (what the UA toggle produces) reaches them.
+    const section =
+      qs('[aria-label="推荐问题"]') ?? qs('[aria-label="快捷入口"]');
+    expect(section).not.toBeNull();
+    const fold = qs('details.quick-details');
+    if (fold) fold.setAttribute('open', '');
     const quick = qsa('.quick-btn');
     expect(quick.map((b) => b.getAttribute('aria-label'))).toEqual(
       LABELS.map((l) => `快捷提问：${l}`),

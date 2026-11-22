@@ -1275,3 +1275,193 @@ describe('P415 · one promise on the first screen; hero centred 45–55%', () =>
     ).not.toContain('justify-content: center');
   });
 });
+
+/**
+ * P439 — measured at 1440×900 on 1795366246: the desktop empty state still
+ * carried ~13 visible triggerable entries — the aside's four 快捷入口
+ * rows + the hero primary CTA + the「完善资料」footnote link + the three
+ * 本轮约束 capsules + the example entry + the composer pair. The sidebar
+ * rows duplicate the hero's primary path copy-for-copy (P394 made them the
+ * single copy, but they still render expanded at first level beside the
+ * hero — the desktop twin of the P413 pileup).
+ *
+ * Fix: on the desktop empty state (Sidebar's `emptyState` prop + ≥769px)
+ * the section folds into a「推荐问题」disclosure group — collapsed by
+ * default, rows one layer down — while 最近对话/设置 keep their place.
+ * Mid-conversation the rows stay expanded; the phone drawer never folds
+ * (P413's contract keeps them the phone's only starter path).
+ *
+ * Contract asserted here (the backlog's verify clause):
+ *  1. At 1440×900 empty state the visible triggerable entries dedupe to
+ *     ≤8 — the counted set is the same enumeration the walkthrough read:
+ *     .quick-btn / [data-testid=hero-primary-cta] / .welcome-cta /
+ *     .constraint-chip / button.hero-cta-card / #chat-input / .input-send.
+ *  2. The four starter names (帮我优化资料…) resolve ZERO visible entries —
+ *     they sit inside the closed <details>, which a real engine folds away
+ *     (asserted DOM-level: closed details owns the rows; stylesheet-level:
+ *     `.quick-details > .quick-prompts { display:none }`, [open] restores).
+ *  3. The「推荐问题」disclosure still mounts all four rows one layer down;
+ *     with `emptyState` unset (mid-conversation) the rows render expanded
+ *     as before.
+ */
+describe('P439 · desktop empty state folds the 快捷入口 into 推荐问题', () => {
+  let dom: FakeDom;
+  let root: Root | null = null;
+
+  const qs = (sel: string) =>
+    dom.document.querySelector(sel) as FakeElement | null;
+  const qsa = (sel: string) => dom.document.querySelectorAll(sel);
+
+  const mountScreen = async (emptyState: boolean) => {
+    dom = installFakeDom();
+    const mq = (q: string) => {
+      const maxW = /max-width:\s*(\d+)px/.exec(q);
+      const minW = /min-width:\s*(\d+)px/.exec(q);
+      const matches =
+        q === COARSE_POINTER_QUERY
+          ? false
+          : (maxW || minW) !== null &&
+            (maxW ? 1440 <= Number(maxW[1]) : true) &&
+            (minW ? 1440 >= Number(minW[1]) : true);
+      return {
+        matches,
+        media: q,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      };
+    };
+    (dom.window as Record<string, unknown>).matchMedia = mq;
+    vi.stubGlobal('matchMedia', mq);
+    const { createRoot } = await import('react-dom/client');
+    const container = dom.document.createElement('div');
+    dom.document.body.appendChild(container);
+    root = createRoot(container as unknown as HTMLElement);
+    await act(async () => {
+      root!.render(
+        createElement(
+          Fragment,
+          null,
+          createElement(Sidebar, {
+            tools: [],
+            isMobile: false,
+            open: false,
+            emptyState,
+            onQuickPrompt: () => {},
+            onNewChat: () => {},
+          }),
+          createElement(ChatWindow, {
+            messages: [] as ChatMessage[],
+            loading: false,
+            onSend: () => {},
+            onSetupProfile: () => {},
+          }),
+        ),
+      );
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  const unmount = async () => {
+    await act(async () => {
+      root?.unmount();
+    });
+    root = null;
+    dom.document.body.textContent = '';
+  };
+
+  /** The :visible-style count — mounted and not parked inside an inert /
+   *  aria-hidden / sr-only subtree NOR inside a closed <details> (the fake
+   *  DOM ships no UA fold, so the convention the P412 suite uses applies:
+   *  a details without `open` hides its descendants). */
+  const inClosedDetails = (el: FakeElement) => {
+    for (let n = el.parentElement; n; n = n.parentElement) {
+      if (n.tagName === 'DETAILS' && !n.hasAttribute('open')) return true;
+    }
+    return false;
+  };
+  const visible = (el: FakeElement) =>
+    !el.closest('[inert]') &&
+    !el.closest('[aria-hidden="true"]') &&
+    !el.closest('.sr-only') &&
+    !inClosedDetails(el);
+
+  afterAll(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('1440×900: visible triggerable entries dedupe to ≤8 — the four sidebar rows leave the count', async () => {
+    await mountScreen(true);
+    const entries = [
+      ...qsa('.quick-btn'),
+      ...qsa('[data-testid="hero-primary-cta"]'),
+      ...qsa('.welcome-cta'),
+      ...qsa('.constraint-chip'),
+      ...qsa('button.hero-cta-card'),
+      ...qsa('#chat-input'),
+      ...qsa('button.input-send'),
+    ].filter(visible);
+    expect(
+      entries.length,
+      `entries: ${entries
+        .map((el) => `${el.className}:${el.textContent.trim()}`)
+        .join(' | ')}`,
+    ).toBeLessThanOrEqual(8);
+    await unmount();
+  });
+
+  it('1440×900: every starter name resolves ZERO visible entries — all four sit inside the closed 推荐问题 group', async () => {
+    await mountScreen(true);
+    const details = qs('details.quick-details');
+    expect(details, '推荐问题 disclosure group').not.toBeNull();
+    expect(details!.hasAttribute('open')).toBe(false);
+    const section = qs('[aria-label="推荐问题"]');
+    expect(section, 'the section renamed for the fold').not.toBeNull();
+    expect(qs('[aria-label="快捷入口"]')).toBeNull();
+    // The rows still mount — one layer down, real buttons, all four —
+    // ready for the single expansion click.
+    const rows = qsa('.quick-btn');
+    expect(rows).toHaveLength(STARTER_ENTRIES.length);
+    for (const row of rows) {
+      expect(inClosedDetails(row)).toBe(true);
+      expect(row.closest('details')).toBe(details);
+    }
+    for (const entry of STARTER_ENTRIES) {
+      const hits = qsa('button, a[href], [role="button"], summary').filter(
+        (el) =>
+          visible(el) &&
+          (el.textContent.trim().includes(entry.label) ||
+            (el.getAttribute('aria-label') ?? '').includes(entry.label)),
+      );
+      expect(
+        hits.length,
+        `${entry.label} visible hits: ${hits
+          .map((el) => el.className)
+          .join(' | ')}`,
+      ).toBe(0);
+    }
+    await unmount();
+  });
+
+  it('1440×900 mid-conversation (emptyState off): the rows stay expanded — the fold is empty-state-only', async () => {
+    await mountScreen(false);
+    expect(qs('details.quick-details')).toBeNull();
+    expect(qs('[aria-label="快捷入口"]')).not.toBeNull();
+    const rows = qsa('.quick-btn').filter(visible);
+    expect(rows).toHaveLength(STARTER_ENTRIES.length);
+    await unmount();
+  });
+
+  it('stylesheet contract: the folded list is display:none, [open] restores flex', () => {
+    const folded = ruleBody(sidebarCss, '.quick-details > .quick-prompts');
+    expect(folded).toContain('display: none');
+    const opened = ruleBody(
+      sidebarCss,
+      '.quick-details[open] > .quick-prompts',
+    );
+    expect(opened).toContain('display: flex');
+  });
+});
