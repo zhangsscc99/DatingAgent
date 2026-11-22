@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { avatarColor, avatarInitial, fileToAvatarDataUrl } from '../lib/avatar';
 import { startDialogDismiss } from '../lib/dialogDismiss';
 import { formatInterests, parseInterests } from '../lib/interests';
 import type { UserProfile } from '../types';
@@ -32,6 +33,7 @@ export default function ProfileOnboarding({
   const [age, setAge] = useState('');
   const [interestsText, setInterestsText] = useState('');
   const [goals, setGoals] = useState('');
+  const [avatar, setAvatar] = useState(() => initialProfile?.avatar ?? '');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export default function ProfileOnboarding({
     setAge(initialProfile?.age ? String(initialProfile.age) : '');
     setInterestsText(formatInterests(initialProfile?.interests));
     setGoals(initialProfile?.goals ?? '');
+    setAvatar(initialProfile?.avatar ?? '');
     setError('');
   }, [open, initialProfile]);
 
@@ -89,7 +92,23 @@ export default function ProfileOnboarding({
       age: ageNum,
       interests: interests.length ? interests : undefined,
       goals: goals.trim() || undefined,
+      avatar: avatar || undefined,
     });
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    void fileToAvatarDataUrl(file)
+      .then((dataUrl) => {
+        setAvatar(dataUrl);
+        setError('');
+      })
+      .catch(() => {
+        setError('头像图片读取失败，请换一张 200KB 以内的图片');
+      });
+    // Let picking the same file twice still fire a change event.
+    e.target.value = '';
   };
 
   return (
@@ -108,6 +127,42 @@ export default function ProfileOnboarding({
         </div>
 
         <form className="profile-form" onSubmit={handleSubmit}>
+          {/* P443 — optional avatar, the first visual slot on the profile.
+              Local File → compressed data URL in datingAgent.userProfile;
+              unset shows the nickname-initial colour block as fallback. */}
+          <div className="profile-field profile-avatar-field">
+            <span>头像（可选）</span>
+            <div className="avatar-picker">
+              <span className="avatar-preview" aria-hidden="true">
+                {avatar ? (
+                  <img src={avatar} alt="" />
+                ) : (
+                  <span
+                    className="avatar-fallback"
+                    style={{ backgroundColor: avatarColor(name) }}
+                  >
+                    {avatarInitial(name)}
+                  </span>
+                )}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                aria-label="选择头像图片"
+                onChange={handleAvatarChange}
+              />
+              {avatar && (
+                <button
+                  type="button"
+                  className="avatar-remove"
+                  onClick={() => setAvatar('')}
+                >
+                  移除
+                </button>
+              )}
+            </div>
+          </div>
+
           <label className="profile-field">
             <span>昵称 *</span>
             <input

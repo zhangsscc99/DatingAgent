@@ -4,6 +4,8 @@ export interface UserProfile {
   interests?: string[];
   goals?: string;
   personality?: string;
+  /** P443: compressed data-URL avatar (local only, never uploaded). */
+  avatar?: string;
 }
 
 export type StreamPhase = 'thinking' | 'tool' | 'generating';

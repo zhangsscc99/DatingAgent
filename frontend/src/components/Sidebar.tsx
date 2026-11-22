@@ -32,6 +32,7 @@ import { useTimeTicker } from '../hooks/useTimeTicker';
 import { toolDisplayName } from '../lib/toolLabels';
 import { toolPromptFor } from '../lib/toolPrompts';
 import { STARTER_ENTRIES } from '../lib/starterEntries';
+import { avatarColor, avatarInitial } from '../lib/avatar';
 import type { StarterIconKey } from '../lib/starterEntries';
 import type { ChatIntent, ToolInfo, UserProfile } from '../types';
 import './Sidebar.css';
@@ -799,6 +800,21 @@ export default function Sidebar({
               )}
             </div>
             <div className="profile-card-body">
+              {/* P443: the saved data-URL avatar leads the card; without one
+                  a deterministic nickname-initial colour block stands in. */}
+              <span className="profile-avatar" aria-hidden="true">
+                {profile.avatar ? (
+                  <img src={profile.avatar} alt="" />
+                ) : (
+                  <span
+                    className="avatar-fallback"
+                    style={{ backgroundColor: avatarColor(profile.name) }}
+                  >
+                    {avatarInitial(profile.name)}
+                  </span>
+                )}
+              </span>
+              <div className="profile-card-text">
               <p className="profile-name">{profile.name}{profile.age ? `，${profile.age} 岁` : ''}</p>
               {profile.goals && <p className="profile-goals-text">{profile.goals}</p>}
               {profile.interests && profile.interests.length > 0 && (
@@ -810,6 +826,7 @@ export default function Sidebar({
                   ))}
                 </div>
               )}
+              </div>
             </div>
           </section>
         ) : (

@@ -139,6 +139,48 @@
   outline-offset: 2px;
 }
 
+/* P443 — circular avatar leading the card; the fallback block reuses the
+ * same circle, filled with the deterministic nickname colour. */
+.profile-card-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.profile-card-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-avatar {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
 .profile-name {
   font-size: 14px;
   font-weight: 600;

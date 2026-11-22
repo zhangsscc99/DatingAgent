@@ -374,6 +374,37 @@
   margin-bottom: 8px;
 }
 
+/* P443 — circular avatar (or nickname-initial fallback) centred over the
+ * greeting, the first visual slot of the named-profile first screen. */
+.hero-avatar {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hero-avatar .avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 600;
+}
+
 .welcome > p {
   color: var(--text-muted);
   font-size: 14px;

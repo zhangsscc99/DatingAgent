@@ -1,3 +1,4 @@
+import { isAvatarDataUrl } from './avatar';
 import type { UserProfile } from '../types';
 
 const PROFILE_KEY = 'datingAgent.userProfile';
@@ -59,6 +60,12 @@ export function normalizeProfile(raw: unknown): UserProfile | null {
       .slice(0, INTERESTS_COUNT_MAX);
   } else if ('interests' in raw) {
     profile.interests = [];
+  }
+  // P443 — a stored avatar is only ever a bounded data:image/ URL written
+  // by the picker's own compression; anything else (oversized blob,
+  // remote URL, hand-edited junk) is dropped like the other bad fields.
+  if (isAvatarDataUrl(raw.avatar)) {
+    profile.avatar = raw.avatar;
   }
 
   return profile.name ? profile : null;

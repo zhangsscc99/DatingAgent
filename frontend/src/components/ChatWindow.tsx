@@ -23,6 +23,7 @@ import {
 } from '../lib/chatSearchState';
 import { isSearching, matchMessages, normalizeQuery } from '../lib/messageSearch';
 import { canGenerateReply, needsReply } from '../lib/pendingReply';
+import { avatarColor, avatarInitial } from '../lib/avatar';
 import { isOnboardingComplete } from '../lib/profileStorage';
 import {
   dismissProfileNudge,
@@ -887,6 +888,22 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
           // P337: `.hero` marks the empty-state content block — the first
           // screen's vertical-balance contract measures its top/bottom gaps.
           <div className="welcome hero animate-in">
+            {/* P443: a named profile's avatar (or its initial fallback)
+                leads the first-screen greeting, same as the sidebar card. */}
+            {profile?.name && (
+              <span className="hero-avatar" aria-hidden="true">
+                {profile.avatar ? (
+                  <img src={profile.avatar} alt="" />
+                ) : (
+                  <span
+                    className="avatar-fallback"
+                    style={{ backgroundColor: avatarColor(profile.name) }}
+                  >
+                    {avatarInitial(profile.name)}
+                  </span>
+                )}
+              </span>
+            )}
             <h2>
               {profile?.name ? `你好，${profile.name}！` : '你好，我是 DatingAgent'}
             </h2>
