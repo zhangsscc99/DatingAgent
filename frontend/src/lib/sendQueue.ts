@@ -48,6 +48,14 @@ export function restoreQueuedDraft(queued: string[], current: string): string {
  * earlier one. `null` sessionId — parked in a chat with no session yet —
  * targets the same `default` draft the composer uses for that chat.
  *
+ * P429 — the write used to overwrite whatever draft the session already
+ * held, so text typed after queueing was lost on the switch away. When
+ * `read` is supplied the queued prompts are merged with that existing
+ * draft instead — queued text first, existing draft after, the same
+ * order restoreQueuedDraft documents — so nothing the user wrote is
+ * lost. A `read` that throws is treated as an empty draft; retirement
+ * still completes. Without `read` the legacy overwrite is kept.
+ *
  * Items with an empty prompt are consumed without a write (there is no
  * text to lose). When `save` throws for one session, that session's items
  * come back in the returned remainder so the caller can keep them queued
@@ -57,6 +65,7 @@ export function restoreQueuedDraft(queued: string[], current: string): string {
 export function retireQueue<T extends { sessionId: string | null; prompt: string }>(
   items: readonly T[],
   save: (sessionId: string, text: string) => void,
+  read?: (sessionId: string) => string,
 ): T[] {
   const order: string[] = [];
   const promptsBySession = new Map<string, string[]>();
@@ -80,7 +89,17 @@ export function retireQueue<T extends { sessionId: string | null; prompt: string
     const prompts = promptsBySession.get(key) ?? [];
     if (prompts.length === 0) continue;
     try {
-      save(key, prompts.join('\n'));
+      let text = prompts.join('\n');
+      if (read !== undefined) {
+        let existing = '';
+        try {
+          existing = read(key);
+        } catch {
+          // A read failure must not strand the queued text — merge as ''.
+        }
+        text = [text, existing].filter(Boolean).join('\n');
+      }
+      save(key, text);
     } catch {
       remainder.push(...(itemsBySession.get(key) ?? []));
     }

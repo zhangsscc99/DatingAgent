@@ -41,6 +41,18 @@ export function saveDraft(sessionId: string, text: string): void {
   }
 }
 
+/**
+ * P429 — read one session's composer draft. '' when the key is absent or
+ * storage is unavailable (private mode, quota failures). Never throws.
+ */
+export function readDraft(sessionId: string): string {
+  try {
+    return localStorage.getItem(draftStorageKey(sessionId)) ?? '';
+  } catch {
+    return '';
+  }
+}
+
 /** Remove one session's draft. Never throws. */
 export function purgeDraft(sessionId: string): void {
   try {

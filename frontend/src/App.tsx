@@ -52,7 +52,7 @@ import {
 } from './lib/chatTrash';
 import type { TrashEntry } from './lib/chatTrash';
 import { FIND_IN_CONVERSATION_LABEL } from './lib/searchLabels';
-import { DEFAULT_DRAFT_ID, saveDraft, sweepOrphanDrafts } from './lib/chatDrafts';
+import { DEFAULT_DRAFT_ID, readDraft, saveDraft, sweepOrphanDrafts } from './lib/chatDrafts';
 import { isForeignQueuedSend, retireQueue } from './lib/sendQueue';
 import { sweepOrphanScrollAnchors } from './lib/scrollAnchor';
 import {
@@ -358,14 +358,15 @@ export default function App() {
   /**
    * P423: every conversation-switch path calls this right after aborting
    * the stream — each parked draft is written back to the composer draft
-   * of the session it was typed in (FIFO, newline-joined per session), so
-   * the queue can neither strand the 「已排队」 hint nor fire one
-   * conversation's words into another. A `save` that throws keeps that
-   * session's items queued.
+   * of the session it was typed in (FIFO, newline-joined per session, and
+   * merged ahead of any draft already in that box so post-queue typing
+   * survives — P429), so the queue can neither strand the 「已排队」 hint
+   * nor fire one conversation's words into another. A `save` that throws
+   * keeps that session's items queued.
    */
   const retirePendingDrafts = useCallback(() => {
     if (pendingQueueRef.current.length === 0) return;
-    pendingQueueRef.current = retireQueue(pendingQueueRef.current, saveDraft);
+    pendingQueueRef.current = retireQueue(pendingQueueRef.current, saveDraft, readDraft);
     setPendingQueue(pendingQueueRef.current);
   }, []);
   // 「取消排队」 drops the queue without sending; the texts are returned so
