@@ -706,6 +706,22 @@ export function createApp(options: AppOptions = {}) {
     },
   }));
   app.get('/favicon.ico', (_req, res) => res.status(204).end());
+  /**
+   * P430 — a request whose last path segment looks like a static file
+   * (`name.ext`, extension 1–8 alphanumerics) reached this point only because
+   * express.static missed it. Serving the SPA shell would answer 200
+   * text/html for e.g. a stale hashed bundle, which `nosniff` browsers then
+   * refuse to execute — an undiagnosable white screen. Answer a plain 404
+   * instead; extensionless paths fall through to the SPA catch-all below.
+   */
+  app.use((req, res, next) => {
+    const last = req.path.slice(req.path.lastIndexOf('/') + 1);
+    if (/\.[A-Za-z0-9]{1,8}$/.test(last)) {
+      res.type('text/plain').status(404).send('Not found');
+      return;
+    }
+    next();
+  });
   app.get('*', serveSpaShell);
 
   return app;

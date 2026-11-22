@@ -83,10 +83,10 @@ describe('P424 · Cache-Control on static files', () => {
     }
   });
 
-  it('a missing /assets file still falls through to the SPA shell, not a static 404', async () => {
+  it('a missing /assets file answers a plain 404, not the SPA shell (P430)', async () => {
     const res = await fetch(`${base}/assets/gone.js`);
-    expect(res.status).toBe(200);
-    expect(res.headers.get('content-type')).toContain('text/html');
+    expect(res.status).toBe(404);
+    expect(res.headers.get('content-type')).toContain('text/plain');
   });
 
   it('GET /api/health keeps Cache-Control: no-store', async () => {
