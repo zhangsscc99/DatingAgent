@@ -131,6 +131,18 @@ function fragmentInsideQuestion(text: string, index: number, label: string): boo
 }
 
 /**
+ * P437 — the clause sits inside a ?/？-terminated sentence, so the raw
+ * clause is the question's own context, never a fact. Twin of
+ * memory-extract.ts questionVerbatimEcho and memoryReceipt.ts — a
+ * fallback label is the raw clause verbatim, so subject-led clauses
+ * need this check on top of fragmentInsideQuestion.
+ */
+function insideQuestionSentence(text: string, index: number): boolean {
+  const terminal = /[。？！?!]/.exec(text.slice(index));
+  return terminal !== null && (terminal[0] === '？' || terminal[0] === '?');
+}
+
+/**
  * P411 — twin of the owner gate in memory-extract.ts: a fallback clause
  * is a fact about the USER. An accusation whose subject is the other
  * person (她/他/对方/人家 + 明明/就是/故意/耍…) never surfaces verbatim —
@@ -312,6 +324,12 @@ export function conversationFactItems(
         // user-attributed labels or dropped, never emitted verbatim.
         const owned = conversationOwnerLabel(label);
         if (owned === null) continue;
+        // P437 — a verbatim clause inside a question sentence is the
+        // question's own context, never a fact; a gate-mapped label is
+        // distilled text and still emits.
+        if (owned === undefined && insideQuestionSentence(text, index)) {
+          continue;
+        }
         const emitted = clip(owned ?? label);
         if (emitted.length < 2) continue;
         if (

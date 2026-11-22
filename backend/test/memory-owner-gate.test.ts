@@ -87,6 +87,27 @@ describe('P411 · owner gate — an accusation about the other person is never a
     expect(facts.some((f) => f.text === '他就是个绿茶')).toBe(false);
   });
 
+  it('P437 — 「她昨天一整天没回我消息，我昨晚没睡好，是不是我做错了什么？」 yields no verbatim question-context clause', () => {
+    // The live repro: the clause leads with 她 yet carries no accusation
+    // mark, so the P411 owner gate let it through, and the verbatim
+    // dedupe never compared against the message being processed. Inside
+    // a ?-terminated sentence both clauses are the question's context.
+    const message =
+      '她昨天一整天没回我消息，我昨晚没睡好，是不是我做错了什么？';
+    const facts = extractMemoryFacts(message);
+    expect(facts.every((f) => !/^(她|他|对方)/.test(f.text))).toBe(true);
+    expect(facts.every((f) => !message.includes(f.text))).toBe(true);
+    expect(facts.some((f) => f.text === '她昨天一整天没回我消息')).toBe(false);
+    expect(facts.some((f) => f.text === '我昨晚没睡好')).toBe(false);
+    // The declarative sibling keeps landing — a stated observation about
+    // the other side is a real fact, not question context.
+    expect(
+      extractMemoryFacts('她昨天一整天没回我消息').some(
+        (f) => f.text === '她昨天一整天没回我消息',
+      ),
+    ).toBe(true);
+  });
+
   it('a plain observation about the other side is still a fact (P339–P400 contract)', () => {
     // Non-accusatory 她-facts named by earlier rounds keep landing.
     expect(
@@ -180,6 +201,35 @@ describe('P411 · /api/chat — no fact is a verbatim hoist of recent messages o
     ).toBe(true);
     // …nor of the session title.
     expect(facts.every((f) => !sessionTitle.includes(f.text))).toBe(true);
+  });
+
+  it('P437 — the anxious turn in the same session stores no verbatim clause and no 她/他/对方-led fact', async () => {
+    // The live session that slipped: the hostile turn correctly lands
+    // 「我对已读不回特别敏感」, yet the follow-up stored both verbatim
+    // clauses — a 她-led rant and the user's own sleep line.
+    const userMessages = [
+      '她明明看了消息就是不回，这不是耍人吗？',
+      '可能是我自己不够好',
+      '她昨天一整天没回我消息，我昨晚没睡好，是不是我做错了什么？',
+    ];
+
+    const first = await postChat(userMessages[0]);
+    await postChat(userMessages[1], first.sessionId);
+    const second = await postChat(userMessages[2], first.sessionId);
+
+    const facts = second.memory?.facts ?? [];
+    const texts = facts.map((f) => f.text);
+    expect(texts).not.toContain('她昨天一整天没回我消息');
+    expect(texts).not.toContain('我昨晚没睡好');
+    // No fact leads with the other person…
+    expect(facts.every((f) => !/^(她|他|对方)/.test(f.text))).toBe(true);
+    // …and no fact is a verbatim substring of a user message.
+    expect(
+      facts.every((f) => !userMessages.some((m) => m.includes(f.text))),
+    ).toBe(true);
+    // The earlier turn's labels still landed.
+    expect(texts).toContain('我对已读不回特别敏感');
+    expect(texts).toContain('我最近在自我怀疑');
   });
 });
 

@@ -335,7 +335,35 @@ function shapeFact(raw: string, source: string, index: number): string | null {
   if (owned !== undefined) return clip(owned);
   const shaped = clip(inferSubject(cored, source, index, cored !== raw));
   const fact = repairFactGrammar(shaped);
-  return fact !== null && isStandaloneFact(fact) ? fact : null;
+  if (fact === null || !isStandaloneFact(fact)) return null;
+  // P437 — a verbatim clause inside a question sentence is the
+  // question's own context, never a stored fact (「她昨天一整天没回我
+  // 消息，我昨晚没睡好，是不是我做错了什么？」 carried two). The check
+  // runs on the shaped text: a distilled fact — inferred subject,
+  // dropped speech verb, or the gate-mapped label that already
+  // returned above — is never a verbatim substring and still lands.
+  if (questionVerbatimEcho(fact, source, index)) return null;
+  return fact;
+}
+
+/**
+ * P437 — the shaped fact restates a clause of the ?/？-terminated
+ * sentence it sits in, verbatim. The P411 verbatim gates only compare
+ * against the title, the first message and the last three prior turns
+ * — never the message being processed — so an anxious turn like the
+ * one above stored its own clauses unchanged. A candidate that only
+ * shares distilled wording (subject inferred, 说 dropped) is not a
+ * substring here and survives.
+ */
+function questionVerbatimEcho(
+  fact: string,
+  source: string,
+  index: number,
+): boolean {
+  const fKey = verbatimKey(fact);
+  if (fKey.length === 0 || !verbatimKey(source).includes(fKey)) return false;
+  const terminal = FACT_SENTENCE_END.exec(source.slice(index));
+  return terminal !== null && (terminal[0] === '？' || terminal[0] === '?');
 }
 
 /** Clause boundaries: CJK and ASCII punctuation plus newlines. */
@@ -776,14 +804,20 @@ function factOnlyEchoesQuestion(context: AgentContext, text: string): boolean {
     for (const clause of message.content.matchAll(HISTORY_CLAUSE)) {
       const c = clause[0];
       const index = clause.index ?? 0;
-      if (!(c.includes(text) || (core.length >= 4 && c.includes(core)))) {
+      const verbatim = c.includes(text);
+      if (!(verbatim || (core.length >= 4 && c.includes(core)))) {
         continue;
       }
       // A clause ending in ? is a question; a non-standalone clause is
       // the topic fragment of whatever sentence it opens — question or
-      // not — decided by that sentence's terminal punctuation.
+      // not — decided by that sentence's terminal punctuation. P437 —
+      // the same goes for a clause restating the fact verbatim: inside
+      // a ?-terminated sentence it is the question's context clause
+      // (「她昨天一整天没回我消息，…是不是我做错了什么？」), while a
+      // core-only match like 「她最近有点累」 inside 「她说最近有点累」
+      // was genuinely stated and stays declarative.
       let question = /[？?]$/.test(c);
-      if (!question && !FACT_LEADING_SUBJECT.test(c.trim())) {
+      if (!question && (verbatim || !FACT_LEADING_SUBJECT.test(c.trim()))) {
         const terminal = FACT_SENTENCE_END.exec(message.content.slice(index));
         question =
           terminal !== null && (terminal[0] === '？' || terminal[0] === '?');

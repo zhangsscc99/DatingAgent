@@ -141,6 +141,19 @@ function clauseEndsAsQuestion(text: string, index: number): boolean {
 }
 
 /**
+ * P437 — the clause sits inside a ?/？-terminated sentence, so the raw
+ * clause is the question's own context, never a fact (「她昨天一整天
+ * 没回我消息，我昨晚没睡好，是不是我做错了什么？」). Twin of
+ * memory-extract.ts questionVerbatimEcho — fallback labels are the raw
+ * clause verbatim, so subject-led ones need this check on top of
+ * fragmentInsideQuestion.
+ */
+function insideQuestionSentence(text: string, index: number): boolean {
+  const terminal = /[。？！?!]/.exec(text.slice(index));
+  return terminal !== null && (terminal[0] === '？' || terminal[0] === '?');
+}
+
+/**
  * P392 — a clause that cannot stand alone inside a question sentence is
  * the question's own topic fragment, never a fact: 「明天第一次约会，
  * 穿卫衣去会不会太随便？」 clips 「明天第一次约会」 as its topic and
@@ -348,6 +361,12 @@ export function conversationFactItems(
         // user-attributed labels or dropped, never emitted verbatim.
         const owned = memoryOwnerGateLabel(label);
         if (owned === null) continue;
+        // P437 — a verbatim clause inside a question sentence is the
+        // question's own context, never a fact; a gate-mapped label is
+        // distilled text and still emits.
+        if (owned === undefined && insideQuestionSentence(text, index)) {
+          continue;
+        }
         const emitted = clip(owned ?? label);
         if (emitted.length < 2) continue;
         if (
