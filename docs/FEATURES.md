@@ -707,3 +707,5 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 <!-- Seeded 2026-11-22 19:5x by the loop dispatcher — pool drained (0 unchecked), but only 1 grounded safe idea found this pass (probed composer placeholder P193/P195/P237, health poll P135/P178/P420, IME P167, search P19, collapse P217/P301/P341, history trim, exportConversation P179 — all already covered); seeded 1 item rather than padding to 3 with invented ones. -->
 
 - [ ] **P443 · 资料表单没有头像上传（走查清单「完善个人资料（上传头像）」无法执行）**｜实测（第 113 轮）：完善资料表单仅昵称/年龄/兴趣/恋爱目标，全表单 0 个 `input[type=file]`，`avatarField:false`；侧栏资料卡只有昵称+年龄文本。竞品参照（探探/陌陌）个人资料第一视觉位是头像。修法：表单加可选头像项（本地 File → dataURL 存 `datingAgent.userProfile.avatar`，≤200KB 前端压缩，不做上传服务），侧栏资料卡与首屏问候处圆形展示，未设置时用昵称首字母色块兜底。verify: 390×844 下点「完善资料」后存在 `input[type=file]`，选图后侧栏资料卡出现非空 `<img>` 或含背景图的圆形节点，reload 后头像保留；`npm run verify` 全绿、`bash scripts/ci-deploy.sh` 退出 0｜risk: med
+
+<!-- Walkthrough round 114 (2026-11-22 20:09 UTC): no new items this round. Open carry-over: P443 (avatar upload) confirmed still reproducible; P442 ("刚刚" label frozen) re-reproduced on reload. Screenshots docs/runs/walk-1795378460-* pending vision (quota 429). -->
