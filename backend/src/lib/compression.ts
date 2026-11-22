@@ -108,6 +108,14 @@ export function createCompressionMiddleware(): RequestHandler {
       return;
     }
 
+    // P432 — express.static ends HEAD without ever writing the file bytes, so
+    // the compressed length would be unknowable. Present the request as GET to
+    // downstream handlers: the body streams into our buffer where gzipSync can
+    // measure it, and res.end below still ships headers only. The method is
+    // restored before the response finishes so request logging sees HEAD.
+    const isHead = req.method === 'HEAD';
+    if (isHead) req.method = 'GET';
+
     const originalWrite = res.write.bind(res) as unknown as (
       chunk: unknown,
       ...rest: unknown[]
@@ -125,6 +133,7 @@ export function createCompressionMiddleware(): RequestHandler {
 
     /** Deliver the buffered bytes raw, then let the socket take over. */
     const bypass = (): void => {
+      if (isHead) req.method = 'HEAD';
       if (streaming) return;
       streaming = true;
       for (const chunk of chunks.splice(0)) originalWrite(chunk);
@@ -163,27 +172,29 @@ export function createCompressionMiddleware(): RequestHandler {
       if (tail !== undefined) chunks.push(toBuffer(tail, encoding));
       const body = Buffer.concat(chunks.splice(0));
 
-      // HEAD carries no body — express.static ends without one — so there is
-      // nothing to compress. The headers still mirror the GET a client would
-      // have received: when the declared size/type proves that GET would be
-      // gzipped, advertise the encoding; the compressed length is unknowable
-      // without the bytes, so Content-Length is dropped rather than lied.
-      if (req.method === 'HEAD') {
-        const size =
-          body.length > 0 ? body.length : Number(res.getHeader('Content-Length')) || 0;
-        if (
+      // HEAD (presented to handlers as GET above): the body went through the
+      // same buffering path a GET would, so the compressed length is known
+      // exactly — declare it, then end with no body bytes on the wire.
+      if (isHead) {
+        req.method = 'HEAD';
+        const headCompressible =
           res.statusCode !== 304 &&
           res.statusCode !== 206 &&
           res.getHeader('Content-Range') === undefined &&
-          size >= MIN_COMPRESS_BYTES &&
+          body.length >= MIN_COMPRESS_BYTES &&
           res.getHeader('Content-Encoding') === undefined &&
-          isCompressibleType(res.getHeader('Content-Type'))
-        ) {
-          res.setHeader('Content-Encoding', 'gzip');
-          res.vary('Accept-Encoding');
-          res.removeHeader('Content-Length');
+          isCompressibleType(res.getHeader('Content-Type'));
+        if (headCompressible) {
+          try {
+            const zipped = zlib.gzipSync(body, { level: 6 });
+            res.setHeader('Content-Encoding', 'gzip');
+            res.vary('Accept-Encoding');
+            res.setHeader('Content-Length', String(zipped.length));
+          } catch {
+            /* fall through and keep the identity headers */
+          }
         }
-        return callback ? originalEnd(body, callback) : originalEnd(body);
+        return callback ? originalEnd(callback) : originalEnd();
       }
 
       const compressible =

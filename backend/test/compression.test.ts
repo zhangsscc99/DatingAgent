@@ -168,6 +168,36 @@ describe('P426 · gzip text responses', () => {
     expect(res.body.length).toBe(0);
   });
 
+  // P432 — RFC 9110 §9.3.2: HEAD should mirror the headers its GET would send.
+  it('HEAD with gzip declares the same Content-Length as the gzipped GET', async () => {
+    const head = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      method: 'HEAD',
+      headers: { 'accept-encoding': 'gzip' },
+    });
+    const get = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      headers: { 'accept-encoding': 'gzip' },
+    });
+    expect(head.status).toBe(200);
+    expect(head.headers['content-encoding']).toBe('gzip');
+    expect(Number(head.headers['content-length'])).toBe(
+      Number(get.headers['content-length']),
+    );
+    expect(head.headers['content-length']).toBe(String(get.body.length));
+    expect(head.body.length).toBe(0);
+  });
+
+  it('HEAD without Accept-Encoding keeps the identity Content-Length', async () => {
+    const res = await rawRequest({ port, path: '/assets/index-abc.js', method: 'HEAD' });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(Number(res.headers['content-length'])).toBe(JS_CONTENT.length);
+    expect(res.body.length).toBe(0);
+  });
+
   it('GET with Range returns the raw partial bytes — no gzip on 206', async () => {
     const res = await rawRequest({
       port,
