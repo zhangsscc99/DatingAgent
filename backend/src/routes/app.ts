@@ -28,6 +28,7 @@ import {
   sessionMemoryFacts,
 } from '../lib/memory-extract.js';
 import { SessionStore } from '../lib/session-store.js';
+import { createCompressionMiddleware } from '../lib/compression.js';
 import type { MemoryFact } from '../agent/types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -653,6 +654,10 @@ export function createApp(options: AppOptions = {}) {
   app.use('/api', (_req, res) => {
     res.status(404).json(errorBody(res, 'Not found'));
   });
+
+  // P426: gzip text responses >= 1 KB — static assets and the SPA shell.
+  // Mounted after /api so SSE streaming and API latency are untouched.
+  app.use(createCompressionMiddleware());
 
   // P314: serve the SPA shell from a whole-file read, not sendFile's stream —
   // a mid-build truncation could split a streamed response into "200 +
