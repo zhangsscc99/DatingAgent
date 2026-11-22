@@ -54,7 +54,9 @@ function parseEndArgs(args: unknown[]): EndArgs {
  * res.flush called, a non-text Content-Type seen mid-stream, SSE) switches
  * to pass-through immediately so streaming latency is untouched. Headers
  * the handler set stay verbatim — only Content-Length is recomputed after
- * compression. Never throws into the request path: on a gzip failure the
+ * compression. Partial responses (206 / Content-Range) are never compressed:
+ * range offsets address the identity bytes, so gzipping them corrupts resumes.
+ * Never throws into the request path: on a gzip failure the
  * original uncompressed bytes are sent.
  */
 export function createCompressionMiddleware(): RequestHandler {
@@ -128,6 +130,8 @@ export function createCompressionMiddleware(): RequestHandler {
           body.length > 0 ? body.length : Number(res.getHeader('Content-Length')) || 0;
         if (
           res.statusCode !== 304 &&
+          res.statusCode !== 206 &&
+          res.getHeader('Content-Range') === undefined &&
           size >= MIN_COMPRESS_BYTES &&
           res.getHeader('Content-Encoding') === undefined &&
           isCompressibleType(res.getHeader('Content-Type'))
@@ -141,6 +145,8 @@ export function createCompressionMiddleware(): RequestHandler {
 
       const compressible =
         res.statusCode !== 304 &&
+        res.statusCode !== 206 &&
+        res.getHeader('Content-Range') === undefined &&
         body.length >= MIN_COMPRESS_BYTES &&
         res.getHeader('Content-Encoding') === undefined &&
         isCompressibleType(res.getHeader('Content-Type'));

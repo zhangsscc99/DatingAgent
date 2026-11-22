@@ -168,6 +168,47 @@ describe('P426 · gzip text responses', () => {
     expect(res.body.length).toBe(0);
   });
 
+  it('GET with Range returns the raw partial bytes — no gzip on 206', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      headers: { 'accept-encoding': 'gzip', range: 'bytes=0-1999' },
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers['content-range']).toBe(`bytes 0-1999/${JS_CONTENT.length}`);
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(Number(res.headers['content-length'])).toBe(2000);
+    expect(res.body.length).toBe(2000);
+    expect(res.body.equals(Buffer.from(JS_CONTENT).subarray(0, 2000))).toBe(true);
+    // Not a gzip stream mislabelled as an identity byte range.
+    expect(res.body[0]).not.toBe(0x1f);
+  });
+
+  it('GET a suffix Range also passes through uncompressed', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      headers: { 'accept-encoding': 'gzip', range: 'bytes=-2000' },
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(res.body.equals(Buffer.from(JS_CONTENT).subarray(-2000))).toBe(true);
+  });
+
+  it('HEAD with Range does not advertise Content-Encoding: gzip', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      method: 'HEAD',
+      headers: { 'accept-encoding': 'gzip', range: 'bytes=0-1999' },
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers['content-range']).toBe(`bytes 0-1999/${JS_CONTENT.length}`);
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(Number(res.headers['content-length'])).toBe(2000);
+    expect(res.body.length).toBe(0);
+  });
+
   it('a 500-byte text response is not compressed', async () => {
     const res = await rawRequest({
       port,
