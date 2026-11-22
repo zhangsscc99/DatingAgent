@@ -28,6 +28,7 @@ import {
   regenLimitStateOf,
 } from '../lib/regenLimit';
 import { constraintSummaryLine } from '../lib/constraintChips';
+import { useTimeTicker } from '../hooks/useTimeTicker';
 import StreamingIndicator from './StreamingIndicator';
 import ToolBadge from './ToolBadge';
 import './MessageBubble.css';
@@ -111,6 +112,9 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
 
   const [copyState, setCopyState] = useState<CopyState>('idle');
   const resetTimer = useRef<number | null>(null);
+  // P442: the age label used to be a render-time snapshot — the ticker's
+  // minute cadence re-renders so 「刚刚」 becomes 「N 分钟前」 on its own.
+  const now = useTimeTicker();
   // P217: long replies start collapsed; a regenerated bubble starts fresh.
   const [replyExpanded, setReplyExpanded] = useState(false);
   useEffect(() => setReplyExpanded(false), [message.id]);
@@ -283,7 +287,7 @@ function MessageBubble({ message, onRetry, onRegenerate, onToggleReplyVersion, b
           while the exact seconds + tokens live only in the title. */}
       {createdAtAbsolute ? (
         <time dateTime={createdAtIso} title={createdAtAbsolute}>
-          {formatRelativeTime(message.createdAt)}
+          {formatRelativeTime(message.createdAt, now)}
         </time>
       ) : (
         <span>刚刚</span>

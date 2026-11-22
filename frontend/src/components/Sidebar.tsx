@@ -28,6 +28,7 @@ import {
 import type { TrashEntry } from '../lib/chatTrash';
 import TrashSheet from './TrashSheet';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useTimeTicker } from '../hooks/useTimeTicker';
 import { toolDisplayName } from '../lib/toolLabels';
 import { toolPromptFor } from '../lib/toolPrompts';
 import { STARTER_ENTRIES } from '../lib/starterEntries';
@@ -327,6 +328,9 @@ export default function Sidebar({
   // conversation the rows stay expanded as the same quick-starter path,
   // and the phone drawer never folds (the rows are its only starter path).
   const foldQuickEntries = wideViewport && emptyState;
+  // P442: row ages (「刚刚」「N 分钟前」) re-derive from the ticker's now
+  // instead of a frozen render snapshot.
+  const now = useTimeTicker();
   const visibleSessions = filterRecentChats(recentSessions, filterQuery);
   const sessionGroups = groupSessionsByDay(visibleSessions);
   const trimmedQuery = filterQuery.trim().toLowerCase();
@@ -674,7 +678,7 @@ export default function Sidebar({
                                 </span>
                               )}
                               <span className="recent-chat-meta">
-                                <span className="recent-chat-time">{formatRelativeTime(s.updatedAt)}</span>
+                                <span className="recent-chat-time">{formatRelativeTime(s.updatedAt, now)}</span>
                                 <span
                                   className="recent-chat-count"
                                   title={`共 ${Array.isArray(s.messages) ? s.messages.length : 0} 条消息`}

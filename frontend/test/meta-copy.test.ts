@@ -57,7 +57,7 @@ describe('P212 · reply meta copy', () => {
     // P304: the visible 「约 X 秒」 badge is gone — the row shows the
     // reply's relative age instead of the latency number.
     expect(bubbleSrc).not.toContain('formatReplyLatency');
-    expect(bubbleSrc).toContain('formatRelativeTime(message.createdAt)');
+    expect(bubbleSrc).toContain('formatRelativeTime(message.createdAt, now)');
     expect(formatLatencySeconds(70_200)).toBe('70.2s');
   });
 });

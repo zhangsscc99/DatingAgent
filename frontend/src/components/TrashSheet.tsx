@@ -3,6 +3,7 @@ import { startDialogDismiss } from '../lib/dialogDismiss';
 import { formatRelativeTime } from '../lib/relativeTime';
 import { trashDaysLeft } from '../lib/absoluteTime';
 import { TRASH_TTL_MS } from '../lib/chatTrash';
+import { useTimeTicker } from '../hooks/useTimeTicker';
 import type { TrashEntry } from '../lib/chatTrash';
 import ConfirmDialog from './ConfirmDialog';
 import './TrashSheet.css';
@@ -55,10 +56,12 @@ export default function TrashSheet({
     return () => handle.stop();
   }, [open, onClose]);
 
-  if (!open) return null;
-
   // P329: one snapshot per render so every row's 「剩 N 天」 agrees.
-  const now = Date.now();
+  // P442: the snapshot comes from the minute ticker, so 删除于 X and 剩 N 天
+  // keep advancing while the sheet sits open instead of freezing at mount.
+  const now = useTimeTicker();
+
+  if (!open) return null;
 
   return (
     <div
@@ -93,7 +96,7 @@ export default function TrashSheet({
                   <span className="trash-row-title">{entry.title}</span>
                   <span className="trash-row-meta">
                     {entry.messageCount} 条消息 · 删除于{' '}
-                    {formatRelativeTime(entry.deletedAt)} · 剩{' '}
+                    {formatRelativeTime(entry.deletedAt, now)} · 剩{' '}
                     {trashDaysLeft(entry.deletedAt, now, TRASH_TTL_MS)} 天
                   </span>
                 </div>
