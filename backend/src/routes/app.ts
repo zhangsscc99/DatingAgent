@@ -668,13 +668,16 @@ export function createApp(options: AppOptions = {}) {
     fs.readFile(spaShellFile, 'utf8', (err, html) => {
       if (!err && html.includes('id="root"')) {
         lastGoodSpaShell = html;
+        res.set('Cache-Control', 'no-cache');
         res.type('html').send(html);
         return;
       }
       if (lastGoodSpaShell !== null) {
+        res.set('Cache-Control', 'no-cache');
         res.type('html').send(lastGoodSpaShell);
         return;
       }
+      res.set('Cache-Control', 'no-store');
       res.set('Retry-After', '1');
       res.status(503).json(errorBody(res, 'Frontend not built'));
     });

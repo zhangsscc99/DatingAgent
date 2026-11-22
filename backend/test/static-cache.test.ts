@@ -95,3 +95,57 @@ describe('P424 · Cache-Control on static files', () => {
     expect(res.headers.get('cache-control')).toBe('no-store');
   });
 });
+
+describe('P425 · SPA shell Cache-Control: no-cache', () => {
+  let distDir = '';
+  let server: ReturnType<App['listen']> | undefined;
+  let base = '';
+
+  beforeAll(async () => {
+    distDir = fs.mkdtempSync(path.join(os.tmpdir(), 'spa-cache-'));
+    fs.writeFileSync(path.join(distDir, 'index.html'), SHELL);
+    ({ server, base } = await listen(createApp({ frontendDist: distDir, llmConfigured: true })));
+  });
+
+  afterAll(async () => {
+    await close(server!);
+    fs.rmSync(distDir, { recursive: true, force: true });
+  });
+
+  it('GET /, /index.html and a deep route answer 200 + HTML + no-cache + ETag', async () => {
+    for (const route of ['/', '/index.html', '/deep/route']) {
+      const res = await fetch(`${base}${route}`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toContain('text/html');
+      expect(res.headers.get('cache-control')).toBe('no-cache');
+      expect(res.headers.get('etag')).toBeTruthy();
+    }
+  });
+
+  describe('when dist has no index.html', () => {
+    let emptyDir = '';
+    let emptyServer: ReturnType<App['listen']> | undefined;
+    let emptyBase = '';
+
+    beforeAll(async () => {
+      emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'spa-cache-empty-'));
+      ({ server: emptyServer, base: emptyBase } = await listen(
+        createApp({ frontendDist: emptyDir, llmConfigured: true }),
+      ));
+    });
+
+    afterAll(async () => {
+      await close(emptyServer!);
+      fs.rmSync(emptyDir, { recursive: true, force: true });
+    });
+
+    it('GET / is 503 + Retry-After + no-store (not no-cache)', async () => {
+      const res = await fetch(`${emptyBase}/`);
+      expect(res.status).toBe(503);
+      expect(res.headers.get('retry-after')).toBeTruthy();
+      const cc = res.headers.get('cache-control');
+      expect(cc).toContain('no-store');
+      expect(cc).not.toBe('no-cache');
+    });
+  });
+});
