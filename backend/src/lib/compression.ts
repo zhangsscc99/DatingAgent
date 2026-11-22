@@ -29,17 +29,22 @@ function isCompressibleType(contentType: unknown): boolean {
 function acceptsGzip(req: Request): boolean {
   const header = req.headers['accept-encoding'];
   const value = Array.isArray(header) ? header.join(',') : header ?? '';
+  let wildcardQ = 0;
   for (const part of value.split(',')) {
     const [token, ...params] = part.split(';');
-    if (token.trim().toLowerCase() !== 'gzip') continue;
+    const name = token.trim().toLowerCase();
+    if (name !== 'gzip' && name !== '*') continue;
     let q = 1;
     for (const param of params) {
       const m = /^\s*q\s*=\s*([0-9]+(?:\.[0-9]+)?)\s*$/i.exec(param);
       if (m) q = Number(m[1]);
     }
-    return q > 0;
+    // An explicit gzip entry wins outright; `*` (RFC 9110 §12.5.3: any
+    // unlisted encoding is acceptable) only applies when gzip isn't named.
+    if (name === 'gzip') return q > 0;
+    wildcardQ = q;
   }
-  return false;
+  return wildcardQ > 0;
 }
 
 interface EndArgs {

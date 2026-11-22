@@ -267,6 +267,31 @@ describe('P426 · gzip text responses', () => {
     });
   }
 
+  // P435 — RFC 9110 §12.5.3: `*` accepts any encoding not explicitly listed.
+  for (const value of ['*', '*;q=0.5, br', 'br, *']) {
+    it(`Accept-Encoding "${value}" gets gzip via the wildcard`, async () => {
+      const res = await rawRequest({
+        port,
+        path: '/assets/index-abc.js',
+        headers: { 'accept-encoding': value },
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers['content-encoding']).toBe('gzip');
+      expect(zlib.gunzipSync(res.body).equals(Buffer.from(JS_CONTENT))).toBe(true);
+    });
+  }
+
+  it('Accept-Encoding "gzip;q=0, *" stays identity — explicit deny beats wildcard', async () => {
+    const res = await rawRequest({
+      port,
+      path: '/assets/index-abc.js',
+      headers: { 'accept-encoding': 'gzip;q=0, *' },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers['content-encoding']).toBeUndefined();
+    expect(res.body.equals(Buffer.from(JS_CONTENT))).toBe(true);
+  });
+
   it('Accept-Encoding "xgzip" still does not match the gzip token', async () => {
     const res = await rawRequest({
       port,
