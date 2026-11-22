@@ -87,10 +87,11 @@ describe('P259 settings-path touch targets on narrow screens', () => {
     expect(Number(h![1])).toBeLessThanOrEqual(32);
   });
 
-  it('the capsule label and dismiss × stay inside the 32px capsule', () => {
+  it('the capsule label keeps a 44px hit area and the dismiss × stays inside the 32px capsule', () => {
     const btn = ruleBody(narrowBlock(chatWindowCss), '.profile-nudge-btn');
-    // P349 supersedes the old 36px chip bump: the label is part of a capsule.
-    expect(btn).toContain('min-height: 0');
+    // P444 supersedes P349's flush label: the visual capsule stays 32px but
+    // the button's tap zone is stretched to the 44px touch-target floor.
+    expect(btn).toContain('min-height: 44px');
     expect(btn).toContain('display: inline-flex');
     expect(btn).toContain('align-items: center');
     const dismiss = ruleBody(narrowBlock(chatWindowCss), '.profile-nudge-dismiss');
@@ -110,14 +111,14 @@ describe('P259 settings-path touch targets on narrow screens', () => {
     const baseOpen = sidebarCss.match(/\.settings-open-btn\s*\{([^}]*)\}/);
     expect(baseOpen).toBeTruthy();
     expect(baseOpen![1]).not.toContain('min-height');
-    // base .profile-nudge-btn is the capsule label: flat text inside the
-    // 32px pill (P349), still 12px type.
+    // base .profile-nudge-btn is the capsule label: still 12px type inside
+    // the 32px pill (P349), with P444's 44px hit-area floor on the button.
     const outsideMedia = chatWindowCss.replace(narrowBlock(chatWindowCss), '');
     const baseNudge = outsideMedia.match(/\.profile-nudge-btn\s*\{([^}]*)\}/);
     expect(baseNudge).toBeTruthy();
     expect(baseNudge![1]).toContain('padding: 0 4px');
     expect(baseNudge![1]).toContain('font-size: 12px');
-    expect(baseNudge![1]).not.toContain('min-height');
+    expect(baseNudge![1]).toContain('min-height: 44px');
     // …and the capsule itself never exceeds P349's 32px ceiling.
     const baseCapsule = outsideMedia.match(/\.profile-nudge\s*\{([^}]*)\}/);
     expect(baseCapsule).toBeTruthy();

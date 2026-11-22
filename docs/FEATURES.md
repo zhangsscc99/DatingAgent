@@ -710,6 +710,6 @@ Operating contract for the autonomous feature loop: see `docs/AGENT-LOOP.md`.
 
 <!-- Walkthrough round 114 (2026-11-22 20:09 UTC): no new items this round. Open carry-over: P443 (avatar upload) confirmed still reproducible; P442 ("刚刚" label frozen) re-reproduced on reload. Screenshots docs/runs/walk-1795378460-* pending vision (quota 429). -->
 
-- [ ] **P444 · 「想让我更懂你的处境？完善资料 →」入口按钮热区 189×14px（第 115 轮 DOM 体检，可负担性）**｜390×844 与 1440×900 实测该按钮 `getBoundingClientRect()` = 189×14（docs/runs/walk-1795379474-m2.png / d1.png 为证）；`intuitive-game-design` 可负担性 + 移动端拇指热区标准：触控目标 ≥44×44（P441 同款问题的新实例——上一批 3 个图标按钮已修，这个文字条入口漏了）。修法（纯 CSS）：给该按钮加 min-height 44px（或 ::after 扩大命中区），行文案居中不换行。verify: 390×844 下 `document.querySelectorAll('button')` 中含「完善资料」的按钮 rect 宽高均 ≥44；截图为改后证据｜risk: low
+- [x] **P444 · 「想让我更懂你的处境？完善资料 →」入口按钮热区 189×14px（第 115 轮 DOM 体检，可负担性）**｜390×844 与 1440×900 实测该按钮 `getBoundingClientRect()` = 189×14（docs/runs/walk-1795379474-m2.png / d1.png 为证）；`intuitive-game-design` 可负担性 + 移动端拇指热区标准：触控目标 ≥44×44（P441 同款问题的新实例——上一批 3 个图标按钮已修，这个文字条入口漏了）。修法（纯 CSS）：给该按钮加 min-height 44px（或 ::after 扩大命中区），行文案居中不换行。verify: 390×844 下 `document.querySelectorAll('button')` 中含「完善资料」的按钮 rect 宽高均 ≥44；截图为改后证据｜risk: low
 
 <!-- Walkthrough round 115 (2026-11-22 20:36 UTC): P444 filed (profile-entry tap target 189×14px). P442 re-verified FIXED live (label ticked 刚刚→1 分钟前 after 72s). P443 shipped & visible in dialog; real device image-pick chain untested. Vision quota 429 (7th round); 15 shots in docs/runs/walk-1795379474-* pending. -->

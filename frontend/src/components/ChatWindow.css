@@ -694,7 +694,9 @@
   }
 
   .profile-nudge-btn {
-    min-height: 0;
+    /* P444: keep the 44px touch target on phones too — the capsule
+       stays 32px, the button overflows it symmetrically. */
+    min-height: 44px;
     padding: 0 6px;
     display: inline-flex;
     align-items: center;
@@ -1066,8 +1068,16 @@
 
 /* P290/P349: the label itself is the button — no inner chip, so the whole
    capsule stays one line high. */
+/* P444: the visual capsule stays 32px, but the button's hit area is
+   stretched to the 44px touch-target floor — it overflows the capsule
+   symmetrically (parent aligns center) so the label stays centred on one
+   line while the tap zone reaches past it. */
 .profile-nudge-btn {
   min-width: 0;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0 4px;
   background: transparent;
   border: none;
