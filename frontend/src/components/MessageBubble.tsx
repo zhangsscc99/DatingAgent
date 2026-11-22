@@ -35,7 +35,7 @@ import './MessageBubble.css';
 interface Props {
   message: ChatMessage;
   onRetry?: (messageId: string, prompt: string) => void;
-  /** P26: offered only on the newest assistant bubble; regenerates in place. */
+  /** P26/P438: offered on every settled assistant bubble; regenerates in place. */
   onRegenerate?: (messageId: string) => void;
   /** P276: swap the displayed reply with the version 换一个 parked. */
   onToggleReplyVersion?: (messageId: string) => void;

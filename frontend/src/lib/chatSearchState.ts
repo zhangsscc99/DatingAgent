@@ -41,15 +41,19 @@ export function retryableMessageId(messages: ChatMessage[]): string | null {
 }
 
 /**
- * Mirrors regeneratePromptFor's preconditions: more than one message, the last
- * is a settled (non-error, non-streaming) assistant reply, and the message
- * right before it is the user prompt it answered.
+ * P438: every settled assistant reply offers 换一个 — not only the newest —
+ * so same-kind bubbles carry the identical action row. Mirrors
+ * regeneratePromptFor's preconditions per message: a settled (non-error,
+ * non-streaming) assistant reply whose predecessor is the user prompt it
+ * answered.
  */
-export function regenerableMessageId(messages: ChatMessage[]): string | null {
-  if (messages.length <= 1) return null;
-  const last = messages[messages.length - 1];
-  const prev = messages[messages.length - 2];
-  if (last.role !== 'assistant' || last.error || last.streaming) return null;
-  if (prev.role !== 'user') return null;
-  return last.id;
+export function regenerableMessageIds(messages: ChatMessage[]): Set<string> {
+  const ids = new Set<string>();
+  for (let i = 1; i < messages.length; i += 1) {
+    const msg = messages[i];
+    if (msg.role !== 'assistant' || msg.error || msg.streaming) continue;
+    if (messages[i - 1].role !== 'user') continue;
+    ids.add(msg.id);
+  }
+  return ids;
 }

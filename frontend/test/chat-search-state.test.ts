@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   EMPTY_CHAT_SEARCH,
-  regenerableMessageId,
+  regenerableMessageIds,
   resetSearchOnSessionChange,
   retryableMessageId,
 } from '../src/lib/chatSearchState';
@@ -77,40 +77,42 @@ describe('P162 · retryableMessageId', () => {
   });
 });
 
-describe('P162 · regenerableMessageId', () => {
-  it('returns the last reply id when it answers the user message before it', () => {
+describe('P438 · regenerableMessageIds', () => {
+  it('marks every settled assistant reply that answers a user message', () => {
     const msgs = [user('u1'), assistant('a1'), user('u2'), assistant('a2')];
-    expect(regenerableMessageId(msgs)).toBe('a2');
+    expect(regenerableMessageIds(msgs)).toEqual(new Set(['a1', 'a2']));
   });
 
-  it('returns null for a single-message conversation', () => {
-    expect(regenerableMessageId([assistant('a1')])).toBeNull();
-    expect(regenerableMessageId([user('u1')])).toBeNull();
-    expect(regenerableMessageId([])).toBeNull();
+  it('is empty for a single-message conversation', () => {
+    expect(regenerableMessageIds([assistant('a1')]).size).toBe(0);
+    expect(regenerableMessageIds([user('u1')])).toEqual(new Set());
+    expect(regenerableMessageIds([])).toEqual(new Set());
   });
 
-  it('returns null when the previous message is not from the user', () => {
+  it('skips a reply whose previous message is not from the user', () => {
     const msgs = [user('u1'), assistant('a1'), assistant('a2')];
-    expect(regenerableMessageId(msgs)).toBeNull();
+    expect(regenerableMessageIds(msgs)).toEqual(new Set(['a1']));
   });
 
-  it('returns null when the last row is a user message', () => {
-    expect(regenerableMessageId([user('u1'), assistant('a1'), user('u2')])).toBeNull();
+  it('marks older replies even when the last row is a user message', () => {
+    expect(regenerableMessageIds([user('u1'), assistant('a1'), user('u2')])).toEqual(
+      new Set(['a1']),
+    );
   });
 
-  it('returns null for an error or still-streaming last reply', () => {
+  it('skips error and still-streaming replies', () => {
     expect(
-      regenerableMessageId([
+      regenerableMessageIds([
         user('u1'),
         assistant('a1', { error: true, retryPrompt: '你好' }),
       ]),
-    ).toBeNull();
+    ).toEqual(new Set());
     expect(
-      regenerableMessageId([
+      regenerableMessageIds([
         user('u1'),
         assistant('a1', { content: '', streaming: true }),
       ]),
-    ).toBeNull();
+    ).toEqual(new Set());
   });
 });
 

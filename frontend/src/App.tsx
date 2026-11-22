@@ -1231,10 +1231,11 @@ export default function App() {
   }, [toastCtl, handleServiceRetry]);
 
   /**
-   * P26: re-issue the prompt that produced the last assistant reply, replacing
-   * that bubble in place — no new user bubble, no orphaned old reply. On
-   * failure the original content/meta is restored and the error is shown
-   * alongside it, so the previous reply is never lost.
+   * P26/P438: re-issue the prompt that produced an assistant reply, replacing
+   * that bubble in place — every settled reply re-rolls, not just the newest,
+   * and no new user bubble or orphaned old reply appears. On failure the
+   * original content/meta is restored and the error is shown alongside it,
+   * so the previous reply is never lost.
    */
   const handleRegenerate = useCallback(
     (messageId: string) => {
@@ -1242,7 +1243,8 @@ export default function App() {
       const prompt = regeneratePromptFor(messages, messageId);
       if (!prompt) return;
 
-      const target = messages[messages.length - 1];
+      const target = messages.find((m) => m.id === messageId);
+      if (!target || target.role !== 'assistant') return;
       // P335: 换一个 is no longer free — each reply gets REGEN_ROLL_LIMIT
       // rolls, then the button locks for REGEN_COOLDOWN_MS. The roll is
       // counted here at the same patch point where P332 bumps versionIndex

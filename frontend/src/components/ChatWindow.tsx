@@ -17,7 +17,7 @@ import UndoToast from './UndoToast';
 import { DEFAULT_DRAFT_ID } from '../lib/chatDrafts';
 import {
   EMPTY_CHAT_SEARCH,
-  regenerableMessageId,
+  regenerableMessageIds,
   resetSearchOnSessionChange,
   retryableMessageId,
 } from '../lib/chatSearchState';
@@ -99,7 +99,7 @@ interface Props {
   /** P12: abort the in-flight streamed reply. */
   onStop?: () => void;
   onRetry?: (messageId: string, prompt: string) => void;
-  /** P26: regenerate the newest assistant reply in place. */
+  /** P26/P438: regenerate an assistant reply in place. */
   onRegenerate?: (messageId: string) => void;
   /** P276: swap a regenerated bubble between its newest and parked version. */
   onToggleReplyVersion?: (messageId: string) => void;
@@ -408,10 +408,11 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
   const matchCount = matches.length;
   const renderedMessages = searching ? matches : messages;
   const activeMatch = matchCount === 0 ? 0 : Math.min(activeIndex, matchCount - 1);
-  // P162: retry/regenerate act on the true tail of `messages`, never on the
-  // filtered search view — bind by id so hidden turns keep no dead buttons.
+  // P162: retry/regenerate act on `messages`, never on the filtered search
+  // view — bind by id so hidden turns keep no dead buttons. P438: every
+  // settled assistant turn is regenerable, not just the newest.
   const retryableId = retryableMessageId(messages);
-  const regenerableId = regenerableMessageId(messages);
+  const regenerableIds = regenerableMessageIds(messages);
 
   // P162: ChatWindow has no per-session key, so a search left open in one
   // conversation would keep filtering the next and hide its messages. Reset
@@ -1047,10 +1048,11 @@ const ChatWindow = forwardRef<ChatWindowHandle, Props>(function ChatWindow({
                   : undefined
               }
               highlightQuery={searching ? normalizedQuery : undefined}
-              // Only the newest turn of the full conversation can be retried
-              // or regenerated; anything older would append out of order.
+              // Only the newest turn of the full conversation can be retried;
+              // anything older would append out of order. P438: every settled
+              // assistant bubble re-rolls in place — same action row on all.
               onRetry={msg.id === retryableId ? onRetry : undefined}
-              onRegenerate={msg.id === regenerableId ? onRegenerate : undefined}
+              onRegenerate={regenerableIds.has(msg.id) ? onRegenerate : undefined}
               // P276: the version toggle follows the bubble that actually
               // carries a parked version — every row gets the handler and
               // MessageBubble only renders the control when a slot exists.

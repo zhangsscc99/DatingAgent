@@ -24,9 +24,9 @@ describe('P26 · regeneratePromptFor', () => {
     expect(regeneratePromptFor(msgs, 'a2')).toBe('帮我规划一次约会');
   });
 
-  it('rejects assistant bubbles that are not the newest message', () => {
+  it('P438: an older assistant bubble re-rolls too — returns its own prompt', () => {
     const msgs = [user('u1', '你好'), assistant('a1'), user('u2', '二'), assistant('a2')];
-    expect(regeneratePromptFor(msgs, 'a1')).toBeNull();
+    expect(regeneratePromptFor(msgs, 'a1')).toBe('你好');
   });
 
   it('rejects non-assistant targets and unknown ids', () => {
