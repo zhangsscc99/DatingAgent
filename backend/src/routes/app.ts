@@ -684,7 +684,19 @@ export function createApp(options: AppOptions = {}) {
   app.get('/index.html', serveSpaShell);
   // `index: false` keeps express.static from serving index.html itself —
   // every shell request (`/`, deep routes) funnels into the guarded read.
-  app.use(express.static(distDir, { index: false }));
+  app.use(express.static(distDir, {
+    index: false,
+    setHeaders(res, filePath) {
+      // P424: Vite emits content-hashed bundles under assets/ — the filename
+      // changes whenever the bytes do, so they can be cached forever. Other
+      // static files (favicon.svg, ...) keep a short revalidation window.
+      if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=300');
+      }
+    },
+  }));
   app.get('/favicon.ico', (_req, res) => res.status(204).end());
   app.get('*', serveSpaShell);
 
