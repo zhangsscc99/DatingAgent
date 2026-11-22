@@ -361,3 +361,4 @@
 2026-11-22 18:16 | F437 | 记忆闸门补「问句内逐字子句」漏放：questionVerbatimEcho 提取闸 + 读径剪枝 + 前端孪生闸（她昨天没回/我昨晚没睡好不再入胶囊）
 2026-11-22 18:31 | P438 | 所有 settled 助手气泡统一「复制+换一个」操作行：regenerableMessageIds 覆盖每条助手回复，regeneratePromptFor/handleRegenerate 解除仅末条限制，新增 bubble-actions.test.ts
 2026-11-22 18:49 | P439 | 桌面空态侧栏快捷入口折叠为「推荐问题」disclosure（emptyState+≥769px，复用 tools-details 解剖 + display:none 折盒），4 行降一层不再与 hero 主 CTA 一级竞争；hero-primary-cta.test.ts 新增 P439 describe（≤8 去重入口/四名称 0 可见/中空展开/CSS 契约），starter-parity 桌面断言改走折叠组；verify 2055 例全绿、ci-deploy 通过（health ok + smoke "OK"）
+2026-11-22 19:03 | F439 | 修复公网 /dating/ 反代：portfolio-proxy.js（portfolio-manager-gateway, :80）此前无 /dating/ 路由、全部落 openfolio 前端；新增 isDating（/dating, /dating/*, /assets/*, /favicon.svg → 127.0.0.1:3012，/dating 前缀 strip）+ isDatingApi（Referer 在 /dating/ 下的 /api/* → 3012，解决与 openfolio /api 冲突）；备份 .bak-20261122-190157，pm2 restart gateway；验收：/dating/ 无 openfolio、title DatingAgent、/assets js/css 200、health ok、openfolio 根与 /api 不受影响
